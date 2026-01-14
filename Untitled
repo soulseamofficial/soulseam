@@ -1,0 +1,2 @@
+MONGODB_URI=mongodb://localhost:27017/soulseam_db
+JWT_SECRET=52fefdafe42ba5a9d1cf28597b891f8636ae135f85eb8391ca5c9558f9bde6a4

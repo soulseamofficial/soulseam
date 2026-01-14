@@ -1,0 +1,51 @@
+<svg width="160" height="160" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="160" height="160" rx="24" fill="#05070D"/>
+  <g opacity="0.9">
+    <path
+      d="M42 50H50.5L55.5 94H112"
+      stroke="#FFFFFF"
+      stroke-width="2.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M60 104C62.2091 104 64 105.791 64 108C64 110.209 62.2091 112 60 112C57.7909 112 56 110.209 56 108C56 105.791 57.7909 104 60 104Z"
+      stroke="#FFFFFF"
+      stroke-width="2.5"
+    />
+    <path
+      d="M102 104C104.209 104 106 105.791 106 108C106 110.209 104.209 112 102 112C99.7909 112 98 110.209 98 108C98 105.791 99.7909 104 102 104Z"
+      stroke="#FFFFFF"
+      stroke-width="2.5"
+    />
+    <path
+      d="M55.5 94L52 66H116L110.5 90C110.192 91.3171 109.452 92.5058 108.397 93.3547C107.342 94.2037 106.038 94.6641 104.7 94.6667H55.5Z"
+      stroke="#FFFFFF"
+      stroke-width="2.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M72 40L64 48"
+      stroke="#FF4B6E"
+      stroke-width="2.5"
+      stroke-linecap="round"
+    />
+    <path
+      d="M88 40L80 48"
+      stroke="#FF4B6E"
+      stroke-width="2.5"
+      stroke-linecap="round"
+    />
+    <path
+      d="M104 40L96 48"
+      stroke="#FF4B6E"
+      stroke-width="2.5"
+      stroke-linecap="round"
+    />
+  </g>
+  <circle cx="32" cy="32" r="6" fill="#111827"/>
+  <path d="M29.5 32L31.5 34L35 30.5" stroke="#10B981" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+
