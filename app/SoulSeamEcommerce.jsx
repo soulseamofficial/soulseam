@@ -990,7 +990,7 @@ const SoulSeamEcommerce = () => {
         <div className="max-w-7xl mx-auto">
           {/* ✅ Mobile responsive fix: Stack header vertically on mobile */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 sm:mb-12 gap-4 sm:gap-0">
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold">Latest Drop</h2>
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold">Latest Drop 🔥</h2>
             <Link
               href="/explore"
               className="bg-black text-white px-6 py-2 sm:px-8 sm:py-3 rounded-full font-semibold hover:bg-gray-800 transition-all duration-300 transform hover:scale-105 w-fit"
