@@ -13,64 +13,66 @@ export const useCart = () => {
 };
 
 export const CartProvider = ({ children }) => {
-  const [cartItems, setCartItems] = useState([]);
-
-  // Load cart from localStorage ONLY on client
-  useEffect(() => {
-    if (typeof window === "undefined") return;
+  // ✅ FIX: Lazy initializer (NO useEffect setState)
+  const [cartItems, setCartItems] = useState(() => {
+    if (typeof window === "undefined") return [];
     try {
       const stored = window.localStorage.getItem("soulseam_cart");
-      if (stored) {
-        setCartItems(JSON.parse(stored));
-      }
-    } catch (err) {
-      setCartItems([]);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
     }
-  }, []);
+  });
 
   // Save cart to localStorage when cartItems change
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      window.localStorage.setItem("soulseam_cart", JSON.stringify(cartItems));
-    } catch (err) {
-      // fail silently
+      window.localStorage.setItem(
+        "soulseam_cart",
+        JSON.stringify(cartItems)
+      );
+    } catch {
+      // silent fail
     }
   }, [cartItems]);
 
   // Sync cart between tabs/windows
   useEffect(() => {
     if (typeof window === "undefined") return;
+
     const handler = (e) => {
       if (e.key === "soulseam_cart") {
         try {
           const items = e.newValue ? JSON.parse(e.newValue) : [];
           setCartItems(Array.isArray(items) ? items : []);
-        } catch (err) {
+        } catch {
           setCartItems([]);
         }
       }
     };
+
     window.addEventListener("storage", handler);
     return () => window.removeEventListener("storage", handler);
   }, []);
 
-  // Add product to cart (by id and size), or increase quantity
+  // Add product to cart
   const addToCart = (product, size = "M", quantity = 1, color = "Black") => {
     if (!product || typeof product !== "object") return;
+
     setCartItems((prevItems) => {
       const idx = prevItems.findIndex(
         (item) => item.id === product.id && item.size === size
       );
+
       if (idx !== -1) {
-        // duplicate found: update quantity
         return prevItems.map((item, i) =>
           i === idx
             ? { ...item, quantity: item.quantity + quantity }
             : item
         );
       }
-      // add new item
+
       return [
         ...prevItems,
         {
@@ -91,7 +93,6 @@ export const CartProvider = ({ children }) => {
     });
   };
 
-  // Update quantity (by id and size)
   const updateQuantity = (id, size, change) => {
     setCartItems((prev) =>
       prev.map((item) =>
@@ -102,23 +103,19 @@ export const CartProvider = ({ children }) => {
     );
   };
 
-  // Remove item from cart (by id and size)
   const removeItem = (id, size) => {
     setCartItems((prev) =>
       prev.filter((item) => !(item.id === id && item.size === size))
     );
   };
 
-  // Clear the cart
-  const clearCart = () => {
-    setCartItems([]);
-  };
+  const clearCart = () => setCartItems([]);
 
-  // Calculate cart count and subtotal
   const cartCount = cartItems.reduce(
     (sum, item) => sum + (item.quantity || 0),
     0
   );
+
   const subtotal = cartItems.reduce(
     (sum, item) =>
       sum +
