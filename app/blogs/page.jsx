@@ -2,6 +2,8 @@
 
 import { useRef, useEffect, useState } from "react";
 
+/* ================= DATA ================= */
+
 const blogsData = [
   { id: 1, title: "The Soul Behind The Seam", videoUrl: "/videos/reel1.mp4", category: "Story", duration: "2:05" },
   { id: 2, title: "Streetwear Launch Vlog", videoUrl: "/videos/reel2.mp4", category: "Vlog", duration: "4:12" },
@@ -11,7 +13,9 @@ const blogsData = [
   { id: 6, title: "Oversized Tee Breakdown", videoUrl: "/videos/reel6.mp4", category: "Explainer", duration: "1:19" },
 ];
 
-const ReelCard = ({ video, isCenter }) => {
+/* ================= REEL CARD ================= */
+
+const ReelCard = ({ video, highlight = false }) => {
   const ref = useRef(null);
 
   useEffect(() => {
@@ -22,50 +26,59 @@ const ReelCard = ({ video, isCenter }) => {
 
   return (
     <div
-      className="relative transition-all duration-700 ease-out"
+      className="relative overflow-hidden rounded-[26px] bg-black transition-all duration-500"
       style={{
-        transform: isCenter ? "scale(1.05)" : "scale(0.92)",
-        opacity: isCenter ? 1 : 0.75,
+        aspectRatio: "9 / 16",
+        transform: highlight ? "scale(1.05)" : "scale(1)",
+        boxShadow: highlight
+          ? "0 40px 90px rgba(0,0,0,.75)"
+          : "0 20px 50px rgba(0,0,0,.45)",
       }}
     >
-      <div
-        className="relative overflow-hidden rounded-[26px] bg-black"
-        style={{
-          aspectRatio: "9/16",
-          boxShadow: isCenter
-            ? "0 40px 90px rgba(0,0,0,.75)"
-            : "0 20px 50px rgba(0,0,0,.45)",
-        }}
-      >
-        <video
-          ref={ref}
-          src={video.videoUrl}
-          muted
-          loop
-          playsInline
-          className="w-full h-full object-cover"
-        />
+      <video
+        ref={ref}
+        src={video.videoUrl}
+        muted
+        loop
+        playsInline
+        className="w-full h-full object-cover"
+      />
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
 
-        <div className="absolute bottom-0 p-4">
-          <p className="text-xs uppercase tracking-widest text-white/60">
-            {video.category} • {video.duration}
-          </p>
-          <h3 className="text-lg font-semibold text-white mt-1">
-            {video.title}
-          </h3>
-        </div>
+      <div className="absolute bottom-0 p-4">
+        <p className="text-xs uppercase tracking-widest text-white/60">
+          {video.category} • {video.duration}
+        </p>
+        <h3 className="text-lg font-semibold text-white mt-1">
+          {video.title}
+        </h3>
       </div>
     </div>
   );
 };
 
+/* ================= PAGE ================= */
+
 export default function BlogsPage() {
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  /* Detect desktop vs mobile */
+  useEffect(() => {
+    const check = () => setIsDesktop(window.innerWidth >= 1024);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  /* ================= MOBILE LAYOUT ================= */
+
   const containerRef = useRef(null);
   const [centerIndex, setCenterIndex] = useState(1);
 
   useEffect(() => {
+    if (isDesktop) return;
+
     const container = containerRef.current;
     if (!container) return;
 
@@ -97,7 +110,7 @@ export default function BlogsPage() {
       container.removeEventListener("scroll", handler);
       window.removeEventListener("resize", handler);
     };
-  }, []);
+  }, [isDesktop]);
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -126,34 +139,40 @@ export default function BlogsPage() {
         </p>
       </section>
 
-      {/* HORIZONTAL REEL STRIP */}
-      <section className="pb-24">
-        <div
-          ref={containerRef}
-          className="flex gap-8 overflow-x-auto px-6 scrollbar-hide"
-          style={{
-            scrollSnapType: "x mandatory",
-            WebkitOverflowScrolling: "touch",
-          }}
-        >
-          {blogsData.map((video, index) => (
-            <div
-              key={video.id}
-              className="flex-shrink-0"
-              style={{
-                width: "70vw",
-                maxWidth: "360px",
-                scrollSnapAlign: "center",
-              }}
-            >
-              <ReelCard
-                video={video}
-                isCenter={index === centerIndex}
-              />
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* ================= MOBILE VIEW ================= */}
+      {!isDesktop && (
+        <section className="pb-24">
+          <div
+            ref={containerRef}
+            className="flex gap-8 overflow-x-auto px-6 scrollbar-hide"
+            style={{ WebkitOverflowScrolling: "touch" }}
+          >
+            {blogsData.map((video, index) => (
+              <div
+                key={video.id}
+                className="flex-shrink-0"
+                style={{ width: "70vw", maxWidth: "360px" }}
+              >
+                <ReelCard
+                  video={video}
+                  highlight={index === centerIndex}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ================= DESKTOP VIEW ================= */}
+      {isDesktop && (
+        <section className="max-w-7xl mx-auto px-12 pb-24">
+          <div className="grid grid-cols-3 gap-12">
+            {blogsData.map((video) => (
+              <ReelCard key={video.id} video={video} />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
