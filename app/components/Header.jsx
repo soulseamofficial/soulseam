@@ -24,11 +24,13 @@ export default function Header() {
         <div className="max-w-7xl mx-auto flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex items-center">
-            <Link
-              href="/"
-              className="font-extrabold tracking-widest text-xl text-white hover:text-primary-400 transition"
-              aria-label="SoulSeam Home"
-            >
+          <Link
+  href="/"
+  className="font-extrabold tracking-widest text-xl text-white hover:text-primary-400 transition
+             relative z-[10000] pointer-events-auto"
+  aria-label="SoulSeam Home"
+>
+
               SOUL<span className="text-primary-400">SEAM</span>
             </Link>
           </div>

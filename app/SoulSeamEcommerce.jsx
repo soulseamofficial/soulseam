@@ -868,14 +868,26 @@ const SoulSeamEcommerce = () => {
         >
           <div className="flex gap-4 sm:gap-6 md:gap-8 lg:gap-12 pl-4 sm:pl-6 md:pl-8">
             {fashionImages.map((img, index) => (
-              <div
-                key={index}
-                className="relative flex-shrink-0 w-[200px] h-[300px] xs:w-[240px] xs:h-[360px] sm:w-[280px] sm:h-[420px] md:w-[320px] md:h-[480px] lg:w-[400px] lg:h-[600px] overflow-hidden group"
-                style={{
-                  perspective: "1000px",
-                  transformStyle: "preserve-3d",
-                }}
-              >
+           <div
+           key={index}
+           className={`
+             relative flex-shrink-0
+             w-[80vw] h-[70vh]
+             max-w-[320px] max-h-[520px]
+             sm:w-[280px] sm:h-[420px]
+             md:w-[320px] md:h-[480px]
+             lg:w-[400px] lg:h-[600px]
+             overflow-hidden group
+           `}
+           style={{
+             perspective: "1000px",
+             transformStyle: "preserve-3d",
+           }}
+         >
+         
+          
+           
+            
                 <div className="absolute inset-0 border border-white/20 rounded-[24px] overflow-hidden z-10 pointer-events-none">
                   <div className="absolute inset-0 border-2 border-white/5 rounded-[24px]"></div>
                   <div className="absolute -inset-[1px] bg-gradient-to-r from-white/5 via-white/0 to-white/5 rounded-[25px] opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
@@ -1235,7 +1247,7 @@ const SoulSeamEcommerce = () => {
         </div>
       </footer>
 
-      <style jsx>{`
+      {/* <style jsx>{`
         @keyframes float {
           0%,
           100% {
@@ -1255,7 +1267,7 @@ const SoulSeamEcommerce = () => {
           -moz-osx-font-smoothing: grayscale;
           text-rendering: optimizeLegibility;
         }
-      `}</style>
+      `}</style> */}
     </div>
   );
 };
