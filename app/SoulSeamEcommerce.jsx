@@ -914,7 +914,7 @@ const SoulSeamEcommerce = () => {
             ref={taglineRef}
             className="text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl text-white/90 font-light tracking-[0.05em] mb-8 sm:mb-10 md:mb-12 lg:mb-16 text-center max-w-2xl mx-auto px-4 leading-relaxed"
           >
-            Where Threads Weave Souls
+            Every Seam Connects Your Soul
           </p>
           {/* Scroll indicator + Explore Collection button (only after intro animation) */}
           {heroAnimationComplete && (
