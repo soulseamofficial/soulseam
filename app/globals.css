@@ -86,7 +86,6 @@ body {
 .feature-delay-1 { animation-delay: 0.15s; }
 .feature-delay-2 { animation-delay: 0.3s; }
 .feature-delay-3 { animation-delay: 0.45s; }
-
 .feature-card {
   transition: all 0.6s ease;
 }
