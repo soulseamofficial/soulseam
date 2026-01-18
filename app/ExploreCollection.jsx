@@ -986,10 +986,10 @@ const ExploreCollection = () => {
           <div className="max-w-7xl mx-auto">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
               {[
-                { value: '10K+', label: 'Happy Customers' },
-                { value: '42', label: 'Unique Designs' },
-                { value: '100%', label: 'Sustainable Materials' },
-                { value: '4.8★', label: 'Average Rating' },
+                { value: 'S', label: 'Style' },
+                { value: 'O', label: 'Originality' },
+                { value: 'U', label: 'Unmatched' },
+                { value: 'L', label: 'Luxury & Premium' },
               ].map((stat, index) => (
                 <div key={index} className="text-center group">
                   <div className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-light mb-2 sm:mb-3 md:mb-4 text-white">
