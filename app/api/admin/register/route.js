@@ -1,21 +1,44 @@
-import mongoose from "mongoose";
-import Admin from "../../../models/Admin.js";
+import { connectDB } from "../../../lib/db";
+import Admin from "../../../models/Admin";
+import bcrypt from "bcryptjs";
+
+
 
 export async function POST(req) {
-  await mongoose.connect(process.env.MONGODB_URI);
+  try {
+    await connectDB();
 
-  const { email, password } = await req.json();
+    const { email, password } = await req.json();
 
-  const existing = await Admin.findOne({ email });
+    if (!email || !password) {
+      return Response.json(
+        { message: "Email & password required" },
+        { status: 400 }
+      );
+    }
 
-  if (existing) {
+    const exists = await Admin.findOne({ email });
+    if (exists) {
+      return Response.json(
+        { message: "Admin already exists" },
+        { status: 400 }
+      );
+    }
+
+    // 🔐 HASH PASSWORD
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await Admin.create({
+      email,
+      password: hashedPassword
+    });
+
+    return Response.json({ success: true });
+  } catch (err) {
+    console.error(err);
     return Response.json(
-      { message: "Email already exists" },
-      { status: 400 }
+      { message: "Register failed" },
+      { status: 500 }
     );
   }
-
-  const admin = await Admin.create({ email, password });
-
-  return Response.json({ success: true, admin });
 }
