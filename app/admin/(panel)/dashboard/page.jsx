@@ -1,27 +1,38 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 // Animation utility
 const FADE_IN_ANIMATION =
   "opacity-0 translate-y-6 animate-fade-in-up";
 
 export default function AdminDashboardPage() {
+  const router = useRouter();
   const [stats, setStats] = useState({
     products: 0,
     reels: 0,
     coupons: 0,
     users: 0,
   });
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const logout = async () => {
+    await fetch("/api/admin/logout", {
+      method: "POST",
+      credentials: "include"
+    });
+    router.replace("/admin/login");
+  };
 
   // ✅ FETCH STATS FROM DB
   useEffect(() => {
     async function fetchStats() {
       try {
-        const res = await fetch("/api/admin/stats");
+        const res = await fetch("/api/admin/stats", {
+          credentials: "include"
+        });        
         if (!res.ok) throw new Error("Failed to fetch");
 
         const data = await res.json();

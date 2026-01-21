@@ -1,41 +1,24 @@
 import { NextResponse } from "next/server";
 
 export function middleware(req) {
-  const { pathname, searchParams } = req.nextUrl;
-  const isAdmin = req.cookies.get("admin")?.value === "1";
+  const token = req.cookies.get("admin_token")?.value;
 
-  // ❌ Block admin register
-  if (pathname === "/admin/register") {
-    return NextResponse.rewrite(new URL("/404", req.url));
+  // ❌ Not logged in
+  if (!token) {
+    return NextResponse.redirect(
+      new URL("/admin/login", req.url)
+    );
   }
 
-  // 🕵️ Secret admin login page
-  if (pathname === "/admin/portal") {
-    const key = searchParams.get("key");
-    const secret = process.env.ADMIN_ENTRY_KEY;
-
-    if (!secret || key !== secret) {
-      return NextResponse.rewrite(new URL("/404", req.url));
-    }
-
-    return NextResponse.next(); // allow portal
-  }
-
-  // 🔐 Protect all other admin pages
-  if (pathname.startsWith("/admin")) {
-    if (!isAdmin) {
-      return NextResponse.redirect(
-        new URL(
-          `/admin/portal?key=${process.env.ADMIN_ENTRY_KEY}`,
-          req.url
-        )
-      );
-    }
-  }
-
+  // ✅ Token exists → allow
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: [
+    "/admin/dashboard/:path*",
+    "/admin/products/:path*",
+    "/admin/reels/:path*",
+    "/admin/coupons/:path*"
+  ]
 };

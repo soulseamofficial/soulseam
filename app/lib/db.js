@@ -6,11 +6,14 @@ export async function connectDB() {
   if (isConnected) return;
 
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
+    await mongoose.connect(process.env.MONGODB_URI, {
+      dbName: "soulseam",
+    });
+
     isConnected = true;
-    console.log("MongoDB connected");
-  } catch (err) {
-    console.error("MongoDB connection error:", err);
-    throw err;
+    console.log("✅ MongoDB connected");
+  } catch (error) {
+    console.error("❌ MongoDB connection failed", error);
+    throw new Error("DB connection failed");
   }
 }

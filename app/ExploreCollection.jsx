@@ -1,16 +1,13 @@
-// src/ExploreCollection.js
+// ExploreCollection.jsx
 "use client";
-
-// other imports...
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from "next/link";
-import { useRouter } from "next/navigation";  
+import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-
-import { 
-  ChevronRight, Sparkles, Filter, X, ShoppingBag, Heart, Star, ArrowUpRight, 
-  Play, Pause, Plus, Minus, Check, Share2, Truck, Shield, RotateCcw, 
+import {
+  ChevronRight, Sparkles, Filter, X, ShoppingBag, Heart, Star, ArrowUpRight,
+  Play, Pause, Plus, Minus, Check, Share2, Truck, Shield, RotateCcw,
   ChevronLeft, ChevronRight as RightIcon, XCircle, Package, Tag, Ruler,
   Info, CreditCard, Maximize2, Layers, CircleDot
 } from 'lucide-react';
@@ -20,10 +17,48 @@ import { useCart } from './CartContext'; // <-- This is the only change: use glo
 // ----------- GLOBAL PRODUCT FALLBACK IMAGE UTILITY -------------
 // Returns the primary product image if valid, otherwise '/coming-soon.jpg'
 function getProductImage(product, fallbackIndex = 0) {
-  // ALWAYS use the placeholder for any product image
-  return "/coming-soon.jpg";
+  // Use the first valid image or fallback to coming-soon, always
+  const img = product?.images?.[fallbackIndex] ?? '/coming-soon.jpg';
+  if (!img || typeof img !== 'string' || img.trim() === '') {
+    return '/coming-soon.jpg';
+  }
+  return img;
 }
 // ---------------------------------------------------------------
+
+// Fallback helpers for product shape mapping
+function getSizeChartType(prod) {
+  // By API: fallback by category
+  if (prod?.sizeChartType) return prod.sizeChartType;
+  const cat = prod?.category?.toLowerCase?.();
+  if (cat === "hoodies") return "Hoodies";
+  if (cat === "pants") return "Pants";
+  if (cat === "tees" || cat === "t-shirts" || cat === "tshirts") return "T-Shirts";
+  return "T-Shirts";
+}
+
+// --- Handle sizes as objects and as strings ---
+function toSizeArray(sizes) {
+  // Take input (array of any), return normalized [{size,stock}]
+  if (!Array.isArray(sizes)) return [];
+  if (sizes.length === 0) return [];
+  // Test if sizes[0] is a string
+  if (typeof sizes[0] === "string") {
+    // No stock data, default to stock 99 (arbitrary available)
+    return sizes.map(s => ({ size: s, stock: 99 }));
+  }
+  // If already object with size/stock, return as is
+  return sizes
+    .map(s => {
+      if (typeof s === "object" && s !== null && typeof s.size === "string")
+        return {
+          size: s.size,
+          stock: typeof s.stock === "number" ? s.stock : 99
+        };
+      return null;
+    })
+    .filter(Boolean);
+}
 
 const ExploreCollection = () => {
   // === PROPER GLOBAL CART USING CONTEXT ===
@@ -44,13 +79,18 @@ const ExploreCollection = () => {
   const [addedToCart, setAddedToCart] = useState(false);
   const [showCartNotification, setShowCartNotification] = useState(false);
 
+  // API PRODUCTS
+  const [products, setProducts] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [productsError, setProductsError] = useState(null);
+
   const videoRef = useRef(null);
   const heroRef = useRef(null);
   const productsRef = useRef(null);
   const containerRef = useRef(null);
   const modalRef = useRef(null);
 
-  // Premium fashion products collection (ALL product images replaced by "/coming-soon.jpg")
+  // Premium fashion products collection (category structure only)
   const categories = [
     { id: 'all', name: 'All Collections', count: 42 },
     { id: 'hoodies', name: 'Signature Hoodies', count: 12 },
@@ -91,148 +131,56 @@ const ExploreCollection = () => {
     }
   };
 
-  // ALL images replaced with "/coming-soon.jpg" for soft launch
-  const products = [
-    {
-      id: 1,
-      name: "The Frost King Hoodie",
-      category: "hoodies",
-      price: 0,
-      originalPrice: 0,
-      rating: 4.9,
-      reviewCount: 128,
-      sizes: ['S', 'M', 'L', 'XL'],
-      colors: ['Black', 'Gray'],
-      material: 'Premium Blend',
-      tags: ['best-seller', 'new'],
-      description: 'Embrace the chill with our signature Frost King design. Crafted from premium blend fabric for ultimate comfort and warmth. Perfect for those chilly evenings and urban adventures.',
-      detailedDescription: 'Our Frost King Hoodie features a unique frost-inspired pattern that shimmers in the light. Made with sustainable materials and eco-friendly dyes, this hoodie is as conscious as it is stylish. The interior features a soft fleece lining for extra warmth.',
-      features: [
-        'Premium blend fabric (80% Cotton, 20% Polyester)',
-        'Eco-friendly water-based printing',
-        'Kangaroo pocket with hidden zipper',
-        'Adjustable drawstring hood',
-        'Ribbed cuffs and hem for snug fit',
-        'Made with sustainable materials'
-      ],
-      careInstructions: [
-        'Machine wash cold with similar colors',
-        'Use mild detergent',
-        'Tumble dry low',
-        'Do not bleach',
-        'Iron on low heat if needed'
-      ],
-      images: [
-        '/coming-soon.jpg',
-        '/coming-soon.jpg',
-        '/coming-soon.jpg',
-        '/coming-soon.jpg'
-      ],
-      sizeChartType: 'Hoodies'
-    },
-    {
-      id: 2,
-      name: "Dragon's Wrath Tee",
-      category: "tees",
-      price: 0,
-      originalPrice: 0,
-      rating: 4.8,
-      reviewCount: 94,
-      sizes: ['S', 'M', 'L'],
-      colors: ['Black', 'White'],
-      material: 'Organic Cotton',
-      tags: ['featured'],
-      description: 'Unleash the fire within with our Dragon Wrath design. Bold, powerful, and made for the fearless.',
-      detailedDescription: 'This graphic tee features a detailed dragon illustration printed with eco-friendly inks. The 100% organic cotton fabric ensures breathability and comfort throughout the day.',
-      features: [
-        '100% Organic Cotton',
-        'Eco-friendly digital printing',
-        'Reinforced neckline',
-        'Tubular construction for better fit',
-        'Pre-shrunk fabric',
-        'OEKO-TEX certified'
-      ],
-      careInstructions: [
-        'Wash inside out',
-        'Cold water wash',
-        'Hang dry',
-        'Do not tumble dry',
-        'Iron on medium heat'
-      ],
-      images: [
-        '/coming-soon.jpg',
-        '/coming-soon.jpg',
-        '/coming-soon.jpg'
-      ],
-      sizeChartType: 'T-Shirts'
-    },
-    {
-      id: 3,
-      name: "Urban Explorer Pants",
-      category: "pants",
-      price: 0,
-      originalPrice: 0,
-      rating: 4.7,
-      reviewCount: 65,
-      sizes: ['28', '30', '32', '34'],
-      colors: ['Navy', 'Olive'],
-      material: 'Recycled Poly',
-      tags: ['new'],
-      description: 'Designed for urban exploration with comfort and durability in mind.',
-      detailedDescription: 'These pants combine style with functionality, featuring multiple pockets and stretch fabric for maximum mobility.',
-      features: [
-        'Water-resistant finish',
-        '4-way stretch fabric',
-        'Multiple utility pockets',
-        'Reinforced stitching',
-        'Adjustable waist'
-      ],
-      careInstructions: [
-        'Machine wash cold',
-        'Line dry only',
-        'Do not iron',
-        'Use gentle cycle'
-      ],
-      images: [
-        '/coming-soon.jpg',
-        '/coming-soon.jpg'
-      ],
-      sizeChartType: 'Pants'
-    },
-    {
-      id: 4,
-      name: "Nightfall Hoodie",
-      category: "hoodies",
-      price: 0,
-      originalPrice: 0,
-      rating: 4.9,
-      reviewCount: 112,
-      sizes: ['M', 'L', 'XL', 'XXL'],
-      colors: ['Black', 'Burgundy'],
-      material: 'Premium Blend',
-      tags: ['best-seller'],
-      description: 'A sleek hoodie for those night-time adventures.',
-      detailedDescription: 'Dark and mysterious, perfect for evening wear with hidden details that reveal themselves in low light.',
-      features: [
-        'Premium cotton blend',
-        'Reflective detailing',
-        'Zippered pockets',
-        'Brushed interior',
-        'Adjustable cuffs'
-      ],
-      careInstructions: [
-        'Wash inside out',
-        'Cold wash only',
-        'Tumble dry low',
-        'Do not bleach'
-      ],
-      images: [
-        '/coming-soon.jpg',
-        '/coming-soon.jpg'
-      ],
-      sizeChartType: 'Hoodies'
-    }
-  ];
+  // ----------------------- API FETCH FOR PRODUCTS ------------------------
+  useEffect(() => {
+    let ignore = false;
+    setProductsLoading(true);
+    setProductsError(null);
+
+    fetch('/api/products')
+      .then(async (r) => {
+        if (!r.ok) throw new Error("Failed to fetch products");
+        const data = await r.json();
+        // Defensive: must be Array
+        if (!Array.isArray(data)) throw new Error("Bad products response");
+        if (ignore) return;
+
+        // Map and sanitize API fields per requirements
+        const safeProducts = data.map((prod) => ({
+          // Use _id for id; fallback to prod.id, fallback to Math.random() worst-case!
+          id: prod?._id ?? prod?.id ?? Math.random().toString(36).slice(2),
+          name: prod?.name ?? 'Unnamed Product',
+          category: prod?.category ?? 'misc',
+          price: typeof prod?.price === 'number' ? prod.price : 0,
+          originalPrice: typeof prod?.originalPrice === 'number' ? prod.originalPrice : (typeof prod?.price === 'number' ? prod.price : 0),
+          rating: typeof prod?.rating === 'number' ? prod.rating : 4.5,
+          reviewCount: typeof prod?.reviewCount === 'number' ? prod.reviewCount : 0,
+          sizes: Array.isArray(prod?.sizes) && prod.sizes.length > 0 ? prod.sizes : ['M'],
+          colors: Array.isArray(prod?.colors) && prod.colors.length > 0 ? prod.colors : ['Black'],
+          tags: Array.isArray(prod?.tags) ? prod.tags : [],
+          description: prod?.description ?? '',
+          detailedDescription: prod?.detailedDescription ?? '',
+          features: Array.isArray(prod?.features) ? prod.features : [],
+          careInstructions: Array.isArray(prod?.careInstructions) ? prod.careInstructions : [],
+          images: Array.isArray(prod?.images) && prod.images.length > 0 ? prod.images.filter((img) => !!img && typeof img === 'string' && img.trim() !== '') : ["/coming-soon.jpg"],
+          sizeChartType: prod?.sizeChartType ?? getSizeChartType(prod),
+          // For compatibility:
+          _raw: prod
+        }));
+        setProducts(safeProducts);
+        setProductsLoading(false);
+      })
+      .catch(err => {
+        if (ignore) return;
+        console.error("[Product API]", err);
+        setProducts([]);
+        setProductsLoading(false);
+        setProductsError('Could not load products');
+      });
+
+    return () => { ignore = true; };
+  }, []);
+  // -----------------------------------------------------------------------
 
   // Animation effects (your original)
   useEffect(() => {
@@ -251,19 +199,31 @@ const ExploreCollection = () => {
     };
   }, []);
 
-  // --- Quick View: SIMPLE BODY OVERFLOW SCROLL LOCK ONLY ---
+  // --- QUICK VIEW MODAL SCROLL LOCK FIX ---
   useEffect(() => {
+    // Lock background scroll when modal open. Restore on close.
     if (!isModalOpen) {
       document.body.style.overflow = "";
       return;
     }
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    // Ensure modal scrolls smoothly
+    if (modalRef.current) {
+      modalRef.current.style.overscrollBehavior = 'contain';
+      modalRef.current.style.webkitOverflowScrolling = 'touch';
+      modalRef.current.style.scrollBehavior = 'smooth';
+    }
     return () => {
       document.body.style.overflow = prev;
+      if (modalRef.current) {
+        modalRef.current.style.overscrollBehavior = '';
+        modalRef.current.style.webkitOverflowScrolling = '';
+        modalRef.current.style.scrollBehavior = '';
+      }
     };
   }, [isModalOpen]);
-  // ---------------------------------------------------------
+  // ----------------------------------------
 
   // Show cart notification
   useEffect(() => {
@@ -357,17 +317,17 @@ const ExploreCollection = () => {
       alert('Please select a size');
       return;
     }
-    
+
     addToCart(
-      selectedProduct, 
-      selectedSize, 
+      selectedProduct,
+      typeof selectedSize === "object" && selectedSize !== null ? selectedSize.size : selectedSize,
       quantity,
       selectedProduct.colors?.[0] || 'Black'
     );
-    
+
     setAddedToCart(true);
     setShowCartNotification(true);
-    
+
     setTimeout(() => {
       setAddedToCart(false);
     }, 4000);
@@ -378,14 +338,14 @@ const ExploreCollection = () => {
       alert('Please select a size');
       return;
     }
-    
+
     addToCart(
-      selectedProduct, 
-      selectedSize, 
+      selectedProduct,
+      typeof selectedSize === "object" && selectedSize !== null ? selectedSize.size : selectedSize,
       quantity,
       selectedProduct.colors?.[0] || 'Black'
     );
-    
+
     window.location.href = '/cart';
   };
 
@@ -404,12 +364,21 @@ const ExploreCollection = () => {
 
     const mainImage = imagesArr[currentImageIndex];
 
+    // Handle size objects for rendering
+    const sizesArray = toSizeArray(selectedProduct.sizes);
+
     // Handler that never outputs broken image for main
     const handleMainImageError = (e) => {
       if (e.target.src !== "/coming-soon.jpg") {
         e.target.src = "/coming-soon.jpg";
       }
     };
+
+    // Helper for rendering selected size as string
+    const selectedSizeValue =
+      typeof selectedSize === "object" && selectedSize !== null
+        ? selectedSize.size
+        : selectedSize;
 
     return (
       <div className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4">
@@ -479,7 +448,7 @@ const ExploreCollection = () => {
                   {(imagesArr && imagesArr.length > 0) ? (
                     imagesArr.map((img, index) => (
                       <button
-                        key={index}
+                        key={`image-thumb-${index}`}
                         onClick={() => setCurrentImageIndex(index)}
                         className={`flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-lg sm:rounded-xl overflow-hidden border-2 touch-manipulation ${
                           currentImageIndex === index 
@@ -522,7 +491,7 @@ const ExploreCollection = () => {
                   <div className="flex flex-wrap items-center gap-2 mb-2 sm:mb-3">
                     {selectedProduct.tags.map((tag, index) => (
                       <span
-                        key={index}
+                        key={`tag-${index}-${String(tag)}`}
                         className="px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-semibold bg-white/10 text-white rounded-full border border-white/20"
                       >
                         {tag}
@@ -575,7 +544,7 @@ const ExploreCollection = () => {
                   </h3>
                   <ul className="space-y-1.5 sm:space-y-2">
                     {selectedProduct.features.map((feature, index) => (
-                      <li key={index} className="flex items-start gap-2 sm:gap-3">
+                      <li key={`feature-${index}-${String(feature)}`} className="flex items-start gap-2 sm:gap-3">
                         <Check size={16} className="sm:w-[18px] sm:h-[18px] text-green-400 mt-0.5 sm:mt-1 flex-shrink-0" />
                         <span className="text-white/70 text-sm sm:text-base">{feature}</span>
                       </li>
@@ -589,24 +558,32 @@ const ExploreCollection = () => {
                     <h3 className="text-base sm:text-lg font-semibold text-white">
                       Select Size
                     </h3>
-                    {selectedSize && (
+                    {selectedSizeValue && (
                       <span className="text-xs sm:text-sm text-green-400">
-                        Selected: {selectedSize}
+                        Selected: {selectedSizeValue}
                       </span>
                     )}
                   </div>
                   <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 sm:gap-3">
-                    {selectedProduct.sizes.map((size) => (
+                    {sizesArray.map((s, index) => (
                       <button
-                        key={size}
-                        onClick={() => setSelectedSize(size)}
+                        key={`size-${s.size}-${index}`}
+                        onClick={() =>
+                          s.stock > 0 ? setSelectedSize(s) : undefined
+                        }
+                        disabled={s.stock === 0}
                         className={`py-2.5 sm:py-3 rounded-lg sm:rounded-xl border-2 transition-all duration-300 touch-manipulation ${
-                          selectedSize === size
+                          (selectedSizeValue === s.size)
                             ? 'bg-white text-black border-white transform scale-105'
                             : 'bg-white/5 text-white border-white/20 hover:bg-white/10 hover:border-white/40'
-                        }`}
+                        } ${s.stock === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        aria-disabled={s.stock === 0}
+                        aria-label={s.stock === 0 ? `${s.size} (Out of stock)` : s.size}
                       >
-                        <span className="font-semibold text-sm sm:text-base">{size}</span>
+                        <span className="font-semibold text-sm sm:text-base">{s.size}</span>
+                        {s.stock === 0 && (
+                          <span className="block text-[10px] sm:text-xs text-red-400 mt-1 font-normal">Out</span>
+                        )}
                       </button>
                     ))}
                   </div>
@@ -741,7 +718,7 @@ const ExploreCollection = () => {
           <div className="absolute top-4 left-4 z-20 flex gap-2">
             {product.tags.map((tag, idx) => (
               <span
-                key={idx}
+                key={`product-card-tag-${idx}-${String(tag)}`}
                 className="px-3 py-1 text-xs font-semibold bg-black/80 backdrop-blur-sm text-white rounded-full border border-white/20"
               >
                 {tag}
