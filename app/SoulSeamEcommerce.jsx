@@ -1,9 +1,17 @@
+
 "use client";
 import React, { useState, useEffect, useRef } from "react";
-import { ShoppingBag, Menu, X, Search, User, ShoppingCart } from "lucide-react";
+import { ShoppingBag, Menu, X, Search, User, ShoppingCart, Heart } from "lucide-react";
 import { useCart } from "./CartContext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+
+// Star icon SVG (to get color control easily)
+const Star = ({ className = "" }) => (
+  <svg className={className} fill="currentColor" viewBox="0 0 20 20" width={16} height={16}>
+    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.967a1 1 0 00.95.69h4.179c.969 0 1.371 1.24.588 1.81l-3.384 2.458a1 1 0 00-.363 1.118l1.287 3.966c.3.921-.755 1.688-1.54 1.118l-3.385-2.457a1 1 0 00-1.176 0l-3.385 2.457c-.785.57-1.84-.197-1.539-1.118l1.287-3.966a1 1 0 00-.364-1.118L2.048 9.394c-.783-.57-.38-1.81.588-1.81h4.18a1 1 0 00.95-.69l1.286-3.967z"></path>
+  </svg>
+);
 
 const SoulSeamEcommerce = () => {
   const { addToCart, cartItems } = useCart();
@@ -14,13 +22,13 @@ const SoulSeamEcommerce = () => {
   const [heroAnimationComplete, setHeroAnimationComplete] = useState(false);
   const [gsapLoaded, setGsapLoaded] = useState(false);
 
-  // State for Quick View modal
+  // Modal + quick view
   const [quickViewProduct, setQuickViewProduct] = useState(null);
   const [selectedSize, setSelectedSize] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [addedToCart, setAddedToCart] = useState(false);
-  // -- remove scrollPositionRef as it's no longer used for scroll-jumping --
+
   // Refs for hero animation
   const scrollContainerRef = useRef(null);
   const heroContentRef = useRef(null);
@@ -34,83 +42,86 @@ const SoulSeamEcommerce = () => {
     "Future Proof Your Closet",
   ];
 
-  // REPLACED: All external fashionImages with local placeholder
+  // placeholder images
   const fashionImages = Array(19).fill("/coming-soon.jpg");
 
-  // REPLACED: All product/hover images with local placeholder
-  const products = [
-    {
-      id: 1,
-      name: "The Frost King Hoodie",
-      price: 0,
-      originalPrice: 0,
-      image: "/coming-soon.jpg",
-      hoverImage: "/coming-soon.jpg",
-    },
-    {
-      id: 2,
-      name: "The Supercharged Hoodie",
-      price: 0,
-      originalPrice: 0,
-      image: "/coming-soon.jpg",
-      hoverImage: "/coming-soon.jpg",
-    },
-    {
-      id: 3,
-      name: "The Dragon Hoodie",
-      price: 0,
-      originalPrice: 0,
-      image: "/coming-soon.jpg",
-      hoverImage: "/coming-soon.jpg",
-    },
-    {
-      id: 4,
-      name: "The Armadillo Hoodie",
-      price: 0,
-      originalPrice: 0,
-      image: "/coming-soon.jpg",
-      hoverImage: "/coming-soon.jpg",
-    },
-  ];
+  // PRODUCTS
+  const [products, setProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
 
-  // REPLACED: All bestSeller product/hover images with local placeholder
-  const bestSellers = [
-    {
-      id: 5,
-      name: "Dragon's Wrath Tee",
-      price: 0,
-      originalPrice: 0,
-      image: "/coming-soon.jpg",
-      hoverImage: "/coming-soon.jpg",
-    },
-    {
-      id: 6,
-      name: "Dark Knight Tee",
-      price: 0,
-      originalPrice: 0,
-      image: "/coming-soon.jpg",
-      hoverImage: "/coming-soon.jpg",
-    },
-    {
-      id: 7,
-      name: "The Octopus Tee",
-      price: 0,
-      originalPrice:0,
-      image: "/coming-soon.jpg",
-      hoverImage: "/coming-soon.jpg",
-    },
-    {
-      id: 8,
-      name: "Moonlit Bones Tee",
-      price: 0,
-      originalPrice: 0,
-      image: "/coming-soon.jpg",
-      hoverImage: "/coming-soon.jpg",
-    },
-  ];
+  useEffect(() => {
+    let ignore = false;
+    async function fetchProducts() {
+      setLoadingProducts(true);
+      try {
+        const res = await fetch("/api/products", { cache: "no-store" });
+        let data = await res.json();
+        if (!Array.isArray(data)) {
+          setProducts([]);
+          setLoadingProducts(false);
+          return;
+        }
+        const normalized = data.map((p) => {
+          const images = Array.isArray(p.images) ? p.images : [];
+          return {
+            ...p,
+            _id: p._id,
+            name: p.name || p.title || "Unnamed Product",
+            price: typeof p.price === "number" ? p.price : Number(p.price) || 0,
+            originalPrice: typeof p.originalPrice === "number"
+              ? p.originalPrice
+              : Number(p.originalPrice) || Number(p.price) || 0,
+            images,
+            image: images?.[0] || "/coming-soon.jpg",
+            hoverImage: images?.[1] || images?.[0] || "/coming-soon.jpg",
+            sizes: Array.isArray(p.sizes) ? p.sizes : [],
+            sizes: Array.isArray(p.sizes) ? p.sizes : [],
+            category: (p.category || "").toLowerCase().trim(),
+            totalStock:
+              typeof p.totalStock === "number"
+                ? p.totalStock
+                : Array.isArray(p.sizes)
+                ? p.sizes.reduce((sum, s) => sum + (Number(s.stock) || 0), 0)
+                : 0,
+          };
+        });
+
+        if (!ignore) {
+          setProducts(normalized);
+          setLoadingProducts(false);
+        }
+      } catch (e) {
+        if (!ignore) {
+          setProducts([]);
+          setLoadingProducts(false);
+        }
+      }
+    }
+
+    fetchProducts();
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  // Latest Drop = Most recent 8 products
+  const latestProducts = products
+    .slice()
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt || b._id?.toString()) -
+        new Date(a.createdAt || a._id?.toString())
+    )
+    .slice(0, 8);
+
+  // Best Sellers = 8 products with stock > 0
+  const bestSellerProducts = products
+    .filter((p) => p.totalStock > 0)
+    .slice(0, 8);
 
   const router = useRouter();
 
+  // --- Modal/Quickview ---
   const openQuickView = (product) => {
     setQuickViewProduct(product);
     setSelectedSize("");
@@ -126,12 +137,9 @@ const SoulSeamEcommerce = () => {
   // CLEAN body scroll lock handling for modal open/close
   useEffect(() => {
     if (!quickViewProduct) {
-      // Restore body's scroll ability on close
       document.body.style.overflow = "";
       return;
     }
-
-    // Lock scroll when modal open
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
@@ -139,7 +147,7 @@ const SoulSeamEcommerce = () => {
     };
   }, [quickViewProduct]);
 
-  const handleAddToCart = (e) => {
+  const handleAddToCart = () => {
     if (!selectedSize) {
       alert("Please select a size");
       return;
@@ -148,7 +156,7 @@ const SoulSeamEcommerce = () => {
     setAddedToCart(true);
   };
 
-  const handleBuyNow = (e) => {
+  const handleBuyNow = () => {
     if (!selectedSize) {
       alert("Please select a size");
       return;
@@ -160,16 +168,26 @@ const SoulSeamEcommerce = () => {
 
   const nextImage = () => {
     if (!quickViewProduct) return;
-    setCurrentImageIndex((prev) => (prev === 3 ? 0 : prev + 1));
+    setCurrentImageIndex((prev) => {
+      const imgs = Array.isArray(quickViewProduct.images)
+        ? quickViewProduct.images
+        : [];
+      return prev === imgs.length - 1 ? 0 : prev + 1;
+    });
   };
 
   const prevImage = () => {
     if (!quickViewProduct) return;
-    setCurrentImageIndex((prev) => (prev === 0 ? 3 : prev - 1));
+    setCurrentImageIndex((prev) => {
+      const imgs = Array.isArray(quickViewProduct.images)
+        ? quickViewProduct.images
+        : [];
+      return prev === 0 ? imgs.length - 1 : prev - 1;
+    });
   };
 
+  // GSAP Hero Animation Loads
   useEffect(() => {
-    // Don't run during SSR
     if (typeof window === "undefined") return;
     const script = document.createElement("script");
     script.src =
@@ -192,21 +210,14 @@ const SoulSeamEcommerce = () => {
     const container = sparkleContainerRef.current;
     container.innerHTML = "";
 
-    // Create 25 subtle sparkles
+    // 25 sparkles
     for (let i = 0; i < 25; i++) {
       const sparkle = document.createElement("div");
       sparkle.className = "absolute pointer-events-none";
-
-      // Random position around the logo
       const x = 40 + Math.random() * 60;
       const y = 40 + Math.random() * 20;
-
-      // Random size (very subtle)
       const size = 1 + Math.random() * 3;
-
-      // Random animation delay
       const delay = Math.random() * 2;
-
       sparkle.style.cssText = `
         left: ${x}%;
         top: ${y}%;
@@ -217,13 +228,11 @@ const SoulSeamEcommerce = () => {
         box-shadow: 0 0 ${size * 2}px rgba(255, 255, 255, 0.5);
         animation: sparkleFloat 3s ease-in-out ${delay}s infinite;
       `;
-
       container.appendChild(sparkle);
     }
   };
 
   useEffect(() => {
-    // Don't run during SSR and require GSAP loaded
     if (
       !gsapLoaded ||
       typeof window === "undefined" ||
@@ -237,10 +246,8 @@ const SoulSeamEcommerce = () => {
     const heroContent = heroContentRef.current;
     const logo = logoRef.current;
     const tagline = taglineRef.current;
-
     if (!container || !heroContent || !logo || !tagline) return;
 
-    // Create sparkles after a delay
     setTimeout(createSparkles, 3000);
 
     const tl = gsap.timeline({
@@ -344,7 +351,6 @@ const SoulSeamEcommerce = () => {
 
   useEffect(() => {
     if (typeof document !== "undefined" && !quickViewProduct) {
-      // Only set smooth scroll when modal is NOT open
       document.documentElement.style.scrollBehavior = "smooth";
       return () => {
         if (!quickViewProduct) {
@@ -354,6 +360,7 @@ const SoulSeamEcommerce = () => {
     }
   }, [quickViewProduct]);
 
+  // ---- REVISED PRODUCT CARD (BLACK BG) ----
   const ProductCard = ({ product }) => {
     const [isHovered, setIsHovered] = useState(false);
 
@@ -364,19 +371,18 @@ const SoulSeamEcommerce = () => {
 
     return (
       <div
-        className="group relative overflow-hidden bg-white rounded-lg shadow-sm hover:shadow-xl transition-all duration-500 transform hover:-translate-y-1 sm:hover:-translate-y-2"
+        className="group relative overflow-hidden bg-black rounded-lg border border-white/10 shadow-sm hover:shadow-xl transition-all duration-500 transform hover:-translate-y-1 sm:hover:-translate-y-2"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <div className="relative aspect-[3/4] overflow-hidden">
+        <div className="relative aspect-[3/4] overflow-hidden rounded-t-lg">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={isHovered ? product.hoverImage : product.image}
             alt={product.name}
             className="w-full h-full object-cover transition-all duration-700 ease-in-out transform group-hover:scale-110"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
           <div
             className={`absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex items-end justify-center transition-all duration-500 ${
               isHovered ? "opacity-100" : "opacity-0"
@@ -384,7 +390,7 @@ const SoulSeamEcommerce = () => {
           >
             <button
               onClick={handleQuickViewClick}
-              className="mb-4 sm:mb-6 md:mb-8 px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 bg-white text-black font-semibold text-xs sm:text-sm md:text-base rounded-full transform -translate-y-4 group-hover:translate-y-0 transition-all duration-500 hover:bg-black hover:text-white border-2 border-white hover:scale-105 z-20 touch-manipulation"
+              className="mb-4 sm:mb-6 md:mb-8 px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 bg-white text-black font-semibold text-xs sm:text-sm md:text-base rounded-full transform -translate-y-4 group-hover:translate-y-0 transition-all duration-500 hover:bg-gradient-to-r hover:from-black hover:to-gray-800 hover:text-white border-2 border-white hover:scale-105 z-20 touch-manipulation"
               type="button"
             >
               Quick View
@@ -392,15 +398,15 @@ const SoulSeamEcommerce = () => {
           </div>
         </div>
         <div className="p-3 sm:p-4">
-          <h3 className="font-semibold text-base sm:text-lg mb-1 sm:mb-2 text-black group-hover:text-gray-800 transition-colors duration-300 line-clamp-2">
+          <h3 className="font-semibold text-base sm:text-lg mb-1 sm:mb-2 text-white group-hover:text-white transition-colors duration-300 line-clamp-2">
             {product.name}
           </h3>
           <div className="flex flex-wrap items-center gap-1 sm:gap-2">
-            <span className="text-lg sm:text-xl font-bold text-black">
-              Rs. {product.price.toLocaleString()}
+            <span className="text-lg sm:text-xl font-bold text-white">
+              Rs. {Number(product.price).toLocaleString()}
             </span>
-            <span className="text-xs sm:text-sm text-gray-600 line-through">
-              Rs. {product.originalPrice.toLocaleString()}
+            <span className="text-xs sm:text-sm text-white/50 line-through">
+              Rs. {Number(product.originalPrice).toLocaleString()}
             </span>
           </div>
         </div>
@@ -408,17 +414,22 @@ const SoulSeamEcommerce = () => {
     );
   };
 
+  // -------------------------- END PRODUCT CARD ---------------------------
+
   // Quick View Modal as an in-tree (non-portal) component
   const QuickViewModal = () => {
     if (!quickViewProduct) return null;
 
-    // All product images in quickview modal are now the placeholder
-    const productImages = [
-      "/coming-soon.jpg",
-      "/coming-soon.jpg",
-      "/coming-soon.jpg",
-      "/coming-soon.jpg",
-    ];
+    // Use product-provided images if any, else fallback
+    const productImages =
+      Array.isArray(quickViewProduct.images) && quickViewProduct.images.length > 0
+        ? quickViewProduct.images
+        : ["/coming-soon.jpg", "/coming-soon.jpg", "/coming-soon.jpg", "/coming-soon.jpg"];
+
+    // For sizes
+    const sizesArray = Array.isArray(quickViewProduct.sizes)
+      ? quickViewProduct.sizes
+      : [];
 
     return (
       <div className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4">
@@ -450,7 +461,7 @@ const SoulSeamEcommerce = () => {
               <div className="relative h-[50vh] sm:h-[60%] overflow-hidden">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={productImages[currentImageIndex]}
+                  src={productImages[currentImageIndex] || "/coming-soon.jpg"}
                   alt={quickViewProduct.name}
                   className="w-full h-full object-cover"
                 />
@@ -539,15 +550,16 @@ const SoulSeamEcommerce = () => {
                 </div>
                 <div className="flex flex-wrap items-center gap-2 sm:gap-4">
                   <span className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">
-                    ₹{quickViewProduct.price.toLocaleString()}
+                    ₹{Number(quickViewProduct.price).toLocaleString()}
                   </span>
                   <span className="text-lg sm:text-xl text-white/60 line-through">
-                    ₹{quickViewProduct.originalPrice.toLocaleString()}
+                    ₹{Number(quickViewProduct.originalPrice).toLocaleString()}
                   </span>
                   <span className="px-2 sm:px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-xs sm:text-sm font-semibold">
                     Save ₹
                     {(
-                      quickViewProduct.originalPrice - quickViewProduct.price
+                      Number(quickViewProduct.originalPrice) -
+                      Number(quickViewProduct.price)
                     ).toLocaleString()}
                   </span>
                 </div>
@@ -587,18 +599,16 @@ const SoulSeamEcommerce = () => {
                     </h3>
                   </div>
                   <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 sm:gap-3">
-                    {["S", "M", "L", "XL"].map((size) => (
+                    {sizesArray.map((s) => (
                       <button
-                        key={size}
-                        onClick={() => setSelectedSize(size)}
-                        className={`py-2.5 sm:py-3 rounded-lg sm:rounded-xl border-2 transition-all duration-300 touch-manipulation ${
-                          selectedSize === size
-                            ? "bg-white text-black border-white transform scale-105"
-                            : "bg-white/5 text-white border-white/20 hover:border-white/40"
+                        key={s.size}
+                        disabled={s.stock === 0}
+                        onClick={() => setSelectedSize(s.size)}
+                        className={`py-2 px-3 ${
+                          s.stock === 0 ? "opacity-40 cursor-not-allowed" : ""
                         }`}
-                        type="button"
                       >
-                        <span className="font-semibold text-sm sm:text-base">{size}</span>
+                        {s.size}
                       </button>
                     ))}
                   </div>
@@ -733,10 +743,10 @@ const SoulSeamEcommerce = () => {
                 OUR STORY
               </a>
               <Link href="/blogs">
-                  <button className="text-xs xl:text-sm font-medium hover:text-gray-600 transition-colors duration-300 whitespace-nowrap">
-                    BLOGS
-                  </button>
-                </Link>
+                <button className="text-xs xl:text-sm font-medium hover:text-gray-600 transition-colors duration-300 whitespace-nowrap">
+                  BLOGS
+                </button>
+              </Link>
 
               <a
                 href="#contact"
@@ -749,11 +759,9 @@ const SoulSeamEcommerce = () => {
               <button className="p-1.5 sm:p-2 hover:bg-gray-800 rounded-full transition-colors touch-manipulation" type="button" aria-label="Search">
                 <Search className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
-
               <button className="p-1.5 sm:p-2 hover:bg-gray-800 rounded-full transition-colors touch-manipulation" type="button" aria-label="User">
                 <User className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
-
               <Link
                 href="/cart"
                 className="p-1.5 sm:p-2 hover:bg-gray-800 rounded-full transition-colors relative touch-manipulation"
@@ -964,6 +972,7 @@ const SoulSeamEcommerce = () => {
         ></div>
       </section>
 
+      {/* Latest Drop (Dynamic) */}
       <section id="hoodies" className="py-12 sm:py-16 md:py-20 px-4 sm:px-6 lg:px-8 bg-black text-white">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 sm:mb-10 md:mb-12 gap-4">
@@ -977,15 +986,23 @@ const SoulSeamEcommerce = () => {
           </div>
           {/* Mobile: Horizontal Scroll | Tablet+: Grid */}
           <div className="flex md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 overflow-x-auto md:overflow-x-visible scrollbar-hide gap-4 md:gap-6 lg:gap-8 pb-4 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 snap-x snap-mandatory md:snap-none" style={{ scrollBehavior: 'smooth', WebkitOverflowScrolling: 'touch' }}>
-            {products.map((product) => (
-              <div key={product.id} className="flex-shrink-0 w-[75vw] md:w-auto snap-center md:snap-none">
-                <ProductCard product={product} />
-              </div>
-            ))}
+            {loadingProducts ? (
+              <div className="text-white/60">Loading...</div>
+            ) : latestProducts.length === 0 ? (
+              <div className="text-white/60">No products found</div>
+            ) : (
+              latestProducts.map(product => (
+                <div key={product._id} className="flex-shrink-0 w-[75vw] md:w-auto">
+                  <ProductCard product={product} />
+                </div>
+              ))
+            )
+            }
           </div>
         </div>
       </section>
 
+      {/* Best Sellers (Dynamic) */}
       <section id="tshirts" className="py-12 sm:py-16 md:py-20 px-4 sm:px-6 lg:px-8 bg-black text-white">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 sm:mb-10 md:mb-12 gap-4">
@@ -996,140 +1013,132 @@ const SoulSeamEcommerce = () => {
           </div>
           {/* Mobile: Horizontal Scroll | Tablet+: Grid */}
           <div className="flex md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 overflow-x-auto md:overflow-x-visible scrollbar-hide gap-4 md:gap-6 lg:gap-8 pb-4 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 snap-x snap-mandatory md:snap-none" style={{ scrollBehavior: 'smooth', WebkitOverflowScrolling: 'touch' }}>
-            {bestSellers.map((product) => (
-              <div key={product.id} className="flex-shrink-0 w-[75vw] md:w-auto snap-center md:snap-none">
-                <ProductCard product={product} />
-              </div>
-            ))}
+            {loadingProducts ? (
+              <div className="text-white/60">Loading...</div>
+            ) : bestSellerProducts.length === 0 ? (
+              <div className="text-white/60">No products found</div>
+            ) : (
+              bestSellerProducts.map(product => (
+                <div key={product._id} className="flex-shrink-0 w-[75vw] md:w-auto">
+                  <ProductCard product={product} />
+                </div>
+              ))
+            )
+            }
           </div>
         </div>
       </section>
 
+      {/* ----- REMAINDER UI IS UNAFFECTED ----- */}
       <section className="py-14 sm:py-20 px-4 sm:px-6 lg:px-8 bg-black text-white">
-  <div className="max-w-7xl mx-auto">
-    <div className="flex md:grid md:grid-cols-3 gap-6 overflow-x-auto md:overflow-visible scrollbar-hide px-1">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex md:grid md:grid-cols-3 gap-6 overflow-x-auto md:overflow-visible scrollbar-hide px-1">
 
-      {/* CARD 1 */}
-      <div className="group min-w-[75%] sm:min-w-[55%] md:min-w-0 relative rounded-2xl bg-gradient-to-b from-white/10 to-white/0 border border-white/15 p-6 sm:p-7 transition-all duration-500 hover:-translate-y-2 hover:border-white/40 hover:shadow-[0_20px_80px_rgba(255,255,255,0.15)]">
-        <div className="w-14 h-14 mx-auto mb-4 rounded-full border border-white/60 flex items-center justify-center bg-black transition-all duration-500 group-hover:scale-110 group-hover:shadow-[0_0_30px_rgba(255,255,255,0.35)]">
-          🌱
+            {/* CARD 1 */}
+            <div className="group min-w-[75%] sm:min-w-[55%] md:min-w-0 relative rounded-2xl bg-gradient-to-b from-white/10 to-white/0 border border-white/15 p-6 sm:p-7 transition-all duration-500 hover:-translate-y-2 hover:border-white/40 hover:shadow-[0_20px_80px_rgba(255,255,255,0.15)]">
+              <div className="w-14 h-14 mx-auto mb-4 rounded-full border border-white/60 flex items-center justify-center bg-black transition-all duration-500 group-hover:scale-110 group-hover:shadow-[0_0_30px_rgba(255,255,255,0.35)]">
+                🌱
+              </div>
+              <h3 className="text-xl sm:text-2xl font-bold text-center mb-2">
+                1 ORDER = 1 PLANT PLANTED
+              </h3>
+            </div>
+
+            {/* CARD 2 */}
+            <div className="group min-w-[75%] sm:min-w-[55%] md:min-w-0 relative rounded-2xl bg-gradient-to-b from-white/10 to-white/0 border border-white/15 p-6 sm:p-7 transition-all duration-500 hover:-translate-y-2 hover:border-white/40 hover:shadow-[0_20px_80px_rgba(255,255,255,0.15)]">
+              <div className="w-14 h-14 mx-auto mb-4 rounded-full border border-white/60 flex items-center justify-center bg-black transition-all duration-500 group-hover:scale-110 group-hover:shadow-[0_0_30px_rgba(255,255,255,0.35)]">
+                📦
+              </div>
+              <h3 className="text-xl sm:text-2xl font-bold text-center mb-2">
+                SUSTAINABLE PACKAGING
+              </h3>
+            </div>
+
+            {/* CARD 3 */}
+            <div className="group min-w-[75%] sm:min-w-[55%] md:min-w-0 relative rounded-2xl bg-gradient-to-b from-white/10 to-white/0 border border-white/15 p-6 sm:p-7 transition-all duration-500 hover:-translate-y-2 hover:border-white/40 hover:shadow-[0_20px_80px_rgba(255,255,255,0.15)]">
+              <div className="w-14 h-14 mx-auto mb-4 rounded-full border border-white/60 flex items-center justify-center bg-black transition-all duration-500 group-hover:scale-110 group-hover:shadow-[0_0_30px_rgba(255,255,255,0.35)]">
+                🚚
+              </div>
+              <h3 className="text-xl sm:text-2xl font-bold text-center mb-2">
+                FREE SHIPPING
+              </h3>
+            </div>
+          </div>
         </div>
-        <h3 className="text-xl sm:text-2xl font-bold text-center mb-2">
-          1 ORDER = 1 PLANT PLANTED
-        </h3>
-       
-      </div>
+      </section>
 
-      {/* CARD 2 */}
-      <div className="group min-w-[75%] sm:min-w-[55%] md:min-w-0 relative rounded-2xl bg-gradient-to-b from-white/10 to-white/0 border border-white/15 p-6 sm:p-7 transition-all duration-500 hover:-translate-y-2 hover:border-white/40 hover:shadow-[0_20px_80px_rgba(255,255,255,0.15)]">
-        <div className="w-14 h-14 mx-auto mb-4 rounded-full border border-white/60 flex items-center justify-center bg-black transition-all duration-500 group-hover:scale-110 group-hover:shadow-[0_0_30px_rgba(255,255,255,0.35)]">
-          📦
+      <section
+        id="story"
+        className="py-20 px-4 sm:px-6 lg:px-8 bg-black text-white"
+      >
+        <div className="max-w-6xl mx-auto space-y-20">
+          {/* ========= CARD 1 ========= */}
+          <div className="animate-reveal grid grid-cols-2 gap-6 sm:gap-12 items-center rounded-3xl p-5 sm:p-10 bg-gradient-to-br from-white/10 to-white/0 border border-white/20 shadow-[0_30px_120px_rgba(255,255,255,0.15)]">
+
+            {/* IMAGE */}
+            <div className="relative overflow-hidden rounded-2xl">
+              <img
+                src="/coming-soon.jpg"
+                alt="Screen Printed T-Shirts"
+                className="w-full aspect-square object-cover scale-[1.08] transition-transform duration-[2000ms] ease-out sm:hover:scale-[1.18]"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
+            </div>
+            {/* TEXT */}
+            <div className="space-y-4 sm:space-y-6">
+              <h2 className="text-xl sm:text-3xl font-bold tracking-wide">
+                SCREEN PRINTED T-SHIRTS
+              </h2>
+              <p className="text-gray-300 text-xs sm:text-base leading-relaxed">
+                Stylish, sustainable, and crafted to make a statement. Each tee is
+                printed with eco-friendly inks for a premium look.
+              </p>
+              <button className="group relative overflow-hidden px-6 py-3 rounded-full bg-white text-black text-xs sm:text-sm font-semibold">
+                <span className="relative z-10 flex items-center gap-2">
+                  SHOP NOW
+                  <span className="transition-transform duration-500 group-hover:translate-x-2">→</span>
+                </span>
+                <span className="absolute inset-0 bg-black translate-y-full group-hover:translate-y-0 transition-transform duration-500"></span>
+                <span className="absolute inset-0 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                  SHOP NOW →
+                </span>
+              </button>
+            </div>
+          </div>
+          {/* ========= CARD 2 ========= */}
+          <div className="animate-reveal delay-200 grid grid-cols-2 gap-6 sm:gap-12 items-center rounded-3xl p-5 sm:p-10 bg-gradient-to-br from-white/10 to-white/0 border border-white/20 shadow-[0_30px_120px_rgba(255,255,255,0.15)]">
+            {/* TEXT */}
+            <div className="space-y-4 sm:space-y-6">
+              <h2 className="text-xl sm:text-3xl font-bold tracking-wide">
+                100% COTTON T-SHIRTS
+              </h2>
+              <p className="text-gray-300 text-xs sm:text-base leading-relaxed">
+                Soft, breathable, and effortlessly cool. Designed for everyday comfort
+                with timeless style.
+              </p>
+              <button className="group relative overflow-hidden px-6 py-3 rounded-full bg-white text-black text-xs sm:text-sm font-semibold">
+                <span className="relative z-10 flex items-center gap-2">
+                  SHOP NOW
+                  <span className="transition-transform duration-500 group-hover:translate-x-2">→</span>
+                </span>
+                <span className="absolute inset-0 bg-black translate-y-full group-hover:translate-y-0 transition-transform duration-500"></span>
+                <span className="absolute inset-0 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                  SHOP NOW →
+                </span>
+              </button>
+            </div>
+            {/* IMAGE */}
+            <div className="relative overflow-hidden rounded-2xl">
+              <img
+                src="/coming-soon.jpg"
+                alt="100% Cotton T-Shirts"
+                className="w-full aspect-square object-cover scale-[1.08] transition-transform duration-[2000ms] ease-out sm:hover:scale-[1.18]"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
+            </div>
+          </div>
         </div>
-        <h3 className="text-xl sm:text-2xl font-bold text-center mb-2">
-          SUSTAINABLE PACKAGING
-        </h3>
-        
-      </div>
-
-      {/* CARD 3 */}
-      <div className="group min-w-[75%] sm:min-w-[55%] md:min-w-0 relative rounded-2xl bg-gradient-to-b from-white/10 to-white/0 border border-white/15 p-6 sm:p-7 transition-all duration-500 hover:-translate-y-2 hover:border-white/40 hover:shadow-[0_20px_80px_rgba(255,255,255,0.15)]">
-        <div className="w-14 h-14 mx-auto mb-4 rounded-full border border-white/60 flex items-center justify-center bg-black transition-all duration-500 group-hover:scale-110 group-hover:shadow-[0_0_30px_rgba(255,255,255,0.35)]">
-          🚚
-        </div>
-        <h3 className="text-xl sm:text-2xl font-bold text-center mb-2">
-          FREE SHIPPING
-        </h3>
-       
-      </div>
-
-    </div>
-  </div>
-</section>
-
-
-
-<section
-  id="story"
-  className="py-20 px-4 sm:px-6 lg:px-8 bg-black text-white"
->
-  <div className="max-w-6xl mx-auto space-y-20">
-
-    {/* ========= CARD 1 ========= */}
-    <div className="animate-reveal grid grid-cols-2 gap-6 sm:gap-12 items-center rounded-3xl p-5 sm:p-10 bg-gradient-to-br from-white/10 to-white/0 border border-white/20 shadow-[0_30px_120px_rgba(255,255,255,0.15)]">
-
-      {/* IMAGE */}
-      <div className="relative overflow-hidden rounded-2xl">
-        <img
-          src="/coming-soon.jpg"
-          alt="Screen Printed T-Shirts"
-          className="w-full aspect-square object-cover scale-[1.08] transition-transform duration-[2000ms] ease-out sm:hover:scale-[1.18]"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
-      </div>
-
-      {/* TEXT */}
-      <div className="space-y-4 sm:space-y-6">
-        <h2 className="text-xl sm:text-3xl font-bold tracking-wide">
-          SCREEN PRINTED T-SHIRTS
-        </h2>
-        <p className="text-gray-300 text-xs sm:text-base leading-relaxed">
-          Stylish, sustainable, and crafted to make a statement. Each tee is
-          printed with eco-friendly inks for a premium look.
-        </p>
-
-        <button className="group relative overflow-hidden px-6 py-3 rounded-full bg-white text-black text-xs sm:text-sm font-semibold">
-          <span className="relative z-10 flex items-center gap-2">
-            SHOP NOW
-            <span className="transition-transform duration-500 group-hover:translate-x-2">→</span>
-          </span>
-          <span className="absolute inset-0 bg-black translate-y-full group-hover:translate-y-0 transition-transform duration-500"></span>
-          <span className="absolute inset-0 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-            SHOP NOW →
-          </span>
-        </button>
-      </div>
-    </div>
-
-    {/* ========= CARD 2 ========= */}
-    <div className="animate-reveal delay-200 grid grid-cols-2 gap-6 sm:gap-12 items-center rounded-3xl p-5 sm:p-10 bg-gradient-to-br from-white/10 to-white/0 border border-white/20 shadow-[0_30px_120px_rgba(255,255,255,0.15)]">
-
-      {/* TEXT */}
-      <div className="space-y-4 sm:space-y-6">
-        <h2 className="text-xl sm:text-3xl font-bold tracking-wide">
-          100% COTTON T-SHIRTS
-        </h2>
-        <p className="text-gray-300 text-xs sm:text-base leading-relaxed">
-          Soft, breathable, and effortlessly cool. Designed for everyday comfort
-          with timeless style.
-        </p>
-
-        <button className="group relative overflow-hidden px-6 py-3 rounded-full bg-white text-black text-xs sm:text-sm font-semibold">
-          <span className="relative z-10 flex items-center gap-2">
-            SHOP NOW
-            <span className="transition-transform duration-500 group-hover:translate-x-2">→</span>
-          </span>
-          <span className="absolute inset-0 bg-black translate-y-full group-hover:translate-y-0 transition-transform duration-500"></span>
-          <span className="absolute inset-0 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-            SHOP NOW →
-          </span>
-        </button>
-      </div>
-
-      {/* IMAGE */}
-      <div className="relative overflow-hidden rounded-2xl">
-        <img
-          src="/coming-soon.jpg"
-          alt="100% Cotton T-Shirts"
-          className="w-full aspect-square object-cover scale-[1.08] transition-transform duration-[2000ms] ease-out sm:hover:scale-[1.18]"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
-      </div>
-    </div>
-
-  </div>
-</section>
-
-
+      </section>
 
       <section className="py-12 sm:py-16 md:py-20 px-4 sm:px-6 lg:px-8 bg-black text-white">
         <div className="max-w-3xl mx-auto text-center">

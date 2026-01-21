@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { connectDB } from "../../../lib/db";
-import Admin from "../../../models/Admin";
 import bcrypt from "bcryptjs";
+import { connectDB } from "@/app/lib/db";
+import Admin from "@/app/models/Admin";
 
 export async function POST(req) {
   await connectDB();
@@ -9,9 +9,9 @@ export async function POST(req) {
   const { email, password } = await req.json();
 
   const admin = await Admin.findOne({ email }).select("+password");
-  if (!admin || !admin.isActive) {
+  if (!admin) {
     return NextResponse.json(
-      { message: "Invalid credentials" },
+      { error: "Invalid credentials" },
       { status: 401 }
     );
   }
@@ -19,23 +19,23 @@ export async function POST(req) {
   const ok = await bcrypt.compare(password, admin.password);
   if (!ok) {
     return NextResponse.json(
-      { message: "Invalid credentials" },
+      { error: "Invalid credentials" },
       { status: 401 }
     );
   }
 
-  admin.lastLogin = new Date();
-  await admin.save();
+  // ✅ simple token (random / admin id)
+  const token = admin._id.toString();
 
+  // ✅ RESPONSE CREATE
   const res = NextResponse.json({ success: true });
 
-  // 🔒 SECURE COOKIE
-  res.cookies.set("admin", "1", {
+  // 🔥 COOKIE SET HERE
+  res.cookies.set("admin_token", token, {
     httpOnly: true,
-    secure: true,
-    sameSite: "strict",
-    path: "/",
-    maxAge: 60 * 60 * 8 // 8 hours
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax", // ⭐ very important
+    path: "/"
   });
 
   return res;
