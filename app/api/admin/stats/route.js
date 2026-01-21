@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/app/lib/db";
-import Product from "@/app/models/Product";
+import Product from "@/app/models/product";
 import Reel from "@/app/models/Reel";
-import Coupon from "@/app/models/Coupon";
+import Coupon from "@/app/models/coupon";
 
 
 export async function GET(req) {
