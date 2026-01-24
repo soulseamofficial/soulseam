@@ -2,11 +2,13 @@
 
 import React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCart } from "../CartContext";
 import { X, Plus, Minus } from "lucide-react";
 
 export default function CartPage() {
   const { cartItems, removeItem, updateQuantity } = useCart();
+  const router = useRouter();
 
   const getSubtotal = () =>
     cartItems.reduce(
@@ -216,6 +218,7 @@ export default function CartPage() {
               <button
                 type="button"
                 className="w-full mt-2 py-3 rounded-full bg-white text-black font-semibold text-sm sm:text-base flex items-center justify-center gap-2 hover:bg-gray-200 transition-colors"
+                onClick={() => router.push("/checkout")}
               >
                 Proceed to Checkout
                 <span>→</span>

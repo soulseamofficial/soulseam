@@ -4,20 +4,19 @@ import React, { useState } from 'react';
 import { ShoppingBag, X, Plus, Minus, Tag, ArrowRight, Shield, Truck, CreditCard } from 'lucide-react';
 import { useCart } from '../CartContext'; // Adjusted path
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 const CartPage = () => {
   const { cartItems, updateQuantity, removeItem, subtotal } = useCart();
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState(false);
   const [showCouponSuccess, setShowCouponSuccess] = useState(false);
-  const router = useRouter();
 
   const shipping = subtotal > 100 ? 0 : 9.99;
   const discount = appliedCoupon ? subtotal * 0.15 : 0;
   const total = subtotal + shipping - discount;
 
-  const applyCoupon = () => {
+  const applyCoupon = (e) => {
+    e.preventDefault(); // Prevent form submission default behavior
     if (couponCode.trim().toUpperCase() === 'PREMIUM15') {
       setAppliedCoupon(true);
       setShowCouponSuccess(true);
@@ -25,11 +24,9 @@ const CartPage = () => {
     }
   };
 
-  const handleCheckout = () => {
-    if (cartItems.length > 0) {
-      router.push('/checkout');
-    }
-  };
+  // ---- Fix: Use a <form> so pressing "Apply" (or enter) always works ----
+  // Also: Use <button type="submit"> for apply button.
+  // ---- Fix: Prevent checkout if no items, and also visually disable button ----
 
   return (
     <div className="min-h-screen bg-black text-white pt-20 px-4 md:px-8 lg:px-16">
@@ -74,16 +71,27 @@ const CartPage = () => {
             {/* Coupon section */}
             <div className="bg-gray-900 rounded-xl p-6 transform transition-all duration-500 hover:shadow-2xl hover:shadow-gray-800/30">
               <h3 className="text-lg font-light mb-4">Apply Coupon</h3>
-              <div className="flex space-x-2">
+              <form className="flex space-x-2" onSubmit={applyCoupon} autoComplete="off">
                 <input
                   type="text"
                   value={couponCode}
                   onChange={(e) => setCouponCode(e.target.value)}
                   className="flex-1 p-2 bg-gray-800 border border-gray-700 rounded"
                   placeholder="Enter code"
+                  autoComplete="off"
                 />
-                <button onClick={applyCoupon} className="px-4 py-2 bg-white text-black rounded">Apply</button>
-              </div>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-white text-black rounded transition-colors duration-150"
+                  disabled={appliedCoupon}
+                  style={{
+                    opacity: appliedCoupon ? 0.5 : 1,
+                    cursor: appliedCoupon ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  Apply
+                </button>
+              </form>
               {showCouponSuccess && <p className="text-green-400 mt-2">Coupon applied!</p>}
             </div>
             {/* Estimated Delivery */}
@@ -118,7 +126,25 @@ const CartPage = () => {
                     <span>${total.toFixed(2)}</span>
                   </div>
                 </div>
-                <button onClick={handleCheckout} className="w-full mt-6 py-3 bg-white text-black rounded-full font-semibold">
+                {
+                  // Instead of <Link>, use a <button> to properly prevent navigation if needed,
+                  // but since we want navigation on click only if cartItems.length > 0, do client routing.
+                }
+                <button
+                  type="button"
+                  className={`w-full mt-6 py-3 rounded-full font-semibold flex items-center justify-center transition-all duration-150 ${
+                    cartItems.length === 0
+                      ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                      : 'bg-white text-black hover:bg-gray-100'
+                  }`}
+                  disabled={cartItems.length === 0}
+                  onClick={() => {
+                    if (cartItems.length > 0) {
+                      window.location.href = "app\checkout";
+                    }
+                  }}
+                  aria-disabled={cartItems.length === 0}
+                >
                   Proceed to Checkout <ArrowRight className="inline ml-2" size={18} />
                 </button>
               </div>
