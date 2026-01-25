@@ -8,16 +8,26 @@ export default function AdminReelsPage() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Refactored: arrow function defined before useEffect
-  const fetchReels = async () => {
-    const res = await fetch("/api/admin/reels");
-    const data = await res.json();
-    setReels(data);
-    setLoading(false);
-  };
-
   useEffect(() => {
-    fetchReels();
+    let isMounted = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/reels");
+        const data = await res.json();
+        if (isMounted) {
+          setReels(data);
+          setLoading(false);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setReels([]);
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   async function deleteReel(id) {
@@ -27,7 +37,7 @@ export default function AdminReelsPage() {
       method: "DELETE",
     });
 
-    setReels(reels.filter((r) => r._id !== id));
+    setReels((prevReels) => prevReels.filter((r) => r._id !== id));
   }
 
   return (
