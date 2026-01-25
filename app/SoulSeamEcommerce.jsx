@@ -6,6 +6,7 @@ import { useCart } from "./CartContext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+
 // Star icon SVG (to get color control easily)
 const Star = ({ className = "" }) => (
   <svg className={className} fill="currentColor" viewBox="0 0 20 20" width={16} height={16}>
@@ -13,7 +14,16 @@ const Star = ({ className = "" }) => (
   </svg>
 );
 
-const SoulSeamEcommerce = () => {
+function toSizeArray(sizes) {
+  if (!Array.isArray(sizes)) return [];
+  return sizes.map((s) =>
+  typeof s === "object"
+  ? { size: s.size, stock: Number(s.stock) || 0 }
+  : { size: s, stock: 99 }
+  );
+  }
+
+  const SoulSeamEcommerce = () => {
   const { addToCart, cartItems } = useCart();
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -372,6 +382,7 @@ const SoulSeamEcommerce = () => {
     return (
       <div
         className="group relative overflow-hidden bg-black rounded-lg border border-white/10 shadow-sm hover:shadow-xl transition-all duration-500 transform hover:-translate-y-1 sm:hover:-translate-y-2"
+        onClick={() => openQuickView(product)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
@@ -599,18 +610,26 @@ const SoulSeamEcommerce = () => {
                     </h3>
                   </div>
                   <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 sm:gap-3">
-                    {sizesArray.map((s) => (
-                      <button
-                        key={s.size}
-                        disabled={s.stock === 0}
-                        onClick={() => setSelectedSize(s.size)}
-                        className={`py-2 px-3 ${
-                          s.stock === 0 ? "opacity-40 cursor-not-allowed" : ""
-                        }`}
-                      >
-                        {s.size}
-                      </button>
-                    ))}
+                  {toSizeArray(quickViewProduct.sizes).map((s) => (
+                  <button
+                    key={s.size}
+                    disabled={s.stock === 0}
+                    onClick={() => setSelectedSize(s.size)}
+                    className={`px-4 py-2 rounded-lg border
+                      ${selectedSize === s.size
+                        ? "bg-white text-black"
+                        : "bg-white/10 text-white"}
+                      ${s.stock === 0 ? "opacity-40 cursor-not-allowed" : ""}
+                    `}
+                  >
+                    {s.size}
+                    {s.stock === 0 && (
+                      <span className="block text-xs text-red-400">Out</span>
+                    )}
+                  </button>
+                ))}
+                    
+                  
                   </div>
                 </div>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
@@ -640,29 +659,21 @@ const SoulSeamEcommerce = () => {
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pt-2 sm:pt-4">
-                  {addedToCart ? (
-                    <Link
-                      href="/cart"
-                      className="flex items-center justify-center gap-2 sm:gap-3 py-3 sm:py-4 px-4 sm:px-8 rounded-full font-semibold text-sm sm:text-base md:text-lg transition-all duration-300 bg-green-600 text-white touch-manipulation"
-                    >
-                      <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                      </svg>
-                      <span>VIEW CART</span>
-                    </Link>
-                  ) : (
-                    <button
-                      onClick={handleAddToCart}
-                      className="flex items-center justify-center gap-2 sm:gap-3 py-3 sm:py-4 px-4 sm:px-8 rounded-full font-semibold text-sm sm:text-base md:text-lg transition-all duration-300 bg-white text-black hover:bg-gray-200 touch-manipulation"
-                      type="button"
-                    >
-                      <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                      </svg>
-                      <span>ADD TO CART</span>
-                    </button>
-                  )}
+                {addedToCart ? (
+                  <Link
+                    href="/cart"
+                    className="w-full py-3 rounded-full bg-green-600 text-white text-center font-semibold"
+                  >
+                    VIEW CART
+                  </Link>
+                ) : (
                   <button
+                    onClick={handleAddToCart}
+                    className="w-full py-3 rounded-full bg-white text-black font-semibold"
+                  >
+                    ADD TO CART
+                  </button>
+                )}              <button
                     onClick={handleBuyNow}
                     className="flex items-center justify-center gap-2 sm:gap-3 py-3 sm:py-4 px-4 sm:px-8 rounded-full font-semibold text-sm sm:text-base md:text-lg bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:opacity-90 transition-all duration-300 touch-manipulation"
                     type="button"
@@ -705,6 +716,7 @@ const SoulSeamEcommerce = () => {
       <header
         className={`sticky top-0 z-50 transition-all duration-300 ${
           isScrolled ? "bg-black shadow-lg" : "bg-black/90 backdrop-blur-sm"
+          
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -759,9 +771,15 @@ const SoulSeamEcommerce = () => {
               <button className="p-1.5 sm:p-2 hover:bg-gray-800 rounded-full transition-colors touch-manipulation" type="button" aria-label="Search">
                 <Search className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
-              <button className="p-1.5 sm:p-2 hover:bg-gray-800 rounded-full transition-colors touch-manipulation" type="button" aria-label="User">
+              <button
+                onClick={() => router.push("/login")}
+                className="p-1.5 sm:p-2 hover:bg-gray-800 rounded-full transition-colors"
+                type="button"
+                aria-label="User Login"
+              >
                 <User className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
+
               <Link
                 href="/cart"
                 className="p-1.5 sm:p-2 hover:bg-gray-800 rounded-full transition-colors relative touch-manipulation"

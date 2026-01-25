@@ -2,21 +2,50 @@ import mongoose from "mongoose";
 
 const OrderSchema = new mongoose.Schema(
   {
-    productId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Product",
-      required: true,
+    customer: {
+      email: String,
+      firstName: String,
+      lastName: String,
+      phone: String,
     },
-    quantity: {
-      type: Number,
-      required: true,
+
+    shippingAddress: {
+      address: String,
+      apt: String,
+      city: String,
+      state: String,
+      pin: String,
+      country: String,
     },
-    amount: Number,
-    customerName: String,
-    status: {
+
+    items: [
+      {
+        productId: String,
+        name: String,
+        image: String,
+        size: String,
+        color: String,
+        price: Number,
+        quantity: Number,
+      }
+    ],
+
+    subtotal: Number,
+    discount: Number,
+    shipping: Number,
+    total: Number,
+
+    payment: {
+      method: String, // Razorpay
+      status: String, // pending | paid
+      razorpayOrderId: String,
+      razorpayPaymentId: String,
+    },
+
+    orderStatus: {
       type: String,
-      default: "placed", // placed | shipped | delivered
-    },
+      default: "created", // created | paid | shipped | delivered
+    }
   },
   { timestamps: true }
 );
