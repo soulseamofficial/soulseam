@@ -759,9 +759,15 @@ const SoulSeamEcommerce = () => {
               <button className="p-1.5 sm:p-2 hover:bg-gray-800 rounded-full transition-colors touch-manipulation" type="button" aria-label="Search">
                 <Search className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
-              <button className="p-1.5 sm:p-2 hover:bg-gray-800 rounded-full transition-colors touch-manipulation" type="button" aria-label="User">
+              <button
+                onClick={() => router.push("/login")}
+                className="p-1.5 sm:p-2 hover:bg-gray-800 rounded-full transition-colors"
+                type="button"
+                aria-label="User Login"
+              >
                 <User className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
+
               <Link
                 href="/cart"
                 className="p-1.5 sm:p-2 hover:bg-gray-800 rounded-full transition-colors relative touch-manipulation"
