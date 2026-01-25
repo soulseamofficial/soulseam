@@ -11,6 +11,7 @@ export default function AdminLayout({ children }) {
 
   const menu = [
     { name: "Dashboard", path: "/admin/dashboard" },
+    { name: "Orders", path: "/admin/orders" },
     { name: "Reels", path: "/admin/reels" },
     { name: "Products", path: "/admin/products" },
     { name: "Coupons", path: "/admin/coupons" },
@@ -53,11 +54,15 @@ export default function AdminLayout({ children }) {
   }
 
   return (
-    <div className="min-h-screen flex bg-[#0B0B12] text-white relative">
+    <div className="min-h-screen flex bg-black text-white relative">
+      {/* Full screen gradient background */}
+      <div className="fixed inset-0 bg-gradient-to-br from-black via-[#111] to-[#000] -z-10" />
+      <div className="fixed inset-0 bg-[radial-gradient(circle_at_top,_#111_0%,_#000_60%)] -z-10" />
+
       {/* Logout button */}
       <button
         onClick={handleLogout}
-        className="absolute top-5 right-6 z-40 px-5 py-2 rounded-lg bg-fuchsia-700 hover:bg-fuchsia-800 text-white font-bold text-base shadow-lg animate-fade-in-up"
+        className="absolute top-5 right-6 z-40 px-5 py-2.5 rounded-full bg-gradient-to-b from-white/10 to-white/0 border border-white/20 backdrop-blur-xl hover:border-white/40 hover:-translate-y-0.5 transition-all duration-300 text-white font-bold text-sm shadow-[0_10px_32px_rgba(255,255,255,0.10)] animate-fade-in-up"
         style={{
           animationDelay: "0.35s",
           animationFillMode: "forwards",
@@ -67,13 +72,13 @@ export default function AdminLayout({ children }) {
         Logout
       </button>
 
-      {/* Sidebar */}
+      {/* Sidebar - Glassmorphism */}
       <aside
-        className="w-64 bg-[#0F0F19] border-r border-white/10 p-6 animate-fade-in-up"
+        className="w-64 bg-gradient-to-b from-white/10 to-white/0 backdrop-blur-xl border-r border-white/15 p-6 animate-fade-in-up shadow-[0_20px_80px_rgba(255,255,255,0.13)]"
         style={{ animationDelay: "0.10s", animationFillMode: "forwards" }}
       >
         <h1
-          className="text-2xl font-bold mb-8 animate-fade-in-up"
+          className="text-2xl font-extrabold mb-8 bg-gradient-to-r from-white via-white/90 to-zinc-200/70 bg-clip-text text-transparent animate-fade-in-up"
           style={{ animationDelay: "0.2s", animationFillMode: "forwards" }}
         >
           SoulSeam Admin
@@ -84,7 +89,7 @@ export default function AdminLayout({ children }) {
             <button
               key={item.path}
               onClick={() => router.push(item.path)}
-              className="w-full text-left px-4 py-3 rounded-xl bg-white text-black hover:bg-gray-100 transition font-semibold animate-fade-in-up"
+              className="w-full text-left px-4 py-3 rounded-xl bg-gradient-to-b from-white/10 to-white/0 border border-white/15 hover:border-white/30 hover:-translate-y-0.5 transition-all duration-300 text-white font-semibold shadow-[0_10px_32px_rgba(255,255,255,0.10)] animate-fade-in-up"
               style={{
                 animationDelay: `${0.25 + idx * 0.07}s`,
                 animationFillMode: "forwards",
@@ -96,12 +101,14 @@ export default function AdminLayout({ children }) {
         </nav>
       </aside>
 
-      {/* Main content */}
+      {/* Main content - Centered with max width */}
       <main
-        className="flex-1 p-10 bg-gradient-to-br from-black via-[#201134] to-fuchsia-950 animate-fade-in-up"
+        className="flex-1 p-10 animate-fade-in-up overflow-auto"
         style={{ animationDelay: "0.32s", animationFillMode: "forwards" }}
       >
-        {children}
+        <div className="max-w-7xl mx-auto">
+          {children}
+        </div>
       </main>
     </div>
   );
