@@ -1162,7 +1162,7 @@ function toSizeArray(sizes) {
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 sm:mb-6">Newsletter</h2>
           <p className="text-lg sm:text-xl mb-6 sm:mb-8 text-white/80 px-4">
-            Join the crew for exclusive drops, epic giveaways, and deals you won't want to miss.
+            {"Join the crew for exclusive drops, epic giveaways, and deals you won't want to miss."}
           </p>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 max-w-md mx-auto px-4">
             <input

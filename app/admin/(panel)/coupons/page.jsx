@@ -6,9 +6,11 @@ export default function CouponsPage() {
   const [coupons, setCoupons] = useState([]);
   const [form, setForm] = useState({ code: "", discount: "", expiry: "", active: true });
 
-  async function load() {
+  // Async data-fetching function, declared before useEffect
+  async function fetchCoupons() {
     const res = await fetch("/api/admin/coupons");
-    setCoupons(await res.json());
+    const data = await res.json();
+    setCoupons(data);
   }
 
   async function save() {
@@ -21,15 +23,19 @@ export default function CouponsPage() {
     });
 
     setForm({ code: "", discount: "", expiry: "", active: true });
-    load();
+    await fetchCoupons();
   }
 
   async function remove(id) {
     await fetch(`/api/admin/coupons?id=${id}`, { method: "DELETE" });
-    load();
+    await fetchCoupons();
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    // Only call the async fetchCoupons function here
+    fetchCoupons();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="min-h-screen py-12 px-4 flex flex-col items-center bg-gradient-to-br from-neutral-950 via-fuchsia-900/40 to-neutral-950">
