@@ -57,10 +57,6 @@ const ProgressBar = ({ step }) => {
   );
 };
 
-// --- Shimmer helper ---
-const shimmerClass =
-  "before:absolute before:left-[-78%] before:top-0 before:w-[58%] before:h-full before:bg-gradient-to-r before:from-white/25 before:via-transparent before:to-white/7 before:animate-premiumShine";
-
 // --- Product card ---
 const checkoutProductCardClass = `
   flex items-center mb-5 p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-white/10 to-white/0 group
@@ -240,11 +236,6 @@ const asideCardClass = `
   border border-white/15
   shadow-[0_20px_80px_rgba(255,255,255,0.15)]
   transition-all duration-600 ease-out
-`;
-
-const summaryTotalClass = `
-  flex justify-between items-center text-xl font-black border-t border-white/12 pt-7
-  bg-gradient-to-r from-white/5 via-white/6 to-white/0 rounded-xl
 `;
 
 export default function CheckoutPage() {

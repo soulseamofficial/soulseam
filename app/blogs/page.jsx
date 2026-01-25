@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState } from "react";
+import Link from "next/link";
 
 /* ================= DATA ================= */
 
@@ -121,9 +122,9 @@ export default function BlogsPage() {
           <span className="text-2xl font-semibold">SoulSeam</span>
         </div>
         <nav className="flex gap-6 text-sm text-white/80">
-          <a href="/">Home</a>
-          <a href="/blogs" className="underline underline-offset-4">Blogs</a>
-          <a href="/cart">Cart</a>
+          <Link href="/">Home</Link>
+          <Link href="/blogs" className="underline underline-offset-4">Blogs</Link>
+          <Link href="/cart">Cart</Link>
         </nav>
       </header>
 

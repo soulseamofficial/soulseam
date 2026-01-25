@@ -8,16 +8,17 @@ export default function AdminReelsPage() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  useEffect(() => {
-    fetchReels();
-  }, []);
-
-  async function fetchReels() {
+  // Refactored: arrow function defined before useEffect
+  const fetchReels = async () => {
     const res = await fetch("/api/admin/reels");
     const data = await res.json();
     setReels(data);
     setLoading(false);
-  }
+  };
+
+  useEffect(() => {
+    fetchReels();
+  }, []);
 
   async function deleteReel(id) {
     if (!confirm("Delete this reel?")) return;

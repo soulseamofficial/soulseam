@@ -8,6 +8,7 @@ export default function ProductsPage() {
   const [sortBy, setSortBy] = useState("");
   const router = useRouter();
 
+  // Async product-fetching function, declared before useEffect
   const fetchProducts = async () => {
     const res = await fetch("/api/admin/products");
     const data = await res.json();
@@ -15,7 +16,9 @@ export default function ProductsPage() {
   };
 
   useEffect(() => {
+    // Only call the async fetchProducts function here
     fetchProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const deleteProduct = async (id) => {

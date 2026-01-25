@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 
 const navLinks = [
   { label: "Home", href: "/" },
@@ -17,10 +18,13 @@ export default function Navbar({ className = "" }) {
       
       {/* 🔥 LOGO (GLOBAL HOME NAVIGATION) */}
       <Link href="/" className="flex items-center gap-2 cursor-pointer">
-        <img
+        <Image
           src="/logo2.jpg"
           alt="SoulSeam Logo"
           className="h-9 w-9 rounded-full"
+          width={36}
+          height={36}
+          priority
         />
         <span className="text-xl font-semibold tracking-wide text-white">
           SoulSeam

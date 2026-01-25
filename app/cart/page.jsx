@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "../CartContext";
 import { X, Plus, Minus } from "lucide-react";
+import Image from "next/image";
 
 export default function CartPage() {
   const { cartItems, removeItem, updateQuantity } = useCart();
@@ -43,11 +44,14 @@ export default function CartPage() {
 
         {cartItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 rounded-2xl border border-white/10 bg-white/5 mt-4">
-            <img
+            <Image
               src="/empty-cart.svg"
               alt="Empty Cart"
+              width={112}
+              height={112}
               className="w-28 h-28 mb-6 opacity-80"
               style={{ filter: "invert(1)" }}
+              priority
             />
             <div className="text-lg mb-3 font-medium text-white/90">
               Your cart is empty.
@@ -88,10 +92,14 @@ export default function CartPage() {
                   >
                     {/* Product Image */}
                     <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden bg-black/40 border border-white/10 flex-shrink-0">
-                      <img
+                      <Image
                         src={item.image}
                         alt={item.name}
+                        width={96}
+                        height={96}
                         className="w-full h-full object-cover"
+                        style={{ objectFit: "cover" }}
+                        priority
                       />
                     </div>
 
