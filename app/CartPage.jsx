@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useCart } from "../CartContext";
 import Link from "next/link";
 import { ArrowRight, Plus, Minus, X } from "lucide-react";
@@ -8,16 +8,9 @@ import { ArrowRight, Plus, Minus, X } from "lucide-react";
 export default function CartPage() {
   const { cartItems, updateQuantity, removeItem, subtotal } = useCart();
 
-  const [mounted, setMounted] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState(false);
   const [showCouponSuccess, setShowCouponSuccess] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) return null;
 
   const shipping = subtotal > 100 ? 0 : 9.99;
   const discount = appliedCoupon ? subtotal * 0.15 : 0;
@@ -195,7 +188,7 @@ export default function CartPage() {
                   : "bg-white text-black hover:scale-105 hover:shadow-[0_20px_50px_rgba(255,255,255,0.25)]"
               }`}
             >
-              Proceed to Checkout <ArrowRight size={18} />
+              Finish the Stitch <ArrowRight size={18} />
             </button>
           </div>
         </div>
@@ -204,7 +197,11 @@ export default function CartPage() {
       {/* GLOBAL STYLES */}
       <style jsx global>{`
         .premium-card {
-          background: linear-gradient(to bottom, rgba(255,255,255,0.08), rgba(0,0,0,0.6));
+          background: linear-gradient(
+            to bottom,
+            rgba(255,255,255,0.08),
+            rgba(0,0,0,0.6)
+          );
           border: 1px solid rgba(255,255,255,0.15);
           border-radius: 1.25rem;
           box-shadow: 0 25px 90px rgba(255,255,255,0.12);
