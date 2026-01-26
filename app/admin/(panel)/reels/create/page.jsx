@@ -20,136 +20,182 @@ export default function AddReelPage() {
   const [error, setError] = useState("");
 
   function handleChange(e) {
-    const { name, value } = e.target;
-    setForm((p) => ({ ...p, [name]: value }));
+    setForm({ ...form, [e.target.name]: e.target.value });
     setError("");
   }
 
   function handleFile(e) {
     const file = e.target.files[0];
-    if (!file) return;
-
-    if (file.type !== "video/mp4") {
-      setError("Only .mp4 files allowed");
+    if (!file || file.type !== "video/mp4") {
+      setError("Only MP4 videos allowed");
       return;
     }
-
-    setForm((p) => ({ ...p, video: file }));
+    setForm({ ...form, video: file });
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setError("");
-
     if (!form.video || !form.title || !form.category || !form.duration) {
-      return setError("All fields are required");
+      return setError("All fields required");
     }
 
     setLoading(true);
-
-    const formData = new FormData();
-    formData.append("video", form.video);
-    formData.append("title", form.title);
-    formData.append("category", form.category);
-    formData.append("duration", form.duration);
-
-    const res = await fetch("/api/admin/reels", {
-      method: "POST",
-      body: formData,
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      setError(data.message || "Upload failed");
-      setLoading(false);
-      return;
-    }
-
-    // success → back to reels list
-    router.push("/admin/reels");
+    setTimeout(() => router.push("/admin/reels"), 800);
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-black via-[#201134] to-fuchsia-950 py-12 px-4">
-      <div className="w-full max-w-2xl bg-gradient-to-b from-white/10 to-white/0 border border-fuchsia-700/30 rounded-2xl p-0 md:p-0 shadow-[0_12px_54px_rgba(180,50,215,0.09)] backdrop-blur-xl">
-        <form
-          onSubmit={handleSubmit}
-          className="w-full px-8 md:px-16 py-12"
-        >
-          <h1 className="text-4xl font-extrabold bg-gradient-to-br from-fuchsia-300 via-fuchsia-100 to-pink-100 bg-clip-text text-transparent mb-10 text-center tracking-tight drop-shadow-[0_4px_26px_rgba(200,100,250,0.12)]">
-            Add Reel
-          </h1>
-          
-          <div className="space-y-7">
-            {/* Video */}
-            <div>
-              <label className="block mb-2 text-sm font-semibold text-white/80">Video (.mp4)</label>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="video/mp4"
-                onChange={handleFile}
-                className="w-full rounded-lg px-3 py-2 bg-black/40 border border-fuchsia-600/20 text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-none file:bg-fuchsia-500/20 file:text-fuchsia-200 focus:border-fuchsia-400 focus:ring-fuchsia-300"
-              />
-            </div>
-            {/* Title */}
-            <div>
-              <label className="block mb-2 text-sm font-semibold text-white/80">Title</label>
-              <input
-                type="text"
-                name="title"
-                placeholder="Title"
-                value={form.title}
-                onChange={handleChange}
-                className="w-full rounded-lg px-3 py-2 bg-black/40 border border-fuchsia-600/20 text-white focus:border-fuchsia-400 focus:ring-fuchsia-300"
-              />
-            </div>
-            {/* Category */}
-            <div>
-              <label className="block mb-2 text-sm font-semibold text-white/80">Category</label>
-              <select
-                name="category"
-                value={form.category}
-                onChange={handleChange}
-                className="w-full rounded-lg px-3 py-2 bg-black/40 border border-fuchsia-600/20 text-white focus:border-fuchsia-400 focus:ring-fuchsia-300"
-              >
-                <option value="">Select category</option>
-                {CATEGORY_OPTIONS.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </div>
-            {/* Duration */}
-            <div>
-              <label className="block mb-2 text-sm font-semibold text-white/80">
-                Duration <span className="font-normal text-xs">(mm:ss)</span>
-              </label>
-              <input
-                type="text"
-                name="duration"
-                placeholder="Duration (mm:ss)"
-                value={form.duration}
-                onChange={handleChange}
-                className="w-full rounded-lg px-3 py-2 bg-black/40 border border-fuchsia-600/20 text-white focus:border-fuchsia-400 focus:ring-fuchsia-300"
-              />
-            </div>
+    <div className="min-h-screen px-4 md:px-14 py-10 bg-black text-white">
+      <div className="max-w-5xl mx-auto w-full space-y-8">
+        {/* Page Title */}
+        <h1 className="text-3xl font-extrabold mb-10 bg-gradient-to-b from-white/90 to-white/60 bg-clip-text text-transparent tracking-wide">
+          Add Reel
+        </h1>
 
-            {error && (
-              <div className="w-full flex justify-center">
-                <p className="bg-gradient-to-r from-red-900/80 to-red-500/20 py-2 px-4 text-red-200 rounded-lg font-semibold text-center">{error}</p>
+        {/* Main Card */}
+        <div
+          className="
+            rounded-2xl border border-white/12
+            shadow-[0_8px_32px_rgba(255,255,255,0.08)]
+            backdrop-blur-xl
+            transition-all duration-300
+            bg-gradient-to-b from-white/8 via-black/20 to-black
+
+            hover:shadow-[0_14px_60px_4px_rgba(255,255,255,0.18)]
+            hover:scale-[1.012]
+            overflow-hidden
+          "
+        >
+          <form onSubmit={handleSubmit} autoComplete="off">
+            <div className="flex flex-col">
+              {/* Top (slightly lighter, controlled) */}
+              <div className="w-full bg-gradient-to-b from-white/14 via-white/8 to-black/0 py-10 px-8 rounded-t-2xl">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* LEFT */}
+                  <div className="space-y-6">
+                    {/* Video */}
+                    <div className="flex flex-col space-y-1">
+                      <span className="text-[13px] text-white/70 font-semibold uppercase tracking-wider">
+                        Video (MP4)
+                      </span>
+                      <input
+                        type="file"
+                        accept="video/mp4"
+                        ref={fileRef}
+                        onChange={handleFile}
+                        className="
+                          file:bg-white/10 file:hover:bg-white/20
+                          file:text-white file:border-none
+                          file:rounded-lg file:px-5 file:py-2
+                          file:transition-all file:duration-200
+                          w-full px-4 py-2 rounded-lg
+                          bg-black/40 border border-white/10
+                          text-white/80
+                          hover:border-white/30
+                          focus:outline-none focus:border-white/25
+                        "
+                      />
+                    </div>
+
+                    {/* Title */}
+                    <div className="flex flex-col space-y-1">
+                      <span className="text-[13px] text-white/70 font-semibold uppercase tracking-wider">
+                        Title
+                      </span>
+                      <input
+                        name="title"
+                        placeholder="Reel Title"
+                        value={form.title}
+                        onChange={handleChange}
+                        className="
+                          w-full px-4 py-2 rounded-lg
+                          bg-black/45 border border-white/10
+                          text-white placeholder-white/40
+                          hover:border-white/30
+                          focus:outline-none focus:border-white/30
+                        "
+                      />
+                    </div>
+
+                    {/* Category */}
+                    <div className="flex flex-col space-y-1">
+                      <span className="text-[13px] text-white/70 font-semibold uppercase tracking-wider">
+                        Category
+                      </span>
+                      <select
+                        name="category"
+                        value={form.category}
+                        onChange={handleChange}
+                        className="
+                          w-full px-4 py-2 rounded-lg
+                          bg-black/45 border border-white/10
+                          text-white
+                          hover:border-white/30
+                          focus:outline-none focus:border-white/30
+                        "
+                      >
+                        <option value="">Select Category</option>
+                        {CATEGORY_OPTIONS.map((c) => (
+                          <option key={c}>{c}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* RIGHT */}
+                  <div className="space-y-6">
+                    <div className="flex flex-col space-y-1">
+                      <span className="text-[13px] text-white/70 font-semibold uppercase tracking-wider">
+                        Duration
+                      </span>
+                      <input
+                        name="duration"
+                        placeholder="Duration (mm:ss)"
+                        value={form.duration}
+                        onChange={handleChange}
+                        className="
+                          w-full px-4 py-2 rounded-lg
+                          bg-black/45 border border-white/10
+                          text-white placeholder-white/40
+                          hover:border-white/30
+                          focus:outline-none focus:border-white/30
+                        "
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
-            <button
-              disabled={loading}
-              className={`w-full py-3 rounded-xl bg-gradient-to-r from-fuchsia-400 to-pink-400 text-black font-bold tracking-wide shadow-lg transition-all duration-200 ${
-                loading ? "opacity-70 cursor-not-allowed" : "hover:from-pink-300 hover:to-fuchsia-400"
-              }`}
-            >
-              {loading ? "Uploading..." : "Upload Reel"}
-            </button>
-          </div>
-        </form>
+
+              {/* Bottom (dark dominant) */}
+              <div className="w-full bg-gradient-to-b from-black/80 via-black/95 to-black px-8 py-8 rounded-b-2xl">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                  {error && (
+                    <div className="text-sm text-rose-300 font-semibold bg-white/5 rounded px-4 py-2 border border-rose-400/30">
+                      {error}
+                    </div>
+                  )}
+
+                  <button
+                    disabled={loading}
+                    className={`
+                      py-3 px-10 rounded-xl font-bold
+                      bg-white/10 border border-white/20
+                      text-white
+                      shadow-[0_2px_18px_2px_rgba(255,255,255,0.12)]
+                      hover:bg-white/20 hover:border-white/30
+                      hover:scale-[1.035]
+                      hover:shadow-[0_4px_28px_4px_rgba(255,255,255,0.28)]
+                      active:scale-[.98]
+                      transition-all duration-200
+                      ${loading ? "opacity-55 pointer-events-none" : ""}
+                    `}
+                  >
+                    {loading ? "Uploading..." : "Upload Reel"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

@@ -11,7 +11,7 @@ export default function ProductsPage() {
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState("");
 
-  // 🔥 delete modal state
+  // 🔥 modal states
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
 
@@ -26,7 +26,7 @@ export default function ProductsPage() {
     fetchProducts();
   }, []);
 
-  /* CONFIRM DELETE (actual delete) */
+  /* CONFIRM DELETE */
   const handleConfirmDelete = async () => {
     await fetch(`/api/admin/products?id=${selectedId}`, {
       method: "DELETE",
@@ -116,6 +116,7 @@ export default function ProductsPage() {
           {sortedProducts.map((p) => {
             const totalStock =
               p.sizes?.reduce((sum, s) => sum + s.stock, 0) || 0;
+
             const lowStock = p.sizes?.some((s) => s.stock <= 2);
 
             return (
@@ -136,7 +137,7 @@ export default function ProductsPage() {
                 {/* TOP LIGHT ONLY */}
                 <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_rgba(255,255,255,0.14)_0%,_rgba(0,0,0,0.9)_55%)]" />
 
-                <div className="relative z-10 space-y-1">
+                <div className="relative z-10">
                   <h2 className="text-xl font-semibold text-white">
                     {p.title}
                   </h2>
@@ -209,7 +210,7 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* 🔥 CUSTOM CONFIRM MODAL */}
+      {/* 🔥 CONFIRM MODAL */}
       <AdminConfirmModal
         open={confirmOpen}
         title="Delete this product?"

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 // Add simple fade-in-up animation utility class (from globals.css)
 // .animate-fade-in-up { animation: fade-in-up 0.7s ease-out forwards; }
@@ -77,12 +78,20 @@ export default function AdminLayout({ children }) {
         className="w-64 bg-gradient-to-b from-white/10 to-white/0 backdrop-blur-xl border-r border-white/15 p-6 animate-fade-in-up shadow-[0_20px_80px_rgba(255,255,255,0.13)]"
         style={{ animationDelay: "0.10s", animationFillMode: "forwards" }}
       >
-        <h1
-          className="text-2xl font-extrabold mb-8 bg-gradient-to-r from-white via-white/90 to-zinc-200/70 bg-clip-text text-transparent animate-fade-in-up"
-          style={{ animationDelay: "0.2s", animationFillMode: "forwards" }}
-        >
-          SoulSeam Admin
-        </h1>
+       <div className="mb-10 flex justify-center">
+  <Image
+    src="/logo.jpg"
+    alt="SoulSeam Logo"
+    width={140}
+    height={140}
+    priority
+    className="
+      object-contain
+      drop-shadow-[0_4px_18px_rgba(255,255,255,0.25)]
+    "
+  />
+</div>
+
 
         <nav className="space-y-3">
           {menu.map((item, idx) => (
