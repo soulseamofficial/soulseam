@@ -1,13 +1,14 @@
 "use client";
 
-import React, { useState } from 'react';
-import { ShoppingBag, X, Plus, Minus, Tag, ArrowRight, Shield, Truck, CreditCard } from 'lucide-react';
-import { useCart } from '../CartContext'; // Adjusted path
+import { useState } from "react";
+import { useCart } from "../CartContext";
 import Link from "next/link";
+import { ArrowRight, Plus, Minus, X } from "lucide-react";
 
-const CartPage = () => {
+export default function CartPage() {
   const { cartItems, updateQuantity, removeItem, subtotal } = useCart();
-  const [couponCode, setCouponCode] = useState('');
+
+  const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState(false);
   const [showCouponSuccess, setShowCouponSuccess] = useState(false);
 
@@ -15,145 +16,220 @@ const CartPage = () => {
   const discount = appliedCoupon ? subtotal * 0.15 : 0;
   const total = subtotal + shipping - discount;
 
-  const applyCoupon = (e) => {
-    e.preventDefault(); // Prevent form submission default behavior
-    if (couponCode.trim().toUpperCase() === 'PREMIUM15') {
+  function applyCoupon(e) {
+    e.preventDefault();
+    if (appliedCoupon) return;
+
+    if (couponCode.trim().toUpperCase() === "PREMIUM15") {
       setAppliedCoupon(true);
       setShowCouponSuccess(true);
-      setTimeout(() => setShowCouponSuccess(false), 3000);
+      setTimeout(() => setShowCouponSuccess(false), 1800);
     }
-  };
-
-  // ---- Fix: Use a <form> so pressing "Apply" (or enter) always works ----
-  // Also: Use <button type="submit"> for apply button.
-  // ---- Fix: Prevent checkout if no items, and also visually disable button ----
+  }
 
   return (
-    <div className="min-h-screen bg-black text-white pt-20 px-4 md:px-8 lg:px-16">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
+    <div className="min-h-screen bg-black text-white pt-20 px-4 md:px-8 animate-fadeIn">
+      <div className="max-w-6xl mx-auto">
+        {/* HEADER */}
         <div className="mb-10">
-          <h1 className="text-4xl md:text-5xl font-light tracking-wider mb-4">Your Shopping Cart</h1>
-          <div className="flex items-center space-x-2 text-gray-400">
-            <Link href="/" className="hover:text-white transition-colors duration-300">Home</Link>
-            <span>/</span>
-            <span className="text-white">Cart</span>
+          <h1 className="text-4xl font-extrabold tracking-wider mb-3 bg-gradient-to-r from-white to-zinc-300 bg-clip-text text-transparent">
+            Your Shopping Cart
+          </h1>
+          <div className="text-sm text-white/50">
+            <Link href="/" className="hover:text-white transition">
+              Home
+            </Link>{" "}
+            / Cart
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Cart Items */}
-          <div className="lg:col-span-2">
-            <div className="bg-gray-900 rounded-xl p-6 mb-6 transform transition-all duration-500 hover:shadow-2xl hover:shadow-gray-800/30">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-light">Cart Items ({cartItems.length})</h2>
-              </div>
-              {cartItems.map((item) => (
-                <div key={`${item.id}-${item.size}`} className="flex items-center justify-between border-b border-gray-800 py-4">
-                  {/* Item details */}
-                  <div className="flex items-center space-x-4">
-                    <img src={item.image} alt={item.name} className="w-20 h-20 object-cover rounded" />
-                    <div>
-                      <h3 className="font-semibold">{item.name}</h3>
-                      <p className="text-gray-400">Size: {item.size} | Color: {item.color}</p>
-                      <p className="text-gray-400">${item.price.toFixed(2)} x {item.quantity}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <button onClick={() => updateQuantity(item.id, item.size, -1)}><Minus size={18} /></button>
-                    <span>{item.quantity}</span>
-                    <button onClick={() => updateQuantity(item.id, item.size, 1)}><Plus size={18} /></button>
-                    <button onClick={() => removeItem(item.id, item.size)}><X size={18} className="text-red-500" /></button>
-                  </div>
-                </div>
-              ))}
-            </div>
-            {/* Coupon section */}
-            <div className="bg-gray-900 rounded-xl p-6 transform transition-all duration-500 hover:shadow-2xl hover:shadow-gray-800/30">
-              <h3 className="text-lg font-light mb-4">Apply Coupon</h3>
-              <form className="flex space-x-2" onSubmit={applyCoupon} autoComplete="off">
-                <input
-                  type="text"
-                  value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value)}
-                  className="flex-1 p-2 bg-gray-800 border border-gray-700 rounded"
-                  placeholder="Enter code"
-                  autoComplete="off"
+        {/* GRID */}
+        <div className="grid grid-cols-1 md:grid-cols-[2fr,1fr] gap-6 mt-4">
+          {/* LEFT */}
+          <div className="premium-card p-6 sm:p-8">
+            <h2 className="text-xl font-semibold mb-6">
+              Cart Items ({cartItems.length})
+            </h2>
+
+            {cartItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 animate-fadeIn">
+                <img
+                  src="/empty-cart.svg"
+                  alt="Empty Cart"
+                  className="w-28 h-28 mb-6 opacity-70 invert"
                 />
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-white text-black rounded transition-colors duration-150"
-                  disabled={appliedCoupon}
-                  style={{
-                    opacity: appliedCoupon ? 0.5 : 1,
-                    cursor: appliedCoupon ? 'not-allowed' : 'pointer'
-                  }}
-                >
-                  Apply
-                </button>
-              </form>
-              {showCouponSuccess && <p className="text-green-400 mt-2">Coupon applied!</p>}
-            </div>
-            {/* Estimated Delivery */}
-            <div className="bg-gray-900 rounded-xl p-6 mt-6 transform transition-all duration-500 hover:shadow-2xl hover:shadow-gray-800/30">
-              <h3 className="text-lg font-light mb-4">Estimated Delivery</h3>
-              <p className="text-gray-400 mb-2">2-4 business days</p>
-              <p className="text-sm text-gray-500">Express shipping available at checkout</p>
-            </div>
-          </div>
-          {/* Summary */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-24">
-              <div className="bg-gray-900 rounded-xl p-6 transform transition-all duration-500 hover:shadow-2xl hover:shadow-gray-800/30">
-                <h2 className="text-2xl font-light mb-6">Order Summary</h2>
-                <div className="space-y-4">
-                  <div className="flex justify-between text-gray-400">
-                    <span>Subtotal</span>
-                    <span>${subtotal.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-gray-400">
-                    <span>Shipping</span>
-                    <span>{shipping === 0 ? 'Free' : `$${shipping.toFixed(2)}`}</span>
-                  </div>
-                  {discount > 0 && (
-                    <div className="flex justify-between text-green-400">
-                      <span>Discount</span>
-                      <span>-${discount.toFixed(2)}</span>
+                <p className="text-white/60 font-semibold">
+                  Your cart is empty
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {cartItems.map((item) => (
+                  <div
+                    key={`${item.id}-${item.size}`}
+                    className="flex justify-between items-center border-b border-white/10 pb-4 group transition-all hover:scale-[1.01]"
+                  >
+                    <div className="flex gap-4">
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="w-20 h-20 rounded-xl object-cover group-hover:scale-105 transition"
+                      />
+                      <div>
+                        <p className="font-semibold">{item.name}</p>
+                        <p className="text-white/50 text-sm">
+                          Size: {item.size} | Color: {item.color}
+                        </p>
+                        <p className="text-white/70 text-sm">
+                          ${item.price.toFixed(2)}
+                        </p>
+                      </div>
                     </div>
-                  )}
-                  <div className="flex justify-between font-bold text-xl border-t border-gray-800 pt-4">
-                    <span>Total</span>
-                    <span>${total.toFixed(2)}</span>
+
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() =>
+                          updateQuantity(item.id, item.size, -1)
+                        }
+                        className="icon-btn"
+                      >
+                        <Minus size={16} />
+                      </button>
+
+                      <span>{item.quantity}</span>
+
+                      <button
+                        onClick={() =>
+                          updateQuantity(item.id, item.size, 1)
+                        }
+                        className="icon-btn"
+                      >
+                        <Plus size={16} />
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          removeItem(item.id, item.size)
+                        }
+                        className="icon-btn text-red-400"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
                   </div>
+                ))}
+              </div>
+            )}
+
+            {/* COUPON */}
+            <form onSubmit={applyCoupon} className="mt-8 flex gap-3">
+              <input
+                value={couponCode}
+                onChange={(e) => setCouponCode(e.target.value)}
+                placeholder="Coupon code"
+                className="flex-1 rounded-xl bg-black border border-white/15 px-4 py-2 text-white focus:border-white/40 focus:ring-2 focus:ring-white/20 transition"
+              />
+              <button
+                type="submit"
+                disabled={appliedCoupon}
+                className="px-5 py-2 rounded-xl bg-white text-black font-bold hover:scale-105 transition disabled:opacity-50"
+              >
+                Apply
+              </button>
+            </form>
+
+            {showCouponSuccess && (
+              <p className="text-green-400 mt-2 font-semibold animate-pulse">
+                Coupon applied!
+              </p>
+            )}
+          </div>
+
+          {/* RIGHT */}
+          <div className="premium-card p-6 sm:p-8 sticky top-24">
+            <h2 className="text-xl font-semibold mb-6">
+              Order Summary
+            </h2>
+
+            <div className="space-y-4 text-white/80">
+              <div className="flex justify-between">
+                <span>Subtotal</span>
+                <span>${subtotal.toFixed(2)}</span>
+              </div>
+
+              <div className="flex justify-between">
+                <span>Shipping</span>
+                <span>{shipping === 0 ? "Free" : `$${shipping}`}</span>
+              </div>
+
+              {discount > 0 && (
+                <div className="flex justify-between text-green-400">
+                  <span>Discount</span>
+                  <span>- ${discount.toFixed(2)}</span>
                 </div>
-                {
-                  // Instead of <Link>, use a <button> to properly prevent navigation if needed,
-                  // but since we want navigation on click only if cartItems.length > 0, do client routing.
-                }
-                <button
-                  type="button"
-                  className={`w-full mt-6 py-3 rounded-full font-semibold flex items-center justify-center transition-all duration-150 ${
-                    cartItems.length === 0
-                      ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-                      : 'bg-white text-black hover:bg-gray-100'
-                  }`}
-                  disabled={cartItems.length === 0}
-                  onClick={() => {
-                    if (cartItems.length > 0) {
-                      window.location.href = "app\checkout";
-                    }
-                  }}
-                  aria-disabled={cartItems.length === 0}
-                >
-                  Proceed to Checkout <ArrowRight className="inline ml-2" size={18} />
-                </button>
+              )}
+
+              <div className="border-t border-white/10 pt-4 flex justify-between text-lg font-extrabold">
+                <span>Total</span>
+                <span>${total.toFixed(2)}</span>
               </div>
             </div>
+
+            <button
+              disabled={cartItems.length === 0}
+              onClick={() => {
+                if (cartItems.length > 0) {
+                  window.location.href = "/checkout";
+                }
+              }}
+              className={`w-full mt-6 py-3 rounded-full font-extrabold flex items-center justify-center gap-2 transition-all ${
+                cartItems.length === 0
+                  ? "bg-white/20 text-white/40 cursor-not-allowed"
+                  : "bg-white text-black hover:scale-105 hover:shadow-[0_20px_50px_rgba(255,255,255,0.25)]"
+              }`}
+            >
+              Finish the Stitch <ArrowRight size={18} />
+            </button>
           </div>
         </div>
       </div>
+
+      {/* GLOBAL STYLES */}
+      <style jsx global>{`
+        .premium-card {
+          background: linear-gradient(
+            to bottom,
+            rgba(255,255,255,0.08),
+            rgba(0,0,0,0.6)
+          );
+          border: 1px solid rgba(255,255,255,0.15);
+          border-radius: 1.25rem;
+          box-shadow: 0 25px 90px rgba(255,255,255,0.12);
+          backdrop-filter: blur(16px);
+          transition: all .4s cubic-bezier(.4,0,.2,1);
+        }
+        .premium-card:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 35px 120px rgba(255,255,255,0.18);
+          border-color: rgba(255,255,255,0.35);
+        }
+        .icon-btn {
+          padding: 6px;
+          border-radius: 999px;
+          transition: all .25s;
+        }
+        .icon-btn:hover {
+          background: rgba(255,255,255,0.15);
+          transform: scale(1.15);
+        }
+        .animate-fadeIn {
+          animation: fadeIn .6s ease-out;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: none; }
+        }
+      `}</style>
     </div>
   );
-};
-
-export default CartPage;
+}

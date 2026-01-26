@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useState, useRef, useEffect } from "react";
 
 const CATEGORY_OPTIONS = [
@@ -8,7 +9,7 @@ const CATEGORY_OPTIONS = [
   "Outerwear",
   "Shoes",
   "Accessories",
-  "Other"
+  "Other",
 ];
 
 const SIZES = ["S", "M", "L", "XL"];
@@ -22,7 +23,7 @@ export default function CreateProduct() {
     stock_S: "",
     stock_M: "",
     stock_L: "",
-    stock_XL: ""
+    stock_XL: "",
   });
 
   const [images, setImages] = useState([]);
@@ -58,12 +59,12 @@ export default function CreateProduct() {
     }
 
     setImages(files);
-    setImagePreviews(files.map(file => URL.createObjectURL(file)));
+    setImagePreviews(files.map((file) => URL.createObjectURL(file)));
   };
 
   useEffect(() => {
     return () => {
-      imagePreviews.forEach(url => URL.revokeObjectURL(url));
+      imagePreviews.forEach((url) => URL.revokeObjectURL(url));
     };
   }, [imagePreviews]);
 
@@ -80,7 +81,7 @@ export default function CreateProduct() {
     }
 
     const hasStock = SIZES.some(
-      size => Number(form[`stock_${size}`]) > 0
+      (size) => Number(form[`stock_${size}`]) > 0
     );
 
     if (!hasStock) {
@@ -96,20 +97,20 @@ export default function CreateProduct() {
       formData.append("description", form.description);
       formData.append("category", form.category);
 
-      SIZES.forEach(size => {
+      SIZES.forEach((size) => {
         formData.append(
           `stock_${size}`,
           Number(form[`stock_${size}`] || 0)
         );
       });
 
-      images.forEach(img => {
+      images.forEach((img) => {
         formData.append("images", img);
       });
 
       const res = await fetch("/api/admin/products", {
         method: "POST",
-        body: formData
+        body: formData,
       });
 
       const data = await res.json();
@@ -120,7 +121,7 @@ export default function CreateProduct() {
         return;
       }
 
-      setSuccess("Product created successfully 🎉");
+      setSuccess("Product created successfully");
 
       setForm({
         title: "",
@@ -130,14 +131,13 @@ export default function CreateProduct() {
         stock_S: "",
         stock_M: "",
         stock_L: "",
-        stock_XL: ""
+        stock_XL: "",
       });
 
       setImages([]);
       setImagePreviews([]);
       if (fileInputRef.current) fileInputRef.current.value = "";
-
-    } catch (err) {
+    } catch {
       setError("Server error. Please try again.");
     }
 
@@ -145,110 +145,141 @@ export default function CreateProduct() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-8 bg-gradient-to-br from-black via-[#201134] to-fuchsia-950">
-      <div className="w-full max-w-2xl bg-neutral-900/80 border border-fuchsia-800/20 rounded-3xl px-10 py-12 shadow-lg">
-        <h1 className="text-4xl font-extrabold mb-10 bg-gradient-to-r from-fuchsia-300 via-pink-400 to-violet-500 text-transparent bg-clip-text">
-          Add Product
-        </h1>
+    <div className="px-8 py-10">
+      <div
+        className="
+          relative overflow-hidden
+          max-w-3xl mx-auto
+          rounded-3xl
+          bg-gradient-to-b from-white/8 via-black/25 to-black
+          backdrop-blur-2xl
+          border border-white/12
+          shadow-[0_18px_70px_rgba(255,255,255,0.14)]
+          p-10
+        "
+      >
+        {/* TOP LIGHT */}
+        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_rgba(255,255,255,0.14)_0%,_rgba(0,0,0,0.92)_55%)]" />
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-          <input
-            name="title"
-            placeholder="Product title"
-            value={form.title}
-            onChange={handleChange}
-            required
-            className="rounded-xl p-3 bg-neutral-900 text-white border border-fuchsia-700/20"
-          />
+        <div className="relative z-10">
+          <h1 className="text-3xl font-extrabold text-white mb-10">
+            Add Product
+          </h1>
 
-          <input
-            name="price"
-            type="number"
-            min="0"
-            step="0.01"
-            placeholder="Price"
-            value={form.price}
-            onChange={handleChange}
-            required
-            className="w-40 rounded-xl p-3 bg-neutral-900 text-white border border-fuchsia-700/20"
-          />
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <input
+              name="title"
+              placeholder="Product title"
+              value={form.title}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-3 rounded-xl bg-black/40 border border-white/15 text-white placeholder-white/40 focus:outline-none focus:border-white/30"
+            />
 
-          <textarea
-            name="description"
-            placeholder="Description"
-            value={form.description}
-            onChange={handleChange}
-            rows={3}
-            required
-            className="rounded-xl p-3 bg-neutral-900 text-white border border-fuchsia-700/20"
-          />
+            <input
+              name="price"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Price"
+              value={form.price}
+              onChange={handleChange}
+              required
+              className="w-48 px-4 py-3 rounded-xl bg-black/40 border border-white/15 text-white placeholder-white/40 focus:outline-none focus:border-white/30"
+            />
 
-          {/* SIZE STOCK */}
-          <div>
-            <label className="text-white font-semibold mb-2 block">
-              Size-wise Stock
-            </label>
-            <div className="grid grid-cols-2 gap-4">
-              {SIZES.map(size => (
-                <input
-                  key={size}
-                  type="number"
-                  min="0"
-                  name={`stock_${size}`}
-                  placeholder={`${size} stock`}
-                  value={form[`stock_${size}`]}
-                  onChange={handleChange}
-                  className="rounded-xl p-3 bg-neutral-900 text-white border border-fuchsia-700/20"
-                />
-              ))}
+            <textarea
+              name="description"
+              placeholder="Description"
+              value={form.description}
+              onChange={handleChange}
+              rows={3}
+              required
+              className="w-full px-4 py-3 rounded-xl bg-black/40 border border-white/15 text-white placeholder-white/40 focus:outline-none focus:border-white/30"
+            />
+
+            {/* SIZE STOCK */}
+            <div>
+              <p className="text-white font-semibold mb-3">
+                Size-wise Stock
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                {SIZES.map((size) => (
+                  <input
+                    key={size}
+                    type="number"
+                    min="0"
+                    name={`stock_${size}`}
+                    placeholder={`${size} stock`}
+                    value={form[`stock_${size}`]}
+                    onChange={handleChange}
+                    className="px-4 py-3 rounded-xl bg-black/40 border border-white/15 text-white placeholder-white/40 focus:outline-none focus:border-white/30"
+                  />
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* IMAGES */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept="image/jpeg,image/png,image/webp"
-            onChange={handleImageChange}
-            className="rounded-xl p-3 bg-neutral-900 text-white border border-fuchsia-700/20"
-          />
+            {/* IMAGES */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleImageChange}
+              className="w-full px-4 py-3 rounded-xl bg-black/40 border border-white/15 text-white"
+            />
 
-          <div className="flex gap-3 flex-wrap">
-            {imagePreviews.map((src, i) => (
-              <img
-                key={i}
-                src={src}
-                className="w-20 h-20 object-cover rounded-xl border border-fuchsia-700/30"
-              />
-            ))}
-          </div>
+            {imagePreviews.length > 0 && (
+              <div className="flex gap-3 flex-wrap">
+                {imagePreviews.map((src, i) => (
+                  <img
+                    key={i}
+                    src={src}
+                    className="w-20 h-20 object-cover rounded-xl border border-white/20"
+                  />
+                ))}
+              </div>
+            )}
 
-          <select
-            name="category"
-            value={form.category}
-            onChange={handleChange}
-            required
-            className="rounded-xl p-3 bg-neutral-900 text-white border border-fuchsia-700/20"
-          >
-            <option value="">Select category</option>
-            {CATEGORY_OPTIONS.map(opt => (
-              <option key={opt} value={opt} className="text-black">
-                {opt}
-              </option>
-            ))}
-          </select>
+            <select
+              name="category"
+              value={form.category}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-3 rounded-xl bg-black/40 border border-white/15 text-white focus:outline-none focus:border-white/30"
+            >
+              <option value="">Select category</option>
+              {CATEGORY_OPTIONS.map((opt) => (
+                <option key={opt} value={opt} className="text-black">
+                  {opt}
+                </option>
+              ))}
+            </select>
 
-          {error && <p className="text-red-400 font-semibold">{error}</p>}
-          {success && <p className="text-green-400 font-semibold">{success}</p>}
+            {error && (
+              <p className="text-rose-400 font-semibold">{error}</p>
+            )}
+            {success && (
+              <p className="text-emerald-400 font-semibold">
+                {success}
+              </p>
+            )}
 
-          <button
-            disabled={isLoading}
-            className="mt-4 py-3 rounded-xl bg-gradient-to-r from-fuchsia-400 to-pink-400 text-black font-bold"
-          >
-            {isLoading ? "Saving..." : "Save Product"}
-          </button>
-        </form>
+            <button
+              disabled={isLoading}
+              className="
+                w-full mt-6 py-3 rounded-xl
+                bg-white/10 border border-white/20
+                text-white font-bold
+                hover:bg-white/15 hover:border-white/30
+                hover:scale-[1.02]
+                transition-all duration-200
+              "
+            >
+              {isLoading ? "Saving..." : "Save Product"}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

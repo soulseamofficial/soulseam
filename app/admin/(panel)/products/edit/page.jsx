@@ -12,12 +12,7 @@ export default function EditProductPage() {
     price: "",
     description: "",
     category: "",
-    sizes: {
-      S: 0,
-      M: 0,
-      L: 0,
-      XL: 0,
-    },
+    sizes: { S: 0, M: 0, L: 0, XL: 0 },
   });
 
   useEffect(() => {
@@ -45,10 +40,7 @@ export default function EditProductPage() {
     e.preventDefault();
 
     const sizesArray = Object.entries(form.sizes).map(
-      ([size, stock]) => ({
-        size,
-        stock: Number(stock),
-      })
+      ([size, stock]) => ({ size, stock: Number(stock) })
     );
 
     await fetch(`/api/admin/products?id=${id}`, {
@@ -67,59 +59,106 @@ export default function EditProductPage() {
   };
 
   return (
-    <form onSubmit={updateProduct} className="max-w-xl mx-auto p-6">
-      <h1 className="text-2xl mb-4">Edit Product</h1>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-black via-zinc-900 to-black px-4">
+      <form
+        onSubmit={updateProduct}
+        className="
+          w-full max-w-xl p-8 rounded-2xl
+          bg-white/5 backdrop-blur-xl
+          border border-white/10
+          shadow-[0_0_40px_rgba(255,255,255,0.05)]
+          transition-all duration-500
+          hover:shadow-[0_0_60px_rgba(255,255,255,0.15)]
+          animate-fadeIn
+        "
+      >
+        <h1 className="text-3xl font-semibold mb-6 text-white tracking-wide">
+          Edit Product
+        </h1>
 
-      <input
-        placeholder="Title"
-        value={form.title}
-        onChange={e => setForm({ ...form, title: e.target.value })}
-        className="w-full mb-3 p-2 rounded bg-black/30"
-      />
+        {/* INPUT STYLE */}
+        {[
+          { placeholder: "Title", key: "title" },
+          { placeholder: "Price", key: "price", type: "number" },
+          { placeholder: "Category", key: "category" },
+        ].map((field) => (
+          <input
+            key={field.key}
+            type={field.type || "text"}
+            placeholder={field.placeholder}
+            value={form[field.key]}
+            onChange={e =>
+              setForm({ ...form, [field.key]: e.target.value })
+            }
+            className="
+              w-full mb-4 p-3 rounded-xl
+              bg-black/40 text-white
+              border border-white/10
+              transition-all duration-300
+              focus:outline-none focus:ring-2 focus:ring-white/30
+              focus:scale-[1.02]
+            "
+          />
+        ))}
 
-      <input
-        placeholder="Price"
-        type="number"
-        value={form.price}
-        onChange={e => setForm({ ...form, price: e.target.value })}
-        className="w-full mb-3 p-2 rounded bg-black/30"
-      />
-
-      <textarea
-        placeholder="Description"
-        value={form.description}
-        onChange={e => setForm({ ...form, description: e.target.value })}
-        className="w-full mb-3 p-2 rounded bg-black/30"
-      />
-
-      <input
-        placeholder="Category"
-        value={form.category}
-        onChange={e => setForm({ ...form, category: e.target.value })}
-        className="w-full mb-3 p-2 rounded bg-black/30"
-      />
-
-      <h3 className="text-lg mt-4 mb-2">Size-wise Stock</h3>
-
-      {["S", "M", "L", "XL"].map(size => (
-        <input
-          key={size}
-          type="number"
-          placeholder={`${size} stock`}
-          value={form.sizes[size]}
-          onChange={e =>
-            setForm({
-              ...form,
-              sizes: { ...form.sizes, [size]: e.target.value },
-            })
-          }
-          className="w-full mb-2 p-2 rounded bg-black/30"
+        <textarea
+          placeholder="Description"
+          value={form.description}
+          onChange={e => setForm({ ...form, description: e.target.value })}
+          className="
+            w-full mb-4 p-3 rounded-xl
+            bg-black/40 text-white
+            border border-white/10
+            transition-all duration-300
+            focus:outline-none focus:ring-2 focus:ring-white/30
+            focus:scale-[1.02]
+          "
         />
-      ))}
 
-      <button className="border px-4 py-2 rounded mt-4">
-        Update Product
-      </button>
-    </form>
+        <h3 className="text-lg mt-6 mb-3 text-white/80">
+          Size-wise Stock
+        </h3>
+
+        <div className="grid grid-cols-2 gap-3">
+          {["S", "M", "L", "XL"].map(size => (
+            <input
+              key={size}
+              type="number"
+              placeholder={`${size} Stock`}
+              value={form.sizes[size]}
+              onChange={e =>
+                setForm({
+                  ...form,
+                  sizes: { ...form.sizes, [size]: e.target.value },
+                })
+              }
+              className="
+                p-3 rounded-xl
+                bg-black/40 text-white
+                border border-white/10
+                transition-all duration-300
+                focus:outline-none focus:ring-2 focus:ring-white/30
+                hover:scale-[1.05]
+              "
+            />
+          ))}
+        </div>
+
+        {/* PREMIUM BUTTON */}
+        <button
+          className="
+            w-full mt-8 py-3 rounded-xl
+            bg-gradient-to-r from-white to-zinc-300
+            text-black font-semibold tracking-wide
+            transition-all duration-300
+            hover:scale-[1.05]
+            hover:shadow-[0_0_30px_rgba(255,255,255,0.6)]
+            active:scale-95
+          "
+        >
+          Update Product
+        </button>
+      </form>
+    </div>
   );
 }
