@@ -2,96 +2,147 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import AdminConfirmModal from "@/app/components/AdminConfirmModal";
 
 export default function AdminReelsPage() {
-  const [reels, setReels] = useState([]);
-  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  const [reels, setReels] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // 🔥 delete modal state
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
+
+  /* FETCH REELS */
+  const fetchReels = async () => {
+    try {
+      const res = await fetch("/api/admin/reels");
+      const data = await res.json();
+      setReels(data);
+    } catch {
+      setReels([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      try {
-        const res = await fetch("/api/admin/reels");
-        const data = await res.json();
-        if (isMounted) {
-          setReels(data);
-          setLoading(false);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setReels([]);
-          setLoading(false);
-        }
-      }
-    })();
-    return () => {
-      isMounted = false;
-    };
+    fetchReels();
   }, []);
 
-  async function deleteReel(id) {
-    if (!confirm("Delete this reel?")) return;
-
-    await fetch(`/api/admin/reels?id=${id}`, {
+  /* CONFIRM DELETE */
+  const handleConfirmDelete = async () => {
+    await fetch(`/api/admin/reels?id=${selectedId}`, {
       method: "DELETE",
     });
 
-    setReels((prevReels) => prevReels.filter((r) => r._id !== id));
-  }
+    setConfirmOpen(false);
+    setSelectedId(null);
+    fetchReels();
+  };
 
   return (
-    <div className="min-h-screen px-8 py-10 bg-gradient-to-br from-black via-[#201134] to-fuchsia-950">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-extrabold text-fuchsia-300">
-          Reels
-        </h1>
+    <div className="px-8 py-10">
+      {/* HEADER */}
+      <div className="flex justify-between items-center mb-10">
+        <h1 className="text-3xl font-bold text-white">Reels</h1>
 
         <button
           onClick={() => router.push("/admin/reels/create")}
-          className="px-5 py-2 rounded-xl bg-gradient-to-r from-fuchsia-400 to-pink-400 text-black font-bold shadow hover:scale-105 transition"
+          className="
+            px-6 py-2.5 rounded-xl
+            bg-white/10 border border-white/20
+            text-white font-semibold
+            hover:bg-white/15 hover:border-white/30
+            transition
+          "
         >
           + Add Reel
         </button>
       </div>
 
-      {/* Content */}
+      {/* CONTENT */}
       {loading ? (
-        <p className="text-white">Loading...</p>
+        <p className="text-white/60">Loading...</p>
       ) : reels.length === 0 ? (
-        <p className="text-fuchsia-200">No reels added yet.</p>
+        <p className="text-white/50">No reels added yet.</p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="space-y-8">
           {reels.map((reel) => (
             <div
               key={reel._id}
-              className="bg-white/10 border border-fuchsia-700/40 rounded-xl p-4 shadow-lg"
+              className="
+                relative overflow-hidden
+                rounded-3xl
+                bg-gradient-to-b from-white/8 via-black/25 to-black
+                backdrop-blur-xl
+                border border-white/12
+                p-6
+                transition-all duration-300
+                hover:scale-[1.015]
+                hover:shadow-[0_10px_45px_rgba(255,255,255,0.18)]
+              "
             >
-              <video
-                src={reel.videoUrl}
-                controls
-                className="rounded-lg w-full h-56 object-cover mb-3 bg-black"
-              />
+              {/* TOP-ONLY WHITE GLOW */}
+              <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_rgba(255,255,255,0.14)_0%,_rgba(0,0,0,0.9)_55%)]" />
 
-              <h2 className="text-lg font-bold text-white">
-                {reel.title}
-              </h2>
+              <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* VIDEO */}
+                <video
+                  src={reel.videoUrl}
+                  controls
+                  className="w-full h-64 rounded-2xl object-cover bg-black"
+                />
 
-              <p className="text-sm text-fuchsia-300">
-                {reel.category} • {reel.duration}
-              </p>
+                {/* DETAILS */}
+                <div className="text-white flex flex-col justify-between">
+                  <div>
+                    <p className="text-sm text-white/50">Title</p>
+                    <p className="font-semibold text-lg">{reel.title}</p>
 
-              <button
-                onClick={() => deleteReel(reel._id)}
-                className="mt-4 w-full py-2 rounded-lg bg-red-600/80 hover:bg-red-600 text-white font-semibold"
-              >
-                Delete
-              </button>
+                    <p className="mt-4 text-sm text-white/50">Category</p>
+                    <p className="font-semibold">{reel.category}</p>
+
+                    <p className="mt-4 text-sm text-white/50">Duration</p>
+                    <p className="font-semibold">{reel.duration}</p>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setSelectedId(reel._id);
+                      setConfirmOpen(true);
+                    }}
+                    className="
+                      mt-6 px-5 py-2 rounded-xl
+                      border border-rose-500/50
+                      text-rose-400
+                      hover:bg-rose-500/10
+                      transition w-fit
+                    "
+                  >
+                    Delete Reel
+                  </button>
+                </div>
+              </div>
             </div>
           ))}
         </div>
       )}
+
+      {/* 🔥 CONFIRM MODAL */}
+      <AdminConfirmModal
+        open={confirmOpen}
+        title="Delete this reel?"
+        message="This reel will be permanently removed."
+        confirmText="Delete"
+        cancelText="Cancel"
+        onCancel={() => {
+          setConfirmOpen(false);
+          setSelectedId(null);
+        }}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 }

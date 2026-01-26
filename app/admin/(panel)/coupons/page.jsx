@@ -1,125 +1,223 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import AdminConfirmModal from "@/app/components/AdminConfirmModal";
 
 export default function CouponsPage() {
   const [coupons, setCoupons] = useState([]);
-  const [form, setForm] = useState({ code: "", discount: "", expiry: "", active: true });
+  const [form, setForm] = useState({
+    code: "",
+    discount: "",
+    expiry: "",
+    active: true,
+  });
 
-  // Async data-fetching function, declared before useEffect
+  // 🔥 delete modal state
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
+
+  /* FETCH COUPONS */
   async function fetchCoupons() {
     const res = await fetch("/api/admin/coupons");
     const data = await res.json();
     setCoupons(data);
   }
 
+  useEffect(() => {
+    fetchCoupons();
+  }, []);
+
+  /* SAVE COUPON */
   async function save() {
     if (!form.code || !form.discount || !form.expiry) return;
 
     await fetch("/api/admin/coupons", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form)
+      body: JSON.stringify(form),
     });
 
     setForm({ code: "", discount: "", expiry: "", active: true });
-    await fetchCoupons();
-  }
-
-  async function remove(id) {
-    await fetch(`/api/admin/coupons?id=${id}`, { method: "DELETE" });
-    await fetchCoupons();
-  }
-
-  useEffect(() => {
-    // Only call the async fetchCoupons function here
     fetchCoupons();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }
+
+  /* CONFIRM DELETE */
+  async function handleConfirmDelete() {
+    await fetch(`/api/admin/coupons?id=${selectedId}`, {
+      method: "DELETE",
+    });
+
+    setConfirmOpen(false);
+    setSelectedId(null);
+    fetchCoupons();
+  }
 
   return (
-    <div className="min-h-screen py-12 px-4 flex flex-col items-center bg-gradient-to-br from-neutral-950 via-fuchsia-900/40 to-neutral-950">
-
-      <h1 className="text-4xl font-black text-center mb-12 bg-gradient-to-r from-fuchsia-300 via-fuchsia-500 to-fuchsia-400 bg-clip-text text-transparent drop-shadow-lg">
+    <div className="px-8 py-10">
+      {/* HEADER */}
+      <h1 className="text-3xl font-bold text-white mb-10">
         Coupons
       </h1>
 
-      {/* ===== Add Coupon Section ===== */}
-      <div className="w-full max-w-3xl flex flex-col md:flex-row gap-4 mb-14">
+      {/* ADD COUPON CARD */}
+      <div
+        className="
+          relative overflow-hidden
+          max-w-4xl
+          rounded-3xl
+          bg-gradient-to-b from-white/8 via-black/25 to-black
+          backdrop-blur-2xl
+          border border-white/12
+          shadow-[0_18px_70px_rgba(255,255,255,0.14)]
+          p-6 mb-14
+        "
+      >
+        {/* TOP LIGHT */}
+        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_rgba(255,255,255,0.14)_0%,_rgba(0,0,0,0.92)_55%)]" />
 
-        {/* Input Box */}
         <form
-          className="flex-1 flex flex-col md:flex-row gap-4 bg-gradient-to-br from-[#15111e] via-[#261435]/60 to-[#23122b]
-          border border-fuchsia-700/30 rounded-xl p-6 shadow-2xl"
-          onSubmit={e => { e.preventDefault(); save(); }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            save();
+          }}
+          className="relative z-10 flex flex-wrap gap-4"
         >
           <input
-            placeholder="Code"
+            placeholder="Coupon Code"
             value={form.code}
-            onChange={e => setForm({ ...form, code: e.target.value.toUpperCase() })}
-            className="flex-1 rounded-xl border border-fuchsia-500/30 bg-neutral-900 px-5 py-2 text-white placeholder-fuchsia-300 focus:ring-2 focus:ring-fuchsia-400"
+            onChange={(e) =>
+              setForm({
+                ...form,
+                code: e.target.value.toUpperCase(),
+              })
+            }
+            className="
+              flex-1 px-4 py-3 rounded-xl
+              bg-black/40 border border-white/15
+              text-white placeholder-white/40
+              focus:outline-none focus:border-white/30
+            "
           />
 
           <input
-            placeholder="Discount %"
             type="number"
             min="1"
             max="100"
+            placeholder="Discount %"
             value={form.discount}
-            onChange={e => setForm({ ...form, discount: e.target.value })}
-            className="w-32 rounded-xl border border-fuchsia-500/30 bg-neutral-900 px-4 py-2 text-white focus:ring-2 focus:ring-fuchsia-400"
+            onChange={(e) =>
+              setForm({ ...form, discount: e.target.value })
+            }
+            className="
+              w-40 px-4 py-3 rounded-xl
+              bg-black/40 border border-white/15
+              text-white
+              focus:outline-none focus:border-white/30
+            "
           />
 
           <input
             type="date"
             value={form.expiry}
-            onChange={e => setForm({ ...form, expiry: e.target.value })}
-            className="rounded-xl border border-fuchsia-500/30 bg-neutral-900 px-4 py-2 text-white focus:ring-2 focus:ring-fuchsia-400"
+            onChange={(e) =>
+              setForm({ ...form, expiry: e.target.value })
+            }
+            className="
+              px-4 py-3 rounded-xl
+              bg-black/40 border border-white/15
+              text-white
+              focus:outline-none focus:border-white/30
+            "
           />
-        </form>
 
-        {/* Add Button */}
-        <button
-          onClick={save}
-          className="md:w-40 rounded-xl border border-fuchsia-300/60 px-8 py-3 font-semibold
-          text-fuchsia-200 hover:bg-fuchsia-700/20 transition-all shadow-lg"
-        >
-          + Add Coupon
-        </button>
+          <button
+            type="submit"
+            className="
+              px-8 py-3 rounded-xl
+              bg-white/10 border border-white/20
+              text-white font-semibold
+              hover:bg-white/15 hover:border-white/30
+              hover:scale-[1.02]
+              transition-all
+            "
+          >
+            + Add Coupon
+          </button>
+        </form>
       </div>
 
-      {/* ===== Coupons List ===== */}
-      <div className="w-full max-w-3xl flex flex-col gap-4">
+      {/* COUPONS LIST */}
+      <div className="max-w-4xl space-y-6">
         {coupons.length === 0 && (
-          <div className="text-fuchsia-300/70 text-center py-12 text-lg font-semibold">
+          <p className="text-white/50 text-center">
             No coupons yet.
-          </div>
+          </p>
         )}
 
-        {coupons.map(c => (
+        {coupons.map((c) => (
           <div
             key={c._id}
-            className="flex justify-between items-center bg-gradient-to-tr from-white/5 via-fuchsia-900/40 to-fuchsia-900/10
-            border border-white/10 rounded-xl px-6 py-4 shadow-md"
+            className="
+              relative overflow-hidden
+              rounded-2xl
+              bg-gradient-to-b from-white/8 via-black/25 to-black
+              backdrop-blur-xl
+              border border-white/12
+              px-6 py-4
+              flex flex-wrap justify-between items-center gap-4
+              shadow-[0_10px_45px_rgba(255,255,255,0.12)]
+            "
           >
-            <div className="flex flex-wrap items-center gap-3 text-white">
-              <span className="font-bold">{c.code}</span>
-              <span className="px-2 py-1 bg-fuchsia-900 rounded text-fuchsia-200">{c.discount}%</span>
-              <span className="px-2 py-1 bg-white/10 rounded">
+            {/* TOP LIGHT */}
+            <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_rgba(255,255,255,0.12)_0%,_rgba(0,0,0,0.9)_55%)]" />
+
+            <div className="relative z-10 flex flex-wrap items-center gap-3 text-white">
+              <span className="font-bold tracking-wide">
+                {c.code}
+              </span>
+
+              <span className="px-2 py-1 rounded-lg bg-white/10 border border-white/20 text-sm">
+                {c.discount}%
+              </span>
+
+              <span className="px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-sm">
                 Exp: {new Date(c.expiry).toLocaleDateString()}
               </span>
             </div>
 
             <button
-              onClick={() => remove(c._id)}
-              className="px-3 py-1 text-sm rounded border border-red-700/40 text-red-200
-              bg-red-950/50 hover:bg-red-800/70 transition"
+              onClick={() => {
+                setSelectedId(c._id);
+                setConfirmOpen(true);
+              }}
+              className="
+                relative z-10
+                px-4 py-1.5 rounded-xl
+                border border-rose-500/50
+                text-rose-400
+                hover:bg-rose-500/10
+                transition
+              "
             >
               Delete
             </button>
           </div>
         ))}
       </div>
+
+      {/* 🔥 CONFIRM MODAL */}
+      <AdminConfirmModal
+        open={confirmOpen}
+        title="Delete this coupon?"
+        message="This coupon will be permanently removed."
+        confirmText="Delete"
+        cancelText="Cancel"
+        onCancel={() => {
+          setConfirmOpen(false);
+          setSelectedId(null);
+        }}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 }
