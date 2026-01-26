@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useCart } from "../CartContext";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -239,10 +239,7 @@ const asideCardClass = `
 `;
 
 export default function CheckoutPage() {
-  // Hydration protection
-  const [mounted, setMounted] = useState(false);
-
-  // Cart hook - must be at the top level before useEffect
+  // Cart hook - must be at the top level
   const { cartItems, clearCart } = useCart();
 
   // Steps and form
@@ -276,37 +273,27 @@ export default function CheckoutPage() {
   const paymentButtonRef = useRef(null);
   const [razorpayLoading, setRazorpayLoading] = useState(false);
 
-  // Mount effects for safe hydration
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // Order total logic
+  const itemsWithFinalPrice = cartItems.map(item => ({
+    ...item,
+    finalPrice: item.finalPrice ?? item.price,
+  }));
 
-  // Order total logic (SSR safe)
-  const itemsWithFinalPrice = mounted
-    ? cartItems.map(item => ({
-        ...item,
-        finalPrice: item.finalPrice ?? item.price
-      }))
-    : [];
+  const subtotal =
+    itemsWithFinalPrice.reduce(
+      (sum, item) => sum + (item.finalPrice ?? item.price) * item.quantity,
+      0
+    );
 
-  const subtotal = mounted
-    ? itemsWithFinalPrice.reduce(
-        (sum, item) =>
-          sum + (item.finalPrice ?? item.price) * item.quantity,
-        0
-      )
-    : 0;
-
-  const shipping = mounted
-    ? subtotal > 15000
+  const shipping =
+    subtotal > 15000
       ? 0
       : subtotal === 0
       ? 0
-      : 0
-    : 0;
+      : 0;
 
-  const discount = appliedCoupon && mounted ? Math.floor(subtotal * 0.15) : 0;
-  const total = mounted ? subtotal + shipping - discount : 0;
+  const discount = appliedCoupon ? Math.floor(subtotal * 0.15) : 0;
+  const total = subtotal + shipping - discount;
 
   // --- Coupon logic ---
   function handleApplyCoupon(e) {
@@ -417,7 +404,7 @@ export default function CheckoutPage() {
 
   // --- Payment Handler w/ Razorpay initialization ---
   async function handlePayment() {
-    if (!mounted || itemsWithFinalPrice.length === 0 || razorpayLoading) {
+    if (itemsWithFinalPrice.length === 0 || razorpayLoading) {
       window?.alert?.("Your cart is empty.");
       return;
     }
@@ -499,35 +486,6 @@ export default function CheckoutPage() {
         : ""
       }
     `;
-  }
-
-  // ---- Render: Hydration safety ----
-  if (!mounted) {
-    return (
-      <>
-        <div className={pageCenterClass + " animate-reveal"}>
-          <span className={`
-            text-4xl mb-6 font-extrabold tracking-widest uppercase bg-gradient-to-br from-white via-zinc-300/92 to-zinc-400/91 bg-clip-text text-transparent
-          `}
-            style={{ fontFamily: "Poppins,Inter,sans-serif", letterSpacing: "0.17em" }}
-          >
-            SOULSEAM
-          </span>
-          <div className={`
-            w-44 h-3.5 rounded-xl overflow-hidden relative
-            bg-gradient-to-b from-white/10 to-white/0
-            shadow-[0_14px_40px_0_rgba(255,255,255,0.13)]
-          `}>
-            <div className={`
-              absolute left-0 top-0 h-full w-2/3
-              bg-gradient-to-r from-white/25 via-white/0 to-white/13 animate-loaderShine opacity-90
-            `}></div>
-          </div>
-        </div>
-        {/* Moved loaderShine, animate-luxFadeIn, and related keyframes to below */}
-        <RootCheckoutPageGlobalStyles />
-      </>
-    );
   }
 
   // ---- Main Page ----
