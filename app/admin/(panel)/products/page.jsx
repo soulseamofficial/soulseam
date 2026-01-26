@@ -23,7 +23,11 @@ export default function ProductsPage() {
   };
 
   useEffect(() => {
-    fetchProducts();
+    async function loadProducts() {
+      await fetchProducts();
+    }
+    loadProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* CONFIRM DELETE (actual delete) */
