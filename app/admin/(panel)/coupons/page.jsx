@@ -24,7 +24,10 @@ export default function CouponsPage() {
   }
 
   useEffect(() => {
-    fetchCoupons();
+    async function loadCoupons() {
+      await fetchCoupons();
+    }
+    loadCoupons();
   }, []);
 
   /* SAVE COUPON */
