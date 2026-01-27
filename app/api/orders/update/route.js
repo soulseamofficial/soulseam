@@ -6,7 +6,17 @@ export async function POST(req) {
   try {
     await connectDB();
 
-    const { orderId, paymentStatus, razorpayPaymentId } = await req.json();
+    const {
+      orderId,
+      paymentMethod,
+      paymentStatus,
+      razorpayPaymentId,
+
+      deliveryPartner,
+      trackingId,
+      awb,
+      pickupScheduled,
+    } = await req.json();
 
     if (!orderId) {
       return NextResponse.json(
@@ -15,16 +25,26 @@ export async function POST(req) {
       );
     }
 
-    await Order.findByIdAndUpdate(orderId, {
-      "payment.status": paymentStatus,
-      "payment.razorpayPaymentId": razorpayPaymentId || null,
-      orderStatus: paymentStatus === "paid" ? "paid" : "pending",
-    });
+    const update = {
+      orderStatus: "confirmed",
+      deliveryStatus: "created",
+      deliveryPartner,
+      trackingId,
+      awb,
+      pickupScheduled,
+      payment: {
+        method: paymentMethod,
+        status: paymentStatus,
+        razorpayPaymentId: razorpayPaymentId || null,
+      },
+    };
+
+    await Order.findByIdAndUpdate(orderId, update);
 
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (err) {
     return NextResponse.json(
-      { success: false, message: error.message },
+      { success: false, message: err.message },
       { status: 500 }
     );
   }

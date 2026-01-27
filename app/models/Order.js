@@ -18,17 +18,7 @@ const OrderSchema = new mongoose.Schema(
       country: String,
     },
 
-    items: [
-      {
-        productId: String,
-        name: String,
-        image: String,
-        size: String,
-        color: String,
-        price: Number,
-        quantity: Number,
-      }
-    ],
+    items: Array,
 
     subtotal: Number,
     discount: Number,
@@ -36,16 +26,35 @@ const OrderSchema = new mongoose.Schema(
     total: Number,
 
     payment: {
-      method: String, // Razorpay
-      status: String, // pending | paid
-      razorpayOrderId: String,
+      method: {
+        type: String,
+        enum: ["not_selected", "cod", "online"],
+        default: "not_selected",
+      },
+      status: {
+        type: String,
+        enum: ["not_selected", "cod", "paid"],
+        default: "not_selected",
+      },
       razorpayPaymentId: String,
     },
 
     orderStatus: {
       type: String,
-      default: "created", // created | paid | shipped | delivered
-    }
+      enum: ["draft", "confirmed"],
+      default: "draft",
+    },
+
+    // Delivery
+    deliveryStatus: {
+      type: String,
+      enum: ["not_created", "created"],
+      default: "not_created",
+    },
+    deliveryPartner: String,
+    trackingId: String,
+    awb: String,
+    pickupScheduled: Boolean,
   },
   { timestamps: true }
 );
