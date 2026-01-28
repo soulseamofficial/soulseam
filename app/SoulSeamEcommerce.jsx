@@ -1,4 +1,3 @@
-
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { ShoppingBag, Menu, X, Search, User, ShoppingCart, Heart } from "lucide-react";
@@ -6,8 +5,6 @@ import { useCart } from "./CartContext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-
-// Star icon SVG (to get color control easily)
 const Star = ({ className = "" }) => (
   <svg className={className} fill="currentColor" viewBox="0 0 20 20" width={16} height={16}>
     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.967a1 1 0 00.95.69h4.179c.969 0 1.371 1.24.588 1.81l-3.384 2.458a1 1 0 00-.363 1.118l1.287 3.966c.3.921-.755 1.688-1.54 1.118l-3.385-2.457a1 1 0 00-1.176 0l-3.385 2.457c-.785.57-1.84-.197-1.539-1.118l1.287-3.966a1 1 0 00-.364-1.118L2.048 9.394c-.783-.57-.38-1.81.588-1.81h4.18a1 1 0 00.95-.69l1.286-3.967z"></path>
@@ -17,13 +14,13 @@ const Star = ({ className = "" }) => (
 function toSizeArray(sizes) {
   if (!Array.isArray(sizes)) return [];
   return sizes.map((s) =>
-  typeof s === "object"
-  ? { size: s.size, stock: Number(s.stock) || 0 }
-  : { size: s, stock: 99 }
+    typeof s === "object"
+      ? { size: s.size, stock: Number(s.stock) || 0 }
+      : { size: s, stock: 99 }
   );
-  }
+}
 
-  const SoulSeamEcommerce = () => {
+const SoulSeamEcommerce = () => {
   const { addToCart, cartItems } = useCart();
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -32,14 +29,7 @@ function toSizeArray(sizes) {
   const [heroAnimationComplete, setHeroAnimationComplete] = useState(false);
   const [gsapLoaded, setGsapLoaded] = useState(false);
 
-  // Modal + quick view
-  const [quickViewProduct, setQuickViewProduct] = useState(null);
-  const [selectedSize, setSelectedSize] = useState("");
-  const [quantity, setQuantity] = useState(1);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [addedToCart, setAddedToCart] = useState(false);
-
-  // Refs for hero animation
+  // Removed all quick view related state
   const scrollContainerRef = useRef(null);
   const heroContentRef = useRef(null);
   const logoRef = useRef(null);
@@ -52,10 +42,8 @@ function toSizeArray(sizes) {
     "Future Proof Your Closet",
   ];
 
-  // placeholder images
   const fashionImages = Array(19).fill("/coming-soon.jpg");
 
-  // PRODUCTS
   const [products, setProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
 
@@ -84,7 +72,7 @@ function toSizeArray(sizes) {
             images,
             image: images?.[0] || "/coming-soon.jpg",
             hoverImage: images?.[1] || images?.[0] || "/coming-soon.jpg",
-            sizes: Array.isArray(p.sizes) ? p.sizes : [],
+            
             sizes: Array.isArray(p.sizes) ? p.sizes : [],
             category: (p.category || "").toLowerCase().trim(),
             totalStock:
@@ -114,7 +102,6 @@ function toSizeArray(sizes) {
     };
   }, []);
 
-  // Latest Drop = Most recent 8 products
   const latestProducts = products
     .slice()
     .sort(
@@ -124,79 +111,14 @@ function toSizeArray(sizes) {
     )
     .slice(0, 8);
 
-  // Best Sellers = 8 products with stock > 0
   const bestSellerProducts = products
     .filter((p) => p.totalStock > 0)
     .slice(0, 8);
 
   const router = useRouter();
 
-  // --- Modal/Quickview ---
-  const openQuickView = (product) => {
-    setQuickViewProduct(product);
-    setSelectedSize("");
-    setQuantity(1);
-    setCurrentImageIndex(0);
-    setAddedToCart(false);
-  };
+  // Removed openQuickView/closeQuickView and all quick view modal/scroll lock logic
 
-  const closeQuickView = () => {
-    setQuickViewProduct(null);
-  };
-
-  // CLEAN body scroll lock handling for modal open/close
-  useEffect(() => {
-    if (!quickViewProduct) {
-      document.body.style.overflow = "";
-      return;
-    }
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prevOverflow || "";
-    };
-  }, [quickViewProduct]);
-
-  const handleAddToCart = () => {
-    if (!selectedSize) {
-      alert("Please select a size");
-      return;
-    }
-    addToCart(quickViewProduct, selectedSize, quantity, "Black");
-    setAddedToCart(true);
-  };
-
-  const handleBuyNow = () => {
-    if (!selectedSize) {
-      alert("Please select a size");
-      return;
-    }
-    addToCart(quickViewProduct, selectedSize, quantity, "Black");
-    closeQuickView();
-    router.push("/cart");
-  };
-
-  const nextImage = () => {
-    if (!quickViewProduct) return;
-    setCurrentImageIndex((prev) => {
-      const imgs = Array.isArray(quickViewProduct.images)
-        ? quickViewProduct.images
-        : [];
-      return prev === imgs.length - 1 ? 0 : prev + 1;
-    });
-  };
-
-  const prevImage = () => {
-    if (!quickViewProduct) return;
-    setCurrentImageIndex((prev) => {
-      const imgs = Array.isArray(quickViewProduct.images)
-        ? quickViewProduct.images
-        : [];
-      return prev === 0 ? imgs.length - 1 : prev - 1;
-    });
-  };
-
-  // GSAP Hero Animation Loads
   useEffect(() => {
     if (typeof window === "undefined") return;
     const script = document.createElement("script");
@@ -213,14 +135,12 @@ function toSizeArray(sizes) {
     };
   }, []);
 
-  // Create sparkle particles
   const createSparkles = () => {
     if (!sparkleContainerRef.current) return;
 
     const container = sparkleContainerRef.current;
     container.innerHTML = "";
 
-    // 25 sparkles
     for (let i = 0; i < 25; i++) {
       const sparkle = document.createElement("div");
       sparkle.className = "absolute pointer-events-none";
@@ -340,7 +260,6 @@ function toSizeArray(sizes) {
     return () => {
       tl.kill();
     };
-    // eslint-disable-next-line
   }, [gsapLoaded]);
 
   useEffect(() => {
@@ -352,61 +271,40 @@ function toSizeArray(sizes) {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // useEffect(() => {
-  //   const interval = setInterval(() => {
-  //     setAnnouncementIndex((prev) => (prev + 1) % announcements.length);
-  //   }, 3000);
-  //   return () => clearInterval(interval);
-  // }, [announcements.length]);
-
-  useEffect(() => {
-    if (typeof document !== "undefined" && !quickViewProduct) {
-      document.documentElement.style.scrollBehavior = "smooth";
-      return () => {
-        if (!quickViewProduct) {
-          document.documentElement.style.scrollBehavior = "auto";
-        }
-      };
-    }
-  }, [quickViewProduct]);
-
-  // ---- REVISED PRODUCT CARD (BLACK BG) ----
+  // NEW ProductCard component: navigates to /product/_id, no modal, no quick view
   const ProductCard = ({ product }) => {
     const [isHovered, setIsHovered] = useState(false);
 
-    const handleQuickViewClick = (e) => {
-      e.stopPropagation();
-      openQuickView(product);
+    const handleCardClick = () => {
+      router.push(`/product/${product._id}`);
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        handleCardClick();
+      }
     };
 
     return (
       <div
-        className="group relative overflow-hidden bg-black rounded-lg border border-white/10 shadow-sm hover:shadow-xl transition-all duration-500 transform hover:-translate-y-1 sm:hover:-translate-y-2"
-        onClick={() => openQuickView(product)}
+        className="group relative overflow-hidden bg-black rounded-lg border border-white/10 shadow-sm hover:shadow-xl transition-all duration-500 transform hover:-translate-y-1 sm:hover:-translate-y-2 cursor-pointer"
+        onClick={handleCardClick}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        aria-label={`View details for ${product.name}`}
       >
         <div className="relative aspect-[3/4] overflow-hidden rounded-t-lg">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={isHovered ? product.hoverImage : product.image}
             alt={product.name}
             className="w-full h-full object-cover transition-all duration-700 ease-in-out transform group-hover:scale-110"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-          <div
-            className={`absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex items-end justify-center transition-all duration-500 ${
-              isHovered ? "opacity-100" : "opacity-0"
-            }`}
-          >
-            <button
-              onClick={handleQuickViewClick}
-              className="mb-4 sm:mb-6 md:mb-8 px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 md:py-3 bg-white text-black font-semibold text-xs sm:text-sm md:text-base rounded-full transform -translate-y-4 group-hover:translate-y-0 transition-all duration-500 hover:bg-gradient-to-r hover:from-black hover:to-gray-800 hover:text-white border-2 border-white hover:scale-105 z-20 touch-manipulation"
-              type="button"
-            >
-              Quick View
-            </button>
-          </div>
+          {/* Removed Quick View overlay/button */}
         </div>
         <div className="p-3 sm:p-4">
           <h3 className="font-semibold text-base sm:text-lg mb-1 sm:mb-2 text-white group-hover:text-white transition-colors duration-300 line-clamp-2">
@@ -425,276 +323,11 @@ function toSizeArray(sizes) {
     );
   };
 
-  // -------------------------- END PRODUCT CARD ---------------------------
-
-  // Quick View Modal as an in-tree (non-portal) component
-  const QuickViewModal = () => {
-    if (!quickViewProduct) return null;
-
-    // Use product-provided images if any, else fallback
-    const productImages =
-      Array.isArray(quickViewProduct.images) && quickViewProduct.images.length > 0
-        ? quickViewProduct.images
-        : ["/coming-soon.jpg", "/coming-soon.jpg", "/coming-soon.jpg", "/coming-soon.jpg"];
-
-    // For sizes
-    const sizesArray = Array.isArray(quickViewProduct.sizes)
-      ? quickViewProduct.sizes
-      : [];
-
-    return (
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4">
-        <div
-          className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-          onClick={closeQuickView}
-        />
-        <div
-          className="relative w-full max-w-6xl bg-black/90 backdrop-blur-xl border border-white/10 rounded-xl sm:rounded-2xl lg:rounded-3xl overflow-hidden"
-          style={{
-            maxHeight: "95vh",
-            display: "flex",
-            flexDirection: "column"
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            onClick={closeQuickView}
-            type="button"
-            className="absolute top-2 right-2 sm:top-4 sm:right-4 z-50 p-1.5 sm:p-2 bg-black/60 backdrop-blur-sm rounded-full border border-white/20 hover:bg-black/80 transition-all duration-300 touch-manipulation"
-            aria-label="Close modal"
-          >
-            <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-          <div className="grid grid-cols-1 lg:grid-cols-2 h-full overflow-y-auto" style={{maxHeight:"95vh"}}>
-            <div className="relative overflow-hidden bg-black flex flex-col">
-              <div className="relative h-[50vh] sm:h-[60%] overflow-hidden">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={productImages[currentImageIndex] || "/coming-soon.jpg"}
-                  alt={quickViewProduct.name}
-                  className="w-full h-full object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={prevImage}
-                  className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 p-1.5 sm:p-2 bg-black/60 backdrop-blur-sm rounded-full border border-white/20 hover:bg-black/80 touch-manipulation"
-                  tabIndex={0}
-                  aria-label="Previous image"
-                >
-                  <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  onClick={nextImage}
-                  className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 p-1.5 sm:p-2 bg-black/60 backdrop-blur-sm rounded-full border border-white/20 hover:bg-black/80 touch-manipulation"
-                  tabIndex={0}
-                  aria-label="Next image"
-                >
-                  <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-                <div className="absolute bottom-2 sm:bottom-4 left-1/2 -translate-x-1/2 px-2 sm:px-3 py-1 bg-black/60 backdrop-blur-sm rounded-full border border-white/20">
-                  <span className="text-white text-xs sm:text-sm">
-                    {currentImageIndex + 1} / {productImages.length}
-                  </span>
-                </div>
-              </div>
-
-              <div className="h-auto sm:h-[40%] p-2 sm:p-4 border-t border-white/10">
-                <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                  {productImages.map((img, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setCurrentImageIndex(index)}
-                      className={`flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-lg sm:rounded-xl overflow-hidden border-2 touch-manipulation ${
-                        currentImageIndex === index
-                          ? "border-white"
-                          : "border-white/20"
-                      }`}
-                      type="button"
-                      tabIndex={0}
-                      aria-label={`View image ${index + 1}`}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={img}
-                        alt={`${quickViewProduct.name} ${index + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-            {/* Right Column - Info */}
-            <div className="p-4 sm:p-6 md:p-8 overflow-y-auto bg-black max-h-[95vh]">
-              <div className="space-y-4 sm:space-y-6">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2 mb-2 sm:mb-3">
-                    <span className="px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-semibold bg-white/10 text-white rounded-full border border-white/20">
-                      new
-                    </span>
-                    <span className="px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-semibold bg-white/10 text-white rounded-full border border-white/20">
-                      premium
-                    </span>
-                  </div>
-                  <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-2 break-words">
-                    {quickViewProduct.name}
-                  </h2>
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-                    <div className="flex items-center gap-1">
-                      <svg className="w-4 h-4 sm:w-5 sm:h-5 fill-yellow-400 text-yellow-400" viewBox="0 0 24 24">
-                        <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63L2 9.24l5.46 4.73L5.82 21z" />
-                      </svg>
-                      <span className="text-white/80 text-sm sm:text-base">4.8</span>
-                      <span className="text-white/60 text-xs sm:text-sm">(128 reviews)</span>
-                    </div>
-                    <span className="text-green-400 text-xs sm:text-sm">
-                      ✓ In Stock
-                    </span>
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-                  <span className="text-2xl sm:text-3xl md:text-4xl font-bold text-white">
-                    ₹{Number(quickViewProduct.price).toLocaleString()}
-                  </span>
-                  <span className="text-lg sm:text-xl text-white/60 line-through">
-                    ₹{Number(quickViewProduct.originalPrice).toLocaleString()}
-                  </span>
-                  <span className="px-2 sm:px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-xs sm:text-sm font-semibold">
-                    Save ₹
-                    {(
-                      Number(quickViewProduct.originalPrice) -
-                      Number(quickViewProduct.price)
-                    ).toLocaleString()}
-                  </span>
-                </div>
-                <div className="space-y-2 sm:space-y-3">
-                  <h3 className="text-base sm:text-lg font-semibold text-white">
-                    Product Description
-                  </h3>
-                  <p className="text-white/70 text-sm sm:text-base">
-                    Premium quality {quickViewProduct.name.toLowerCase()} made with sustainable materials. Perfect for everyday wear with exceptional comfort and style.
-                  </p>
-                </div>
-                <div className="space-y-2 sm:space-y-3">
-                  <h3 className="text-base sm:text-lg font-semibold text-white">
-                    Key Features
-                  </h3>
-                  <ul className="space-y-1.5 sm:space-y-2">
-                    {[
-                      "Premium blend fabric (80% Cotton, 20% Polyester)",
-                      "Eco-friendly water-based printing",
-                      "Adjustable drawstring hood",
-                      "Ribbed cuffs and hem for snug fit",
-                      "Made with sustainable materials",
-                    ].map((feature, index) => (
-                      <li key={index} className="flex items-start gap-2 sm:gap-3">
-                        <svg className="w-4 h-4 sm:w-5 sm:h-5 text-green-400 mt-0.5 sm:mt-1 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        <span className="text-white/70 text-sm sm:text-base">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="space-y-3 sm:space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-base sm:text-lg font-semibold text-white">
-                      Select Size
-                    </h3>
-                  </div>
-                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 sm:gap-3">
-                  {toSizeArray(quickViewProduct.sizes).map((s) => (
-                  <button
-                    key={s.size}
-                    disabled={s.stock === 0}
-                    onClick={() => setSelectedSize(s.size)}
-                    className={`px-4 py-2 rounded-lg border
-                      ${selectedSize === s.size
-                        ? "bg-white text-black"
-                        : "bg-white/10 text-white"}
-                      ${s.stock === 0 ? "opacity-40 cursor-not-allowed" : ""}
-                    `}
-                  >
-                    {s.size}
-                    {s.stock === 0 && (
-                      <span className="block text-xs text-red-400">Out</span>
-                    )}
-                  </button>
-                ))}
-                    
-                  
-                  </div>
-                </div>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-                  <h4 className="text-white font-semibold text-sm sm:text-base">Quantity:</h4>
-                  <div className="flex items-center gap-2 sm:gap-3 border border-white/20 rounded-full px-3 sm:px-4 py-1.5 sm:py-2">
-                    <button
-                      onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
-                      className="p-1 hover:bg-white/10 rounded-full touch-manipulation"
-                      type="button"
-                      aria-label="Decrease quantity"
-                    >
-                      <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                      </svg>
-                    </button>
-                    <span className="text-white font-semibold min-w-[24px] sm:min-w-[30px] text-center text-sm sm:text-base">{quantity}</span>
-                    <button
-                      onClick={() => setQuantity((prev) => prev + 1)}
-                      className="p-1 hover:bg-white/10 rounded-full touch-manipulation"
-                      type="button"
-                      aria-label="Increase quantity"
-                    >
-                      <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pt-2 sm:pt-4">
-                {addedToCart ? (
-                  <Link
-                    href="/cart"
-                    className="w-full py-3 rounded-full bg-green-600 text-white text-center font-semibold"
-                  >
-                    VIEW CART
-                  </Link>
-                ) : (
-                  <button
-                    onClick={handleAddToCart}
-                    className="w-full py-3 rounded-full bg-white text-black font-semibold"
-                  >
-                    ADD TO CART
-                  </button>
-                )}              <button
-                    onClick={handleBuyNow}
-                    className="flex items-center justify-center gap-2 sm:gap-3 py-3 sm:py-4 px-4 sm:px-8 rounded-full font-semibold text-sm sm:text-base md:text-lg bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:opacity-90 transition-all duration-300 touch-manipulation"
-                    type="button"
-                  >
-                    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                    </svg>
-                    <span>BUY NOW</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
+  // QuickViewModal: DELETED
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <QuickViewModal />
+      {/* QuickViewModal removed */}
 
       <div className="bg-black text-white py-2 overflow-hidden relative z-50">
         <div className="relative h-6">
@@ -716,13 +349,11 @@ function toSizeArray(sizes) {
       <header
         className={`sticky top-0 z-50 transition-all duration-300 ${
           isScrolled ? "bg-black shadow-lg" : "bg-black/90 backdrop-blur-sm"
-          
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-20">
             <div className="flex-shrink-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/logo.jpg"
                 alt="SOUL SEAM Logo"
@@ -772,7 +403,15 @@ function toSizeArray(sizes) {
                 <Search className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
               <button
-                onClick={() => router.push("/login")}
+                onClick={async () => {
+                  try {
+                    const res = await fetch("/api/auth/user/me", { credentials: "include" });
+                    const data = await res.json();
+                    router.push(data?.user ? "/profile" : "/login");
+                  } catch {
+                    router.push("/login");
+                  }
+                }}
                 className="p-1.5 sm:p-2 hover:bg-gray-800 rounded-full transition-colors"
                 type="button"
                 aria-label="User Login"
@@ -802,7 +441,6 @@ function toSizeArray(sizes) {
               </button>
             </div>
           </div>
-          {/* Mobile Menu */}
           {isMenuOpen && (
             <div className="lg:hidden pb-4 pt-2 border-t border-white/10">
               <nav className="flex flex-col space-y-3">
@@ -872,7 +510,6 @@ function toSizeArray(sizes) {
                 </div>
                 <div className="absolute inset-4 rounded-[16px] overflow-hidden">
                   <div className="w-full h-full bg-gradient-to-br from-gray-900 via-gray-800 to-black">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={img}
                       alt={`Fashion ${index + 1}`}
@@ -921,7 +558,6 @@ function toSizeArray(sizes) {
             <div className="relative w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 lg:w-96 lg:h-96 mx-auto mb-8 sm:mb-12 md:mb-16 lg:mb-20">
               <div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm border-2 border-white/10"></div>
               <div className="absolute inset-4 sm:inset-6 md:inset-8 lg:inset-10 rounded-full bg-gradient-to-br from-black to-gray-900 flex items-center justify-center p-4 sm:p-6 md:p-8">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="logo2.jpg"
                   alt="SOUL SEAM Symbol"
@@ -942,7 +578,6 @@ function toSizeArray(sizes) {
           >
             Every Seam Connects Your Soul
           </p>
-          {/* Scroll indicator + Explore Collection button (only after intro animation) */}
           {heroAnimationComplete && (
             <div className="absolute bottom-6 sm:bottom-8 md:bottom-12 lg:bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4 sm:gap-6 animate-float w-full px-4">
               <div className="flex flex-col items-center gap-2">
@@ -990,7 +625,6 @@ function toSizeArray(sizes) {
         ></div>
       </section>
 
-      {/* Latest Drop (Dynamic) */}
       <section id="hoodies" className="py-12 sm:py-16 md:py-20 px-4 sm:px-6 lg:px-8 bg-black text-white">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 sm:mb-10 md:mb-12 gap-4">
@@ -1002,7 +636,6 @@ function toSizeArray(sizes) {
               Explore Collection
             </Link>
           </div>
-          {/* Mobile: Horizontal Scroll | Tablet+: Grid */}
           <div className="flex md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 overflow-x-auto md:overflow-x-visible scrollbar-hide gap-4 md:gap-6 lg:gap-8 pb-4 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 snap-x snap-mandatory md:snap-none" style={{ scrollBehavior: 'smooth', WebkitOverflowScrolling: 'touch' }}>
             {loadingProducts ? (
               <div className="text-white/60">Loading...</div>
@@ -1014,13 +647,11 @@ function toSizeArray(sizes) {
                   <ProductCard product={product} />
                 </div>
               ))
-            )
-            }
+            )}
           </div>
         </div>
       </section>
 
-      {/* Best Sellers (Dynamic) */}
       <section id="tshirts" className="py-12 sm:py-16 md:py-20 px-4 sm:px-6 lg:px-8 bg-black text-white">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 sm:mb-10 md:mb-12 gap-4">
@@ -1029,7 +660,6 @@ function toSizeArray(sizes) {
               Shop Now
             </button>
           </div>
-          {/* Mobile: Horizontal Scroll | Tablet+: Grid */}
           <div className="flex md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 overflow-x-auto md:overflow-x-visible scrollbar-hide gap-4 md:gap-6 lg:gap-8 pb-4 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 snap-x snap-mandatory md:snap-none" style={{ scrollBehavior: 'smooth', WebkitOverflowScrolling: 'touch' }}>
             {loadingProducts ? (
               <div className="text-white/60">Loading...</div>
@@ -1041,18 +671,15 @@ function toSizeArray(sizes) {
                   <ProductCard product={product} />
                 </div>
               ))
-            )
-            }
+            )}
           </div>
         </div>
       </section>
 
-      {/* ----- REMAINDER UI IS UNAFFECTED ----- */}
       <section className="py-14 sm:py-20 px-4 sm:px-6 lg:px-8 bg-black text-white">
         <div className="max-w-7xl mx-auto">
           <div className="flex md:grid md:grid-cols-3 gap-6 overflow-x-auto md:overflow-visible scrollbar-hide px-1">
 
-            {/* CARD 1 */}
             <div className="group min-w-[75%] sm:min-w-[55%] md:min-w-0 relative rounded-2xl bg-gradient-to-b from-white/10 to-white/0 border border-white/15 p-6 sm:p-7 transition-all duration-500 hover:-translate-y-2 hover:border-white/40 hover:shadow-[0_20px_80px_rgba(255,255,255,0.15)]">
               <div className="w-14 h-14 mx-auto mb-4 rounded-full border border-white/60 flex items-center justify-center bg-black transition-all duration-500 group-hover:scale-110 group-hover:shadow-[0_0_30px_rgba(255,255,255,0.35)]">
                 🌱
@@ -1062,7 +689,6 @@ function toSizeArray(sizes) {
               </h3>
             </div>
 
-            {/* CARD 2 */}
             <div className="group min-w-[75%] sm:min-w-[55%] md:min-w-0 relative rounded-2xl bg-gradient-to-b from-white/10 to-white/0 border border-white/15 p-6 sm:p-7 transition-all duration-500 hover:-translate-y-2 hover:border-white/40 hover:shadow-[0_20px_80px_rgba(255,255,255,0.15)]">
               <div className="w-14 h-14 mx-auto mb-4 rounded-full border border-white/60 flex items-center justify-center bg-black transition-all duration-500 group-hover:scale-110 group-hover:shadow-[0_0_30px_rgba(255,255,255,0.35)]">
                 📦
@@ -1072,7 +698,6 @@ function toSizeArray(sizes) {
               </h3>
             </div>
 
-            {/* CARD 3 */}
             <div className="group min-w-[75%] sm:min-w-[55%] md:min-w-0 relative rounded-2xl bg-gradient-to-b from-white/10 to-white/0 border border-white/15 p-6 sm:p-7 transition-all duration-500 hover:-translate-y-2 hover:border-white/40 hover:shadow-[0_20px_80px_rgba(255,255,255,0.15)]">
               <div className="w-14 h-14 mx-auto mb-4 rounded-full border border-white/60 flex items-center justify-center bg-black transition-all duration-500 group-hover:scale-110 group-hover:shadow-[0_0_30px_rgba(255,255,255,0.35)]">
                 🚚
@@ -1090,10 +715,8 @@ function toSizeArray(sizes) {
         className="py-20 px-4 sm:px-6 lg:px-8 bg-black text-white"
       >
         <div className="max-w-6xl mx-auto space-y-20">
-          {/* ========= CARD 1 ========= */}
           <div className="animate-reveal grid grid-cols-2 gap-6 sm:gap-12 items-center rounded-3xl p-5 sm:p-10 bg-gradient-to-br from-white/10 to-white/0 border border-white/20 shadow-[0_30px_120px_rgba(255,255,255,0.15)]">
 
-            {/* IMAGE */}
             <div className="relative overflow-hidden rounded-2xl">
               <img
                 src="/coming-soon.jpg"
@@ -1102,7 +725,6 @@ function toSizeArray(sizes) {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
             </div>
-            {/* TEXT */}
             <div className="space-y-4 sm:space-y-6">
               <h2 className="text-xl sm:text-3xl font-bold tracking-wide">
                 SCREEN PRINTED T-SHIRTS
@@ -1123,9 +745,7 @@ function toSizeArray(sizes) {
               </button>
             </div>
           </div>
-          {/* ========= CARD 2 ========= */}
           <div className="animate-reveal delay-200 grid grid-cols-2 gap-6 sm:gap-12 items-center rounded-3xl p-5 sm:p-10 bg-gradient-to-br from-white/10 to-white/0 border border-white/20 shadow-[0_30px_120px_rgba(255,255,255,0.15)]">
-            {/* TEXT */}
             <div className="space-y-4 sm:space-y-6">
               <h2 className="text-xl sm:text-3xl font-bold tracking-wide">
                 100% COTTON T-SHIRTS
@@ -1145,7 +765,6 @@ function toSizeArray(sizes) {
                 </span>
               </button>
             </div>
-            {/* IMAGE */}
             <div className="relative overflow-hidden rounded-2xl">
               <img
                 src="/coming-soon.jpg"

@@ -9,8 +9,8 @@ export default function LoginPage() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  /* -------- Mouse tracking glow -------- */
   const [pos, setPos] = useState({ x: 50, y: 50 });
 
   function handleMouseMove(e) {
@@ -20,11 +20,9 @@ export default function LoginPage() {
     setPos({ x, y });
   }
 
-  /* -------- Click SOUL effect -------- */
   const [souls, setSouls] = useState([]);
 
   function handleClickEffect(e) {
-    // inputs / buttons click ignore
     if (e.target.closest("input") || e.target.closest("button")) return;
 
     const id = Date.now();
@@ -43,17 +41,9 @@ export default function LoginPage() {
     }, 1800);
   }
 
-  /* -------- Login -------- */
   async function handleLogin() {
     if (!identifier) {
       alert("Enter Email or Phone number");
-      return;
-    }
-
-    const isPhone = /^\d{10}$/.test(identifier);
-
-    if (isPhone) {
-      alert("OTP login will be handled here");
       return;
     }
 
@@ -64,17 +54,17 @@ export default function LoginPage() {
 
     setLoading(true);
 
-    const res = await fetch("/api/auth/email/login", {
+    const res = await fetch("/api/auth/user/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: identifier, password }),
+      body: JSON.stringify({ identifier, password }),
     });
 
     const data = await res.json();
     setLoading(false);
 
     if (res.ok) {
-      router.push("/");
+      router.push("/profile");
     } else {
       alert(data.message);
     }
@@ -85,10 +75,8 @@ export default function LoginPage() {
       className="min-h-screen flex items-center justify-center bg-black px-4 relative overflow-hidden"
       onClick={handleClickEffect}
     >
-      {/* BACKGROUND */}
       <div className="fixed inset-0 bg-gradient-to-br from-black via-[#111] to-black -z-10" />
 
-      {/* CLICK SOUL TEXT */}
       {souls.map(s => (
         <span
           key={s.id}
@@ -99,7 +87,6 @@ export default function LoginPage() {
         </span>
       ))}
 
-      {/* LOGIN CARD */}
       <div
         onMouseMove={handleMouseMove}
         className="relative w-full max-w-md rounded-3xl border border-white/15 bg-black/80 backdrop-blur-xl p-10 shadow-[0_30px_120px_rgba(255,255,255,0.18)] transition-all duration-300"
@@ -113,7 +100,6 @@ export default function LoginPage() {
           `,
         }}
       >
-        {/* glow outline */}
         <div className="pointer-events-none absolute inset-0 rounded-3xl border border-white/10" />
 
         <h1 className="text-3xl font-extrabold text-center mb-8 bg-gradient-to-r from-white to-zinc-300 bg-clip-text text-transparent tracking-widest">
@@ -128,12 +114,41 @@ export default function LoginPage() {
             className="w-full rounded-2xl px-4 py-3 bg-black/70 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20 transition"
           />
 
-          <input
-            type="password"
-            placeholder="Password (email login)"
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-2xl px-4 py-3 bg-black/70 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20 transition"
-          />
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              placeholder="Password (email login)"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onFocus={() => setShowPassword(true)}
+              onBlur={() => setShowPassword(false)}
+              onMouseEnter={() => setShowPassword(true)}
+              onMouseLeave={() => setShowPassword(false)}
+              className="w-full rounded-2xl px-4 py-3 pr-12 bg-black/70 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:border-white/40 focus:ring-2 focus:ring-white/20 transition"
+            />
+            <div
+              className={`absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none transition-all duration-300 ${
+                showPassword
+                  ? "opacity-100 scale-100"
+                  : "opacity-0 scale-75"
+              }`}
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-white/60"
+              >
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </div>
+          </div>
 
           <button
             onClick={handleLogin}
@@ -179,7 +194,6 @@ export default function LoginPage() {
         </p>
       </div>
 
-      {/* GLOBAL STYLES */}
       <style jsx global>{`
         .soul-click {
           position: fixed;

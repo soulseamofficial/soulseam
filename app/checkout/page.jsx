@@ -1,11 +1,60 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useCart } from "../CartContext";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
-// India states
+// ==== PREMIUM DARK ECOMMERCE CHECKOUT LAYOUT CONSTANTS ====
+// Premium card consistency for BOTH left (info) and right (order) — unified here:
+const premiumCardClass = `
+  premium-info-card w-full
+  bg-gradient-to-b from-black/80 via-zinc-900/68 to-black/99
+  border border-white/14 rounded-3xl
+  px-8 py-8 flex flex-col
+  shadow-[0_22px_60px_rgba(255,255,255,0.12)]
+  transition-all duration-600 ease-out
+  will-change-transform
+  group premium-summary-hover
+  relative
+`;
+
+const pageCenterClass =
+  "w-full min-h-screen flex flex-col items-center justify-center bg-black/95 py-32 px-5 sm:px-10";
+
+const mainPageClass =
+  "min-h-screen w-full bg-black flex flex-col py-6 px-1 sm:px-3 justify-between";
+const mainLayoutClass =
+  "max-w-[1200px] w-full mx-auto flex flex-col md:flex-row items-start justify-between gap-9 md:gap-7";
+
+// Unused now, but kept for semantic clarity:
+const leftFormSectionClass = premiumCardClass;
+
+// Section headings and label typography match
+const h1Class = `
+  text-2xl sm:text-3xl font-black uppercase
+  tracking-[0.19em] text-white/90 mb-5 leading-tight
+  drop-shadow-[0_4px_22px_rgba(255,255,255,0.18)]
+  bg-gradient-to-r from-white via-white/90 to-zinc-200/70 bg-clip-text text-transparent
+`;
+
+const sectionTitleClass = `
+  mb-5 text-xl font-black uppercase tracking-[0.19em]
+  bg-gradient-to-r from-white via-white/90 to-zinc-200/70 bg-clip-text text-transparent
+  leading-tight drop-shadow-[0_3px_19px_rgba(255,255,255,0.12)]
+`;
+
+const sectionSubTitleClass = `
+  mb-3 text-lg font-semibold tracking-wide text-white/93 uppercase
+  bg-gradient-to-r from-white via-white/93 to-zinc-200/73 bg-clip-text text-transparent
+  leading-tight
+`;
+
+const shippingInfoClass = `
+  w-full bg-gradient-to-b from-white/5 to-white/0 border border-white/8 rounded-2xl px-6 py-5 mb-8 flex flex-col items-start shadow-[0_6px_18px_rgba(255,255,255,0.06)] transition-all duration-600 ease-out
+`;
+const asideCardClass = premiumCardClass;
+
 const INDIAN_STATES = [
   "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
   "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka",
@@ -15,12 +64,15 @@ const INDIAN_STATES = [
 ];
 
 // --- Progress Bar ---
-const ProgressBar = ({ step }) => {
+const ProgressBar = ({ step, setStep }) => {
   const router = useRouter();
   const progress = ["Cart", "Information", "Shipping", "Payment"];
+  const orderDraftExists = typeof window !== "undefined" && !!localStorage.getItem("draftId");
+  const canGoToShipping = orderDraftExists;
+  const canGoToPayment = step > 2 || (typeof window !== "undefined" && !!localStorage.getItem("draftId") && step >= 2);
 
   return (
-    <nav aria-label="Progress" className="mb-12 sm:mb-10">
+    <nav aria-label="Progress" className="mb-10 sm:mb-8">
       <ol className="flex items-center text-xs gap-5 sm:gap-4">
         {progress.map((label, idx) => (
           <li key={label} className="flex items-center">
@@ -30,14 +82,45 @@ const ProgressBar = ({ step }) => {
                 if (label === "Cart") {
                   router.push("/cart");
                 }
+                if (label === "Information" && step !== 1) {
+                  setStep(1);
+                }
+                if (
+                  label === "Shipping" &&
+                  step !== 2 &&
+                  canGoToShipping
+                ) {
+                  setStep(2);
+                }
+                if (
+                  label === "Payment" &&
+                  step !== 3 &&
+                  canGoToPayment
+                ) {
+                  setStep(3);
+                }
               }}
               className={`
                 uppercase tracking-widest font-black transition-all duration-600 ease-out
                 ${idx <= step
                   ? "text-white"
                   : "text-white/25"}
-                ${label === "Cart" ? "cursor-pointer hover:underline" : "cursor-default"}
+                ${
+                  label === "Cart"
+                    ? "cursor-pointer hover:underline"
+                    : (
+                      (label === "Information" && step !== 1) ||
+                      (label === "Shipping" && canGoToShipping && step !== 2) ||
+                      (label === "Payment" && canGoToPayment && step !== 3)
+                    )
+                      ? "cursor-pointer hover:underline"
+                      : "cursor-default"
+                }
               `}
+              disabled={
+                (label === "Shipping" && !canGoToShipping) ||
+                (label === "Payment" && !canGoToPayment)
+              }
             >
               {label}
             </button>
@@ -58,8 +141,7 @@ const ProgressBar = ({ step }) => {
 };
 
 // --- Product card ---
-const checkoutProductCardClass = `
-  flex items-center mb-5 p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-white/10 to-white/0 group
+const checkoutProductCardClass = `flex items-center mb-5 p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-white/10 to-white/0 group
   border border-white/15
   shadow-[0_20px_80px_rgba(255,255,255,0.13)]
   relative transition-all duration-600 ease-out
@@ -68,20 +150,15 @@ const checkoutProductCardClass = `
   will-change-transform
 `;
 
-const checkoutProductCardImgClass = `
-  w-16 h-16 sm:w-20 sm:h-20 mr-4 shrink-0 relative overflow-hidden rounded-xl
+const checkoutProductCardImgClass = `w-16 h-16 sm:w-20 sm:h-20 mr-4 shrink-0 relative overflow-hidden rounded-xl
   bg-gradient-to-b from-black/70 via-black/65 to-black/80
   transition-all duration-600 ease-out
 `;
 
 function CheckoutProductCard({ item }) {
   return (
-    <div
-      className={checkoutProductCardClass}
-    >
-      <div
-        className={checkoutProductCardImgClass + ' productCardImg'}
-      >
+    <div className={checkoutProductCardClass}>
+      <div className={`${checkoutProductCardImgClass} productCardImg`}>
         <Image
           src={item.image}
           alt={item.name}
@@ -95,11 +172,12 @@ function CheckoutProductCard({ item }) {
             group-hover:shadow-[0_6px_24px_rgba(255,255,255,0.18)]
           `}
           style={{
-            transition: "transform .62s cubic-bezier(.42,0,.28,1), box-shadow .59s cubic-bezier(.42,0,.28,1)"
+            transition:
+              "transform .62s cubic-bezier(.42,0,.28,1), box-shadow .59s cubic-bezier(.42,0,.28,1)"
           }}
         />
       </div>
-      
+
       <div className="flex-1 min-w-0">
         <span className="block font-extrabold text-[1.11rem] truncate bg-gradient-to-r from-white via-white/97 to-zinc-200/93 bg-clip-text text-transparent tracking-tight">
           {item.name}
@@ -124,9 +202,7 @@ function CheckoutProductCard({ item }) {
 }
 
 // --- Coupon Input ---
-const couponInputFormClass = `
-  flex items-center gap-2 mt-4 relative group
-`;
+const couponInputFormClass = `flex items-center gap-2 mt-4 relative group`;
 
 function CouponInput({
   couponCode,
@@ -188,55 +264,351 @@ function CouponInput({
   );
 }
 
-// ---- Main Checkout Page ----
+// ---- OTP Verification UI ------
 
-const pageCenterClass = `
-  min-h-screen flex flex-col items-center justify-center bg-black animate-luxFadeIn
-`;
+// Account password fields: shown after OTP is verified; appearance is animated.
+function AnimatedPasswordFields({ visible, password, setPassword, confirm, setConfirm, error }) {
+  return (
+    <div className={`
+      ${visible ? "animate-premiumSlideFadeIn" : "pointer-events-none opacity-0 absolute"}
+      mt-4 mb-2 w-full flex flex-col gap-3 transition-all duration-700
+    `}>
+      <input
+        type="password"
+        value={password}
+        onChange={e => setPassword(e.target.value)}
+        placeholder="Create Password*"
+        className={`
+          premium-input w-full rounded-2xl px-4 py-2 sm:py-2.5 bg-black/85 border border-white/18 text-white/93 font-semibold placeholder:text-white/35 transition-all duration-500 outline-none focus:bg-black/75 focus:border-white/40 focus:ring-2 focus:ring-white/20 hover:border-white/30 ring-0
+        `}
+        style={{ fontFamily: "Inter,Poppins,Neue Haas,sans-serif" }}
+        minLength={6}
+        autoComplete="new-password"
+      />
+      <input
+        type="password"
+        value={confirm}
+        onChange={e => setConfirm(e.target.value)}
+        placeholder="Confirm Password*"
+        className={`
+          premium-input w-full rounded-2xl px-4 py-2 sm:py-2.5 bg-black/85 border border-white/18 text-white/93 font-semibold placeholder:text-white/35 transition-all duration-500 outline-none focus:bg-black/75 focus:border-white/40 focus:ring-2 focus:ring-white/20 hover:border-white/30 ring-0
+        `}
+        style={{ fontFamily: "Inter,Poppins,Neue Haas,sans-serif" }}
+        minLength={6}
+        autoComplete="new-password"
+      />
+      {error && (
+        <span className="text-xs font-bold text-rose-400/95 mt-1 pl-2">{error}</span>
+      )}
+    </div>
+  );
+}
 
-const mainPageClass = `
-  min-h-screen text-white flex flex-col items-center py-10 px-2 sm:px-6
-  animate-luxFadeIn bg-black
-`;
+// Refined VerificationCard: smaller “Send OTP” below input, more elegant flow/compact
+function VerificationCard({
+  method,
+  icon,
+  label,
+  active,
+  completed,
+  step,
+  inputValue,
+  setInputValue,
+  otp,
+  setOtp,
+  loading,
+  error,
+  onSelect,
+  onSendOtp,
+  onVerifyOtp,
+  methodDisabled,
+  lockOtherCard,
+  inputDisabled,
+  showPasswordFields,
+  passwordFields,
+  setPasswordFields,
+  passwordError,
+}) {
+  // Password fields (only after OTP is verified)
+  return (
+    <div
+    className={`
+      flex-1 basis-0 min-w-0 max-w-full
+      px-5 py-6 rounded-2xl
+      bg-gradient-to-b from-white/10 to-white/0
+      border border-white/15
+      shadow-[0_20px_80px_rgba(255,255,255,0.13)]
+      relative transition-all duration-600 ease-out
+      hover:-translate-y-2 hover:shadow-[0_32px_100px_rgba(255,255,255,0.20)]
+      hover:border-white/30
+      will-change-transform
+      cursor-pointer
+      group
+      ${active ? "scale-[1.03] border-white shadow-[0_28px_110px_rgba(255,255,255,0.22)]" : ""}
+      ${completed ? "border-green-300/80" : ""}
+      ${lockOtherCard && !active ? "opacity-60" : ""}
+    `}
+    
+      style={{
+        fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
+        outline: active ? "2px solid #fff" : undefined,
+        minHeight: 0,
+      }}
+      tabIndex={0}
+      aria-pressed={active}
+      onClick={() => !completed && !methodDisabled && onSelect(method)}
+      role="button"
+    >
+      <div className="flex items-center mb-2 w-full">
+        {/* Icon */}
+        <span className="inline-flex items-center justify-center w-9 h-9 sm:w-9 sm:h-9 rounded-full bg-black/70 border border-white/20 text-[1.49rem] text-white/95 shadow-sm mr-3">
+          {icon}
+        </span>
+        <span
+          className={`font-bold text-[1.13rem] tracking-wide ${
+            active ? "text-white" : "text-white/93"
+          }`}
+        >
+          {label}
+        </span>
+        <div className="ml-auto" />
+        {completed && (
+          <span className="ml-auto text-green-300/90 font-extrabold tracking-wider text-xl select-none animate-premiumPulse">
+            &#10003;
+          </span>
+        )}
+      </div>
+      {/* Body: Step-controlled fields */}
+      {!completed && active && (
+        <div className="w-full mt-1 transition-all duration-500 ease-out">
+          {step === "idle" && (
+            <>
+              <div className="flex flex-col gap-2 w-full items-start">
+                <input
+                  type={method === "whatsapp" ? "text" : "email"}
+                  inputMode={method === "whatsapp" ? "numeric" : "email"}
+                  pattern={method === "whatsapp" ? "[0-9]*" : undefined}
+                  placeholder={method === "whatsapp" ? "Phone number" : "Email address"}
+                  value={inputValue}
+                  onChange={e => {
+                    let val = e.target.value;
+                    if (method === "whatsapp") {
+                      val = val.replace(/\D/g, "").slice(0, 10);
+                    }
+                    setInputValue(val);
+                  }}
+                  className={`
+                    w-full rounded-2xl px-4 py-2 bg-black/85 border border-white/18 text-white/93 font-semibold
+                    placeholder:text-white/38 outline-none ring-0
+                    focus:ring-2 focus:ring-white/20 focus:border-white/46
+                    hover:border-white/25
+                    transition-all duration-600 ease-out
+                    ${loading || inputDisabled ? "opacity-60 cursor-not-allowed" : ""}
+                  `}
+                  style={{
+                    fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
+                    letterSpacing: '0.03em',
+                    fontSize: '1.04rem'
+                  }}
+                  disabled={loading || inputDisabled}
+                  autoComplete="off"
+                />
+                <button
+                  type="button"
+                  disabled={
+                    loading ||
+                    (method === "whatsapp"
+                      ? inputValue.length !== 10
+                      : !inputValue ||
+                          !/^[\w-.]+@[\w-]+\.[\w-.]+$/.test(inputValue))
+                  }
+                  className={`
+                    mt-2 ml-0 self-start rounded-full bg-gradient-to-r from-white/80 via-zinc-100/90 to-white/60 text-black/80 text-xs font-bold
+                    shadow-[0_0_0_1px_rgba(255,255,255,0.22)]
+                    px-4 py-1.5 transition-all duration-500 ease-out
+                    hover:from-white hover:to-zinc-200/90 hover:text-black
+                    hover:shadow-[0_8px_18px_rgba(255,255,255,0.10)]
+                    focus:ring-2 focus:ring-white/30 focus:scale-99
+                    disabled:opacity-35 disabled:cursor-not-allowed
+                    premium-send-otp-btn
+                  `}
+                  style={{
+                    fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
+                    minWidth: 84,
+                  }}
+                  onClick={onSendOtp}
+                >
+                  {loading ? (
+                    <span className="relative z-10 flex items-center transition-all duration-600 ease-out">
+                      <span className="w-4 h-4 mr-2 rounded-full border-2 border-white/40 border-t-transparent animate-spin"></span>
+                      Sending…
+                    </span>
+                  ) : (
+                    <span className="relative z-10 flex items-center transition-all duration-600 ease-out">
+                      Send OTP
+                    </span>
+                  )}
+                </button>
+              </div>
+            </>
+          )}
+          {step === "otp_sent" && (
+            <>
+              <div className="flex flex-col gap-0 w-full mt-0">
+                <div className="flex flex-row items-center gap-2 w-full animate-premiumFadeIn">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    placeholder="Enter OTP"
+                    value={otp}
+                    onChange={e => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    className={`
+                      w-[106px] rounded-2xl px-4 py-2 bg-black/85 border border-white/24 text-white font-semibold mr-2
+                      placeholder:text-white/33 outline-none ring-0
+                      focus:ring-2 focus:ring-white/20 focus:border-white/40
+                      hover:border-white/25
+                      transition-all duration-600 ease-out
+                      text-[1.09rem]
+                      ${loading ? "opacity-60 cursor-not-allowed" : ""}
+                    `}
+                    style={{
+                      fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
+                      letterSpacing: '0.09em'
+                    }}
+                    disabled={loading}
+                    autoComplete="one-time-code"
+                  />
+                  <button
+                    type="button"
+                    disabled={loading || otp.length !== 6}
+                    className={`
+                      relative px-3.5 py-2 rounded-full font-black text-black/90 text-xs bg-gradient-to-r from-white/88 to-zinc-200/94
+                      shadow-[0_4px_16px_rgba(255,255,255,0.13)]
+                      overflow-hidden group transition-all duration-600 ease-out
+                      focus:ring-2 focus:ring-white/20 focus:scale-98
+                      disabled:opacity-40 disabled:cursor-not-allowed
+                      premium-verify-btn
+                    `}
+                    style={{
+                      fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
+                      minWidth: 72,
+                    }}
+                    onClick={onVerifyOtp}
+                  >
+                    {loading ? (
+                      <span className="relative z-10 flex items-center transition-all duration-600 ease-out">
+                        <span className="w-3.5 h-3.5 mr-2 rounded-full border-2 border-white/40 border-t-transparent animate-spin"></span>
+                        Verifying
+                      </span>
+                    ) : (
+                      <span className="relative z-10 flex items-center transition-all duration-600 ease-out">
+                        Verify
+                      </span>
+                    )}
+                  </button>
+                </div>
+                <div className="mt-1 text-xs text-white/60 leading-tight font-medium select-none">
+                  Enter the 6-digit OTP sent to your {method === "whatsapp" ? "WhatsApp" : "email"}.
+                </div>
+              </div>
+            </>
+          )}
+          {/* Password fields - inject fade/slide animation after verification */}
+          {showPasswordFields && (
+            <AnimatedPasswordFields
+              visible
+              password={passwordFields.password}
+              setPassword={v => setPasswordFields(f => ({ ...f, password: v }))}
+              confirm={passwordFields.confirm}
+              setConfirm={v => setPasswordFields(f => ({ ...f, confirm: v }))}
+              error={passwordError}
+            />
+          )}
+          {error && (
+            <div className="mt-2 text-xs text-rose-400/92 font-bold">{error}</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
-const mainLayoutClass = `
-  w-full max-w-6xl flex flex-col md:flex-row gap-14 md:gap-12 transition-all duration-600 ease-out
-`;
+// --- Address Summary (Shipping Step) ---
+function AddressSummary({ form }) {
+  // Compose address lines
+  const name = [form.firstName, form.lastName].filter(Boolean).join(" ");
+  const streetLine = [form.address, form.apt].filter(Boolean).join(", ");
+  const cityStatePin = [form.city, form.state, form.pin].filter(Boolean).join(", ");
+  const phone = form.phone;
 
-const leftFormSectionClass = `
-  flex-1 min-w-0 md:w-[65%]
-  bg-gradient-to-b from-white/10 to-white/0 rounded-3xl
-  border border-white/20
-  shadow-[0_20px_80px_rgba(255,255,255,0.18)]
-  px-6 sm:px-12 py-10 md:py-14 mb-10 md:mb-0
-  transition-all duration-600 ease-out
-  hover:-translate-y-1.5 hover:shadow-[0_32px_120px_rgba(255,255,255,0.22)] hover:border-white/40
-  will-change-transform
-`;
+  if (!name && !streetLine && !cityStatePin && !phone) return null;
+  return (
+    <div
+      className={`
+        w-full bg-gradient-to-b from-white/10 to-white/0 border border-white/14 rounded-2xl px-6 py-5 mb-8 flex flex-col items-start shadow-[0_6px_24px_rgba(255,255,255,0.09)] transition-all duration-600 ease-out animate-premiumFadeIn
+      `}
+      style={{ fontFamily: "Inter,Poppins,Neue Haas,sans-serif" }}
+    >
+      <div className="font-bold mb-2 text-[1.04rem] uppercase tracking-wider text-white/93">Shipping Address</div>
+      <div className="text-white/94 text-base font-semibold leading-tight mb-1">{name}</div>
+      <div className="text-white/80 text-xs sm:text-sm font-medium mb-1">{streetLine}</div>
+      <div className="text-white/80 text-xs sm:text-sm font-medium mb-1">{cityStatePin}</div>
+      <div className="text-white/70 text-xs font-bold tracking-widest mt-1 select-none">+91 {phone}</div>
+    </div>
+  );
+}
 
-const h1Class = `
-  text-[2.23rem] sm:text-[2.55rem]
-  font-extrabold
-  mb-7
-  tracking-tighter uppercase
-  bg-gradient-to-br from-white via-white/96 to-zinc-200/80 bg-clip-text text-transparent
-  drop-shadow-[0_4px_26px_rgba(255,255,255,0.11)]
-`;
+// ---- Payment Method Card UI ----
+function PaymentMethodCard({ icon, label, desc, active, onClick }) {
+  return (
+    <div
+      className={`
+        flex flex-col sm:flex-row items-center sm:items-center gap-2
+        px-5 sm:px-6 py-6 sm:py-4 rounded-2xl transition-all duration-500 ease-out
+        cursor-pointer bg-black/60
+        border-2 ${active ? "border-white/85 shadow-[0_2px_32px_rgba(255,255,255,0.22)] scale-[1.025]" : "border-white/17"}
+        hover:border-white/60 hover:scale-[1.018] hover:shadow-[0_14px_36px_rgba(255,255,255,0.18)]
+        will-change-transform select-none
+      `}
+      onClick={onClick}
+      tabIndex={0}
+      style={{
+        fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
+        outline: active ? "2px solid #fff" : undefined,
+      }}
+      aria-pressed={active}
+      role="button"
+    >
+      <div className="flex items-center">{icon}</div>
+      <div className="ml-2 flex-1 flex flex-col sm:flex-row sm:items-center gap-1">
+        <span className={`font-bold text-[1.13rem] tracking-wide text-white${active ? "" : "/93"}`}>{label}</span>
+        {desc &&
+          <span className="ml-2 text-xs font-bold uppercase text-white/38">{desc}</span>
+        }
+      </div>
+      {active && (
+        <span className="ml-auto text-green-300/90 font-extrabold tracking-wider text-sm sm:text-base select-none">&#10003;</span>
+      )}
+    </div>
+  );
+}
 
-const shippingInfoClass = `
-  bg-gradient-to-b from-white/10 to-white/0
-  border border-white/12
-  px-6 py-7 sm:py-8 rounded-2xl flex flex-col items-center mb-8
-  shadow-[0_10px_32px_rgba(255,255,255,0.10)]
-  transition-all duration-600 ease-out
-`;
-
-const asideCardClass = `
-  bg-gradient-to-b from-white/10 to-white/0 rounded-3xl px-6 py-9
-  border border-white/15
-  shadow-[0_20px_80px_rgba(255,255,255,0.15)]
-  transition-all duration-600 ease-out
-`;
+// NEW: Hook to manage animated password fields in verification flow
+function usePasswordVerification(accountEnabled, step) {
+  const [passwordFields, setPasswordFields] = useState({ password: "", confirm: "" });
+  const [passwordError, setPasswordError] = useState("");
+  useEffect(() => {
+    if (!accountEnabled || step !== "verified") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPasswordFields({ password: "", confirm: "" });
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPasswordError("");
+    }
+  }, [accountEnabled, step]);
+  return { passwordFields, setPasswordFields, passwordError, setPasswordError };
+}
 
 export default function CheckoutPage() {
   // Cart hook - must be at the top level
@@ -244,12 +616,27 @@ export default function CheckoutPage() {
 
   // Steps and form
   const [step, setStep] = useState(1); // 1 = Info, 2 = Shipping, 3 = Payment
-
+  const [authUser, setAuthUser] = useState(null);
+  const [guestSessionId, setGuestSessionId] = useState(null);
+  const [guestUserId, setGuestUserId] = useState(null);
+  const [draftId, setDraftId] = useState(null);
+  const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [showAddAddress, setShowAddAddress] = useState(false);
+  const [newAddress, setNewAddress] = useState({
+    fullName: "",
+    phone: "",
+    addressLine1: "",
+    addressLine2: "",
+    city: "",
+    state: "",
+    pincode: "",
+    country: "India",
+  });
   const [form, setForm] = useState({
     email: "",
     firstName: "",
     lastName: "",
-    // company: "", // REMOVED
     address: "",
     apt: "",
     country: "India",
@@ -259,25 +646,198 @@ export default function CheckoutPage() {
     phone: "",
     createAccount: false,
   });
-  const [formErrors, setFormErrors] = useState({});
 
-  // Coupon
+  const [formErrors, setFormErrors] = useState({});
+  const [touched, setTouched] = useState({});
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState(false);
   const [showCouponSuccess, setShowCouponSuccess] = useState(false);
-
-  // Payment method selection ("online" | "cod")
-  const [paymentMethod, setPaymentMethod] = useState("online");
-
-  // Payment state
+  const [paymentMethod, setPaymentMethod] = useState("not_selected");
   const paymentButtonRef = useRef(null);
   const [razorpayLoading, setRazorpayLoading] = useState(false);
+  const [deliveryCheck, setDeliveryCheck] = useState(null);
+  const [deliveryCheckLoading, setDeliveryCheckLoading] = useState(false);
+  const [deliveryCheckError, setDeliveryCheckError] = useState(null);
+  const [deliveryCreationError, setDeliveryCreationError] = useState(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
-  // Order total logic
-  const itemsWithFinalPrice = cartItems.map(item => ({
-    ...item,
-    finalPrice: item.finalPrice ?? item.price,
-  }));
+  // Auth + guest session bootstrap (checkout must never block)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const sid = localStorage.getItem("guestSessionId") || crypto?.randomUUID?.() || String(Date.now());
+    localStorage.setItem("guestSessionId", sid);
+    setGuestSessionId(sid);
+    const d = localStorage.getItem("draftId");
+    const g = localStorage.getItem("guestUserId");
+    if (d) setDraftId(d);
+    if (g) setGuestUserId(g);
+    fetch("/api/auth/user/me", { credentials: "include" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.user) {
+          setAuthUser(data.user);
+          setSavedAddresses(Array.isArray(data.user.addresses) ? data.user.addresses : []);
+          // Auto-select first saved address (user can change in Shipping step)
+          const first = Array.isArray(data.user.addresses) ? data.user.addresses[0] : null;
+          if (first?._id) setSelectedAddressId(first._id);
+          // Autofill core identity (shipping fields are managed separately for logged-in address selection)
+          setForm((f) => ({
+            ...f,
+            email: data.user.email || f.email,
+            phone: data.user.phone || f.phone,
+            firstName: (data.user.name || "").split(" ")[0] || f.firstName,
+            lastName: (data.user.name || "").split(" ").slice(1).join(" ") || f.lastName,
+            createAccount: false,
+          }));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  async function refreshSavedAddresses() {
+    try {
+      const res = await fetch("/api/users/addresses", { credentials: "include" });
+      if (!res.ok) return;
+      const data = await res.json();
+      const list = Array.isArray(data?.addresses) ? data.addresses : [];
+      setSavedAddresses(list);
+      if (!selectedAddressId && list[0]?._id) setSelectedAddressId(list[0]._id);
+    } catch {
+      // ignore
+    }
+  }
+
+  async function saveNewAddressToUser() {
+    try {
+      const res = await fetch("/api/users/addresses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(newAddress),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        window?.alert?.(data?.message || "Could not save address");
+        return false;
+      }
+      setShowAddAddress(false);
+      await refreshSavedAddresses();
+      return true;
+    } catch {
+      window?.alert?.("Could not save address");
+      return false;
+    }
+  }
+
+  // --- ACCOUNT CREATE/OTP/VERIFICATION ---
+  const [verificationMethod, setVerificationMethod] = useState(null); // "whatsapp" | "email" | null
+  const [verificationStep, setVerificationStep] = useState("idle");   // "idle" | "otp_sent" | "verified"
+  const [verificationInput, setVerificationInput] = useState("");      // phone/email
+  const [verificationOtp, setVerificationOtp] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState("");
+  // --- Password fields for account create after OTP verified
+  const { passwordFields, setPasswordFields, passwordError, setPasswordError } =
+    usePasswordVerification(form.createAccount, verificationStep);
+
+  useEffect(() => {
+    setVerificationInput("");
+    setVerificationOtp("");
+    setOtpError("");
+    setVerificationStep("idle");
+    // (Password fields reset in custom hook)
+  }, [verificationMethod, form.createAccount]);
+  useEffect(() => {
+    if (!form.createAccount) {
+      setVerificationMethod(null);
+      setVerificationStep("idle");
+      setVerificationInput("");
+      setVerificationOtp("");
+      setOtpLoading(false);
+      setOtpError("");
+    }
+  }, [form.createAccount]);
+
+  useEffect(() => {
+    async function handleDeliveryCheck() {
+      if (step !== 2) return;
+      if (
+        !form.pin ||
+        !/^\d{6}$/.test(form.pin) ||
+        !form.address ||
+        !form.city ||
+        !form.state ||
+        !form.country
+      ) {
+        setDeliveryCheck(null);
+        setDeliveryCheckError(null);
+        return;
+      }
+      setDeliveryCheckLoading(true);
+      setDeliveryCheckError(null);
+      try {
+        const res = await fetch("/api/delivery/check", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            address: {
+              address: form.address,
+              apt: form.apt,
+              city: form.city,
+              state: form.state,
+              pin: form.pin,
+              country: form.country,
+            },
+            cart: cartItems,
+          }),
+        });
+        if (!res.ok) {
+          throw new Error("Unable to check delivery. Try again later.");
+        }
+        const data = await res.json();
+        const dc = {
+          serviceable: !!data.serviceable,
+          eta: typeof data.eta === "number" ? data.eta : null,
+          shippingCharge: typeof data.shippingCharge === "number" ? data.shippingCharge : null,
+          codAvailable: !!data.codAvailable,
+        };
+        setDeliveryCheck(dc);
+
+        const orderId = localStorage.getItem("orderId");
+        if (orderId) {
+          await fetch("/api/orders/update", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              orderId,
+              deliveryCheck: dc,
+              orderStatus: "draft",
+              paymentStatus: "not_selected",
+              deliveryStatus: "not_created",
+            }),
+          });
+        }
+      } catch (err) {
+        setDeliveryCheckError(
+          err && err.message ? err.message : "Could not check delivery availability."
+        );
+        setDeliveryCheck(null);
+      } finally {
+        setDeliveryCheckLoading(false);
+      }
+    }
+    handleDeliveryCheck();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, form.pin, form.address, form.city, form.state, form.country]);
+
+  // SSR-safe
+  const itemsWithFinalPrice = mounted
+    ? cartItems.map(item => ({
+        ...item,
+        finalPrice: item.finalPrice ?? item.price
+      }))
+    : [];
 
   const subtotal =
     itemsWithFinalPrice.reduce(
@@ -295,7 +855,6 @@ export default function CheckoutPage() {
   const discount = appliedCoupon ? Math.floor(subtotal * 0.15) : 0;
   const total = subtotal + shipping - discount;
 
-  // --- Coupon logic ---
   function handleApplyCoupon(e) {
     e.preventDefault();
     if (appliedCoupon) return;
@@ -309,60 +868,232 @@ export default function CheckoutPage() {
     }
   }
 
-  async function saveOrderDraft() {
-    const orderData = {
-      customer: {
-        email: form.email,
-        firstName: form.firstName,
-        lastName: form.lastName,
-        phone: form.phone,
-      },
-      shippingAddress: {
-        address: form.address,
-        apt: form.apt,
-        city: form.city,
-        state: form.state,
-        pin: form.pin,
-        country: form.country,
-      },
-      items: cartItems,
-      subtotal,
-      discount,
-      shipping,
-      total,
-      payment: {
-        method: "razorpay",
-        status: "pending",
-      },
-    };
+  async function upsertGuestAndDraft(shippingAddressSnapshot) {
+    // Guest user upsert (idempotent) if not logged in
+    let gId = guestUserId;
+    if (!authUser) {
+      try {
+        const gres = await fetch("/api/checkout/guest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            guestSessionId,
+            name: [form.firstName, form.lastName].filter(Boolean).join(" "),
+            email: form.email,
+            phone: form.phone,
+            shippingAddress: shippingAddressSnapshot,
+          }),
+        });
+        const gdata = await gres.json();
+        if (gres.ok && gdata?.guestUserId) {
+          gId = gdata.guestUserId;
+          setGuestUserId(gId);
+          localStorage.setItem("guestUserId", gId);
+        }
+      } catch {
+        // never block checkout
+      }
+    }
 
-    const res = await fetch("/api/orders", {
+    // Draft upsert
+    const dres = await fetch("/api/orders-draft", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(orderData),
+      body: JSON.stringify({
+        draftId,
+        guestUserId: gId || undefined,
+        shippingAddress: shippingAddressSnapshot,
+        items: cartItems,
+        coupon: appliedCoupon ? { code: couponCode.trim(), discount } : null,
+        subtotal,
+        discount,
+        total,
+      }),
     });
-
-    const data = await res.json();
-    return data.orderId;
+    const ddata = await dres.json();
+    if (dres.ok && ddata?.draftId) {
+      setDraftId(ddata.draftId);
+      localStorage.setItem("draftId", ddata.draftId);
+      return ddata.draftId;
+    }
+    // still don't block: return null and allow UI to continue (payment finalize will fail gracefully)
+    return null;
   }
 
-  // --- Step Transitions ---
+  function fieldRequired(key) {
+    // Logged-in users choose shipping address in Shipping step (addresses array),
+    // so we don't require address fields on Information step.
+    if (authUser) {
+      return !["apt", "address", "city", "state", "pin", "country"].includes(key);
+    }
+    return key !== "apt";
+  }
+  function validateField(field, value) {
+    switch (field) {
+      case "email":
+        if (!value || !/^[\w-.]+@[\w-]+\.[\w-.]+$/.test(value)) return "Valid email required";
+        break;
+      case "firstName": if (!value) return "First name required"; break;
+      case "lastName": if (!value) return "Last name required"; break;
+      case "address": if (!value) return "Street address required"; break;
+      case "city": if (!value) return "City required"; break;
+      case "state": if (!value) return "State required"; break;
+      case "pin":
+        if (!value) return "PIN code required";
+        if (!/^\d{6}$/.test(value)) return "Valid 6-digit PIN required";
+        break;
+      case "phone":
+        if (!value) return "Phone number required";
+        if (!/^[6-9]\d{9}$/.test(value)) return "Valid 10-digit Indian number";
+        break;
+      default: return "";
+    }
+    return "";
+  }
+  function handleBlur(field) {
+    setTouched(t => ({ ...t, [field]: true }));
+    const error = validateField(field, form[field]);
+    setFormErrors(errors => ({
+      ...errors,
+      [field]: error ? true : undefined
+    }));
+  }
+
+  // --- OTP Card Handlers ---
+  const handleVerificationSelect = method => {
+    if (verificationStep === "verified" || otpLoading) return;
+    setVerificationMethod(method);
+    setOtpError("");
+  };
+  async function handleSendOtp() {
+    setOtpLoading(true);
+    setOtpError("");
+    try {
+      let res;
+      if (verificationMethod === "whatsapp") {
+        res = await fetch("/api/auth/send-whatsapp-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: verificationInput }),
+        });
+      } else if (verificationMethod === "email") {
+        res = await fetch("/api/auth/send-email-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: verificationInput }),
+        });
+      }
+      if (!res || !res.ok) {
+        const errorBody = await res.json().catch(() => undefined);
+        const errorMessage =
+          errorBody?.message ||
+          (verificationMethod === "whatsapp"
+            ? "Failed to send WhatsApp OTP. Please try again."
+            : "Failed to send Email OTP. Please try again.");
+        setOtpError(errorMessage);
+        setOtpLoading(false);
+        return;
+      }
+      setVerificationStep("otp_sent");
+    } catch (err) {
+      setOtpError("Network issue. Please try again.");
+    } finally {
+      setOtpLoading(false);
+    }
+  }
+  async function handleVerifyOtp() {
+    setOtpLoading(true);
+    setOtpError("");
+    try {
+      let res;
+      if (verificationMethod === "whatsapp") {
+        res = await fetch("/api/auth/verify-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: verificationInput, otp: verificationOtp }),
+        });
+      } else if (verificationMethod === "email") {
+        res = await fetch("/api/auth/verify-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: verificationInput, otp: verificationOtp }),
+        });
+      }
+      if (!res || !res.ok) {
+        const errorBody = await res.json().catch(() => undefined);
+        setOtpError(
+          errorBody?.message ||
+            (verificationMethod === "whatsapp"
+              ? "Invalid OTP. Please check and try again."
+              : "Invalid OTP. Please check and try again.")
+        );
+        setOtpLoading(false);
+        return;
+      }
+      setVerificationStep("verified");
+      setOtpError("");
+    } catch (err) {
+      setOtpError("Verification failed. Please try again.");
+    } finally {
+      setOtpLoading(false);
+    }
+  }
+
+  // --- Account Verification Password Validation ---
+  const isAccountVerificationRequired = form.createAccount;
+  const isAccountVerified = !isAccountVerificationRequired || verificationStep === "verified";
+  // Make sure passwords are required and must match after OTP is verified.
+  let passwordFieldsRequired = isAccountVerificationRequired && verificationMethod && verificationStep === "verified";
+  let passwordFieldsErrored = "";
+  if (passwordFieldsRequired) {
+    if (!passwordFields.password || !passwordFields.confirm) {
+      passwordFieldsErrored = "Enter and confirm your password.";
+    } else if (passwordFields.password.length < 6) {
+      passwordFieldsErrored = "Password must be at least 6 characters.";
+    } else if (passwordFields.password !== passwordFields.confirm) {
+      passwordFieldsErrored = "Passwords do not match.";
+    }
+  }
+
+  // Allow continue if all requirements for account (verification + password) are met.
+  const canContinueToShipping =
+    itemsWithFinalPrice.length > 0 &&
+    (
+      !isAccountVerificationRequired ||
+      (
+        verificationMethod &&
+        verificationStep === "verified" &&
+        (!passwordFieldsRequired || passwordFieldsErrored === "")
+      )
+    );
+
   async function handleContinue(e) {
     e.preventDefault();
-    if (!validateInfo()) return;
+    // Mark all as touched (for error display)
+    const withTouched = {};
+    Object.keys(form).forEach(key => (withTouched[key] = true));
+    setTouched(withTouched);
+    const errors = {};
+    const errorMsgs = {};
+    Object.keys(form).forEach(field => {
+      if (fieldRequired(field)) {
+        const errorMsg = validateField(field, form[field]);
+        if (errorMsg) {
+          errors[field] = true;
+          errorMsgs[field] = errorMsg;
+        }
+      }
+    });
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) return;
 
-    const orderId = await saveOrderDraft();
-    localStorage.setItem("orderId", orderId); // payment kosam
+    // Per spec: draft is created/updated on Shipping -> Continue (not here).
     setStep(2);
   }
 
-  // --- Validation ---
   function validateInfo() {
     const errors = {};
-    if (
-      !form.email ||
-      !/^[\w-.]+@[\w-]+\.[\w-.]+$/.test(form.email)
-    )
+    if (!form.email || !/^[\w-.]+@[\w-]+\.[\w-.]+$/.test(form.email))
       errors.email = true;
     if (!form.firstName) errors.firstName = true;
     if (!form.lastName) errors.lastName = true;
@@ -375,37 +1106,65 @@ export default function CheckoutPage() {
     return Object.keys(errors).length === 0;
   }
 
-  // --- COD Handler ---
   async function handleCOD() {
+    setDeliveryCreationError(null);
     try {
-      const orderId = localStorage.getItem("orderId");
-      if (!orderId) {
-        window?.alert?.("Invalid order.");
+      const shippingAddressSnapshot = {
+        fullName: [form.firstName, form.lastName].filter(Boolean).join(" "),
+        phone: form.phone,
+        addressLine1: form.address,
+        addressLine2: form.apt,
+        city: form.city,
+        state: form.state,
+        pincode: form.pin,
+        country: form.country,
+      };
+      const ensuredDraftId = draftId || (await upsertGuestAndDraft(shippingAddressSnapshot));
+      if (!ensuredDraftId) {
+        window?.alert?.("Could not create order draft. Please try again.");
         return;
       }
-      await fetch("/api/orders/update", {
+
+      const finalizeRes = await fetch("/api/orders/finalize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          orderId,
-          paymentMethod: "cod",
-          paymentStatus: "pending",
-          orderStatus: "confirmed"
+          draftId: ensuredDraftId,
+          guestUserId: guestUserId || undefined,
+          paymentMethod: "COD",
         }),
       });
+      const finalizeData = await finalizeRes.json().catch(() => ({}));
+      if (!finalizeRes.ok) {
+        window?.alert?.(finalizeData?.message || "Could not place order. Please try again.");
+        return;
+      }
+
       window.alert("Order placed with Cash on Delivery.");
       clearCart();
-      localStorage.removeItem("orderId");
+      localStorage.removeItem("draftId");
       setStep(1);
+      setPaymentMethod("not_selected");
     } catch (err) {
-      window?.alert?.("Could not place order. Please try again.");
+      setDeliveryCreationError(
+        err && err.message
+          ? err.message
+          : "Could not place order. Please try again."
+      );
+      window?.alert?.("Could not create delivery/order. Please try again.");
     }
   }
 
-  // --- Payment Handler w/ Razorpay initialization ---
   async function handlePayment() {
-    if (itemsWithFinalPrice.length === 0 || razorpayLoading) {
-      window?.alert?.("Your cart is empty.");
+    setDeliveryCreationError(null);
+
+    if (
+      !mounted ||
+      itemsWithFinalPrice.length === 0 ||
+      razorpayLoading ||
+      paymentMethod !== "online"
+    ) {
+      window?.alert?.("Please select a payment method and ensure your cart is not empty.");
       return;
     }
     setRazorpayLoading(true);
@@ -427,21 +1186,46 @@ export default function CheckoutPage() {
         description: "Order Payment",
         order_id: data.orderId,
         handler: async function (response) {
-          // Update order as paid via online payment
-          await fetch("/api/orders/update", {
+          const shippingAddressSnapshot = {
+            fullName: [form.firstName, form.lastName].filter(Boolean).join(" "),
+            phone: form.phone,
+            addressLine1: form.address,
+            addressLine2: form.apt,
+            city: form.city,
+            state: form.state,
+            pincode: form.pin,
+            country: form.country,
+          };
+          const ensuredDraftId = draftId || (await upsertGuestAndDraft(shippingAddressSnapshot));
+          if (!ensuredDraftId) {
+            window?.alert?.("Could not create order draft. Please try again.");
+            return;
+          }
+
+          // Verify + finalize
+          const finalizeRes = await fetch("/api/orders/finalize", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              orderId: localStorage.getItem("orderId"),
-              paymentMethod: "online",
-              paymentStatus: "paid",
-              razorpayPaymentId: response.razorpay_payment_id,
+              draftId: ensuredDraftId,
+              guestUserId: guestUserId || undefined,
+              paymentMethod: "ONLINE",
+              razorpay_order_id: data.orderId,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
             }),
           });
-          window.alert("Payment Successful");
+          const finalizeData = await finalizeRes.json().catch(() => ({}));
+          if (!finalizeRes.ok) {
+            window?.alert?.(finalizeData?.message || "Payment verified but order finalization failed.");
+            return;
+          }
+
+          window.alert("Payment Successful! Order placed.");
           clearCart();
-          localStorage.removeItem("orderId");
+          localStorage.removeItem("draftId");
           setStep(1);
+          setPaymentMethod("not_selected");
         },
         prefill: {
           name: form.firstName + " " + form.lastName,
@@ -470,7 +1254,6 @@ export default function CheckoutPage() {
   }
 
   function fieldClass(errorKey) {
-    // Premium field: dark bg, soft subtle border, strong rounded
     return `
       w-full rounded-2xl px-4 py-2 sm:py-2.5
       bg-black/85 border border-white/15
@@ -478,21 +1261,48 @@ export default function CheckoutPage() {
       placeholder:text-white/30 placeholder:font-medium
       transition-all duration-600 ease-out
       focus:bg-black/75 focus:border-white/40 focus:ring-2 focus:ring-white/20
-      hover:border-white/30
+      hover:border-white/40
+      hover:shadow-[0_0_0_2px_rgba(255,255,255,0.06)]
+
       outline-none ring-0
       sm:text-[1.07rem]
-      ${formErrors[errorKey]
-        ? "border-white/50"
-        : ""
-      }
+      ${formErrors[errorKey] ? "border-rose-400/90" : ""}
     `;
+  }
+
+  // ---- Render: Hydration safety ----
+  if (!mounted) {
+    return (
+      <>
+        <div className={`${pageCenterClass} animate-reveal`}>
+          <span className={`
+            text-4xl mb-6 font-extrabold tracking-widest uppercase bg-gradient-to-br from-white via-zinc-300/92 to-zinc-400/91 bg-clip-text text-transparent
+          `}
+            style={{ fontFamily: "Poppins,Inter,sans-serif", letterSpacing: "0.17em" }}
+          >
+            SOULSEAM
+          </span>
+          <div className={`
+            w-44 h-3.5 rounded-xl overflow-hidden relative
+            bg-gradient-to-b from-white/10 to-white/0
+            shadow-[0_14px_40px_0_rgba(255,255,255,0.13)]
+          `}>
+            <div className={`
+              absolute left-0 top-0 h-full w-2/3
+              bg-gradient-to-r from-white/25 via-white/0 to-white/13 animate-loaderShine opacity-90
+            `}></div>
+          </div>
+        </div>
+        <RootCheckoutPageGlobalStyles />
+      </>
+    );
   }
 
   // ---- Main Page ----
   return (
     <>
       <div
-        className={mainPageClass + " animate-reveal"}
+        className={`${mainPageClass} animate-reveal`}
         style={{
           background: "#000",
           letterSpacing: '0.01em',
@@ -500,7 +1310,11 @@ export default function CheckoutPage() {
       >
         <div className={mainLayoutClass}>
           {/* --- LEFT FORM --- */}
-          <section className={leftFormSectionClass + " animate-reveal"}>
+          <section
+  className={`${leftFormSectionClass} animate-reveal group overflow-hidden relative premium-summary-hover`}
+>
+
+
             <h1
               className={h1Class}
               style={{
@@ -511,18 +1325,17 @@ export default function CheckoutPage() {
             >
               Checkout
             </h1>
-            <ProgressBar step={step} />
-            {/* Steps */}
+            <ProgressBar step={step} setStep={setStep} />
             <form
-              className={`premium-fade-in premium-slide-in w-full max-w-lg transition-all duration-600 ease-out`}
+              className="premium-fade-in premium-slide-in w-full max-w-lg transition-all duration-600 ease-out"
               autoComplete="off"
               onSubmit={handleContinue}
               style={{ minHeight: 420 }}
             >
               {/* --- STEP 1 --- */}
               {step === 1 && (
-                <div className={`premium-step-animate animate-reveal`}>
-                  <h2 className={`mb-5 text-xl font-bold uppercase tracking-wide text-white/93`}>
+                <div className="premium-step-animate animate-reveal">
+                  <h2 className="mb-5 text-xl font-bold uppercase tracking-wide text-white/93">
                     Information
                   </h2>
                   <div className="mb-6">
@@ -534,99 +1347,265 @@ export default function CheckoutPage() {
                       className={fieldClass("email")}
                       value={form.email}
                       onChange={e => setForm({ ...form, email: e.target.value })}
+                      onBlur={() => handleBlur("email")}
                     />
-                    {formErrors.email && <span className="text-xs text-rose-400/91 pl-2 border-b-2 border-rose-400/72 font-semibold">Valid email required</span>}
+                    {touched.email && formErrors.email && (
+                      <span className="text-xs text-rose-400/91 pl-2 border-b-2 border-rose-400/72 font-semibold">
+                        Valid email required
+                      </span>
+                    )}
                   </div>
                   <h2 className="mb-3 text-lg font-semibold tracking-wide text-white/90">
                     Shipping Address
                   </h2>
-                  <div className={`flex flex-col gap-5 sm:gap-4`}>
-                    <div className={`flex flex-row gap-3`}>
-                      <input
-                        type="text" placeholder="First Name*" className={fieldClass("firstName")}
-                        value={form.firstName}
-                        onChange={e => setForm({ ...form, firstName: e.target.value })}
-                      />
-                      <input
-                        type="text" placeholder="Last Name*" className={fieldClass("lastName")}
-                        value={form.lastName}
-                        onChange={e => setForm({ ...form, lastName: e.target.value })}
-                      />
+                  <div className="flex flex-col gap-5 sm:gap-4">
+                    <div className="flex flex-row gap-3">
+                      <div className="flex-1 flex flex-col">
+                        <input
+                          type="text"
+                          placeholder="First Name*"
+                          className={fieldClass("firstName")}
+                          value={form.firstName}
+                          onChange={e => setForm({ ...form, firstName: e.target.value })}
+                          onBlur={() => handleBlur("firstName")}
+                        />
+                        {touched.firstName && formErrors.firstName && (
+                          <span className="text-xs text-rose-400/91 pl-2 border-b-2 border-rose-400/91 font-semibold">
+                            First name required
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex-1 flex flex-col">
+                        <input
+                          type="text"
+                          placeholder="Last Name*"
+                          className={fieldClass("lastName")}
+                          value={form.lastName}
+                          onChange={e => setForm({ ...form, lastName: e.target.value })}
+                          onBlur={() => handleBlur("lastName")}
+                        />
+                        {touched.lastName && formErrors.lastName && (
+                          <span className="text-xs text-rose-400/91 pl-2 border-b-2 border-rose-400/91 font-semibold">
+                            Last name required
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    {/* Company name (optional) input removed */}
+                    <div className="flex flex-col">
+                      <input
+                        type="text"
+                        placeholder="Street address*"
+                        className={fieldClass("address")}
+                        value={form.address}
+                        onChange={e => setForm({ ...form, address: e.target.value })}
+                        onBlur={() => handleBlur("address")}
+                      />
+                      {touched.address && formErrors.address && (
+                        <span className="text-xs text-rose-400/91 pl-2 border-b-2 border-rose-400/91 font-semibold">
+                          Street address required
+                        </span>
+                      )}
+                    </div>
                     <input
-                      type="text" placeholder="Street address*" className={fieldClass("address")}
-                      value={form.address}
-                      onChange={e => setForm({ ...form, address: e.target.value })}
-                    />
-                    <input
-                      type="text" placeholder="Apartment / Suite (optional)" className={fieldClass("apt")}
+                      type="text"
+                      placeholder="Apartment / Suite (optional)"
+                      className={fieldClass("apt")}
                       value={form.apt}
                       onChange={e => setForm({ ...form, apt: e.target.value })}
+                      onBlur={() => handleBlur("apt")}
                     />
-                    <div className={`flex flex-row gap-3`}>
-                      <select
-                        className={fieldClass("country")}
-                        value={form.country}
-                        onChange={e => setForm({ ...form, country: e.target.value })}
-                      >
-                        <option value="India">India</option>
-                      </select>
-                      <input
-                        type="text" placeholder="City*" className={fieldClass("city")}
-                        value={form.city}
-                        onChange={e => setForm({ ...form, city: e.target.value })}
-                      />
+                    <div className="flex flex-row gap-3">
+                      <div className="flex-1 flex flex-col">
+                        <select
+                          className={fieldClass("country")}
+                          value={form.country}
+                          onChange={e => setForm({ ...form, country: e.target.value })}
+                          onBlur={() => handleBlur("country")}
+                        >
+                          <option value="India">India</option>
+                        </select>
+                      </div>
+                      <div className="flex-1 flex flex-col">
+                        <input
+                          type="text"
+                          placeholder="City*"
+                          className={fieldClass("city")}
+                          value={form.city}
+                          onChange={e => setForm({ ...form, city: e.target.value })}
+                          onBlur={() => handleBlur("city")}
+                        />
+                        {touched.city && formErrors.city && (
+                          <span className="text-xs text-rose-400/91 pl-2 border-b-2 border-rose-400/91 font-semibold">
+                            City required
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className={`flex flex-row gap-3`}>
-                      <select
-                        className={fieldClass("state")}
-                        value={form.state}
-                        onChange={e => setForm({ ...form, state: e.target.value })}
-                      >
-                        <option value="">Select State*</option>
-                        {INDIAN_STATES.map(state => (
-                          <option value={state} key={state}>{state}</option>
-                        ))}
-                      </select>
-                      <input
-                        type="text" placeholder="PIN code*" className={fieldClass("pin")}
-                        value={form.pin}
-                        onChange={e => setForm({ ...form, pin: e.target.value })}
-                      />
+                    <div className="flex flex-row gap-3">
+                      <div className="flex-1 flex flex-col">
+                        <select
+                          className={fieldClass("state")}
+                          value={form.state}
+                          onChange={e => setForm({ ...form, state: e.target.value })}
+                          onBlur={() => handleBlur("state")}
+                        >
+                          <option value="">Select State*</option>
+                          {INDIAN_STATES.map(state => (
+                            <option value={state} key={state}>{state}</option>
+                          ))}
+                        </select>
+                        {touched.state && formErrors.state && (
+                          <span className="text-xs text-rose-400/91 pl-2 border-b-2 border-rose-400/91 font-semibold">
+                            State required
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex-1 flex flex-col">
+                        <input
+                          type="text"
+                          placeholder="PIN code*"
+                          className={fieldClass("pin")}
+                          value={form.pin}
+                          maxLength={6}
+                          onChange={e => {
+                            const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                            setForm({ ...form, pin: val });
+                          }}
+                          onBlur={() => handleBlur("pin")}
+                        />
+                        {touched.pin && formErrors.pin && (
+                          <span className="text-xs text-rose-400/91 pl-2 border-b-2 border-rose-400/91 font-semibold">
+                            {form.pin.length !== 6 ? "Valid 6-digit PIN required" : "PIN code required"}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <input
-                      type="text" placeholder="Phone number*" className={fieldClass("phone")}
-                      value={form.phone}
-                      onChange={e => setForm({ ...form, phone: e.target.value })}
-                    />
-                    {formErrors.phone && <span className="text-xs text-rose-400/91 pl-2 border-b-2 border-rose-400/71 font-semibold">Valid 10-digit Indian number</span>}
-                    <div className={`flex items-center mt-3`}>
+                    <div className="flex flex-col">
+                      <input
+                        type="text"
+                        placeholder="Phone number*"
+                        className={fieldClass("phone")}
+                        value={form.phone}
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={10}
+                        onChange={e => {
+                          let val = e.target.value.replace(/\D/g, "");
+                          if (val.length > 10) val = val.slice(0, 10);
+                          setForm({ ...form, phone: val });
+                        }}
+                        onBlur={() => handleBlur("phone")}
+                      />
+                      {touched.phone && formErrors.phone && (
+                        <span className="text-xs text-rose-400/91 pl-2 border-b-2 border-rose-400/71 font-semibold">
+                          Valid 10-digit Indian number
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center mt-3">
                       <input
                         id="create-account"
                         type="checkbox"
                         checked={form.createAccount}
                         onChange={e => setForm({ ...form, createAccount: e.target.checked })}
-                        className={`w-4 h-4 accent-white bg-black border border-white/15 rounded-full mr-2 focus:ring-2 focus:accent-gray-200`}
+                        className="w-4 h-4 accent-white bg-black border border-white/15 rounded-full mr-2 focus:ring-2 focus:accent-gray-200"
                         style={{ boxShadow: "0 0 0 1.1px #e9edff18" }}
                       />
                       <label htmlFor="create-account" className="text-sm select-none text-white/90 font-semibold">Create an account?</label>
                     </div>
+                    {/* Account Creation (Verification) UI */}
+                    {form.createAccount && (
+                      <div
+                        className="w-full mt-6 flex flex-col sm:flex-row gap-4 border-t border-white/12 pt-7 transition-all duration-500 ease-out min-h-[135px]"
+                        style={{ minHeight: 120 }}
+                      >
+                        <VerificationCard
+                          method="whatsapp"
+                          icon={
+                            <svg width="27" height="27" viewBox="0 0 40 40" fill="none">
+                              <rect width="40" height="40" rx="12" fill="url(#wa__g)" />
+                              <path d="M19.98 7C12.3 7 5.98 13.32 5.98 21c0 2.96.97 5.8 2.81 8.15L5 36.99l8.13-3.66c2.31 1.32 4.92 2.01 7.85 2.01 7.68 0 13.99-6.32 13.99-14S27.66 7 19.98 7Zm0 24.91c-2.61 0-5.15-.7-7.36-2.03l-.53-.32-4.84 2.18 1.03-4.78-.34-.42A12.34 12.34 0 0 1 7.31 21c0-6.98 5.68-12.66 12.67-12.66s12.66 5.68 12.66 12.66c0 6.99-5.68 12.67-12.66 12.67Z" fill="#fff" />
+                              <path d="M29.14 25.42c-.4-.2-2.34-1.15-2.7-1.29-.36-.13-.62-.19-.89.2-.26.39-1.02 1.29-1.25 1.55-.23.26-.46.3-.86.1-.4-.2-1.67-.62-3.19-1.95-1.18-1.06-1.99-2.37-2.22-2.77-.23-.4-.02-.6.17-.8.18-.18.4-.47.59-.7.2-.23.26-.4.4-.66.13-.26.07-.5-.02-.7-.09-.2-.79-1.91-1.08-2.65-.29-.7-.58-.61-.8-.62-.21-.01-.46-.01-.7-.01-.24 0-.62.09-.92.4-.31.31-1.2 1.17-1.2 2.86 0 1.68 1.23 3.32 1.41 3.57.18.26 2.43 3.86 6.4 5.22A7.16 7.16 0 0 0 24 28c1.17-.05 1.88-.75 2.18-1.18.31-.44.31-.82.22-.9a4.6 4.6 0 0 0-.91-.5Z" fill="#3ad07c" />
+                              <defs>
+                                <linearGradient id="wa__g" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+                                  <stop stopColor="#222d22"/><stop offset="1" stopColor="#142d18"/>
+                                </linearGradient>
+                              </defs>
+                            </svg>
+                          }
+                          label="Verify via WhatsApp"
+                          active={verificationMethod === "whatsapp"}
+                          completed={verificationMethod === "whatsapp" && verificationStep === "verified"}
+                          step={verificationMethod === "whatsapp" ? verificationStep : "idle"}
+                          inputValue={verificationMethod === "whatsapp" ? verificationInput : ""}
+                          setInputValue={v => { if (verificationMethod === "whatsapp") setVerificationInput(v); }}
+                          otp={verificationOtp}
+                          setOtp={setVerificationOtp}
+                          loading={otpLoading && verificationMethod === "whatsapp"}
+                          error={otpError && verificationMethod === "whatsapp" ? otpError : ""}
+                          onSelect={handleVerificationSelect}
+                          onSendOtp={handleSendOtp}
+                          onVerifyOtp={handleVerifyOtp}
+                          methodDisabled={verificationStep === "verified" && verificationMethod !== "whatsapp"}
+                          lockOtherCard={!!verificationMethod}
+                          inputDisabled={otpLoading}
+                          showPasswordFields={verificationMethod === "whatsapp" && verificationStep === "verified"}
+                          passwordFields={passwordFields}
+                          setPasswordFields={setPasswordFields}
+                          passwordError={verificationMethod === "whatsapp" ? passwordError || passwordFieldsErrored : ""}
+                        />
+                        <VerificationCard
+                          method="email"
+                          icon={
+                            <svg width="28" height="28" fill="none" viewBox="0 0 40 40">
+                              <rect width="40" height="40" rx="12" fill="url(#email__g)"/>
+                              <rect x="9" y="13" width="22" height="14" rx="2.2" fill="#fff" fillOpacity=".99" stroke="#dceedb" strokeWidth="2"/>
+                              <path d="M11.9 15.34l8.07 6.97c.38.33.9.33 1.28 0l8-6.92" stroke="#e3fad1" strokeWidth="1.8"/>
+                              <defs>
+                                <linearGradient id="email__g" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+                                  <stop stopColor="#2b2c36"/><stop offset="1" stopColor="#23242b"/>
+                                </linearGradient>
+                              </defs>
+                            </svg>
+                          }
+                          label="Verify via Email"
+                          active={verificationMethod === "email"}
+                          completed={verificationMethod === "email" && verificationStep === "verified"}
+                          step={verificationMethod === "email" ? verificationStep : "idle"}
+                          inputValue={verificationMethod === "email" ? verificationInput : ""}
+                          setInputValue={v => { if (verificationMethod === "email") setVerificationInput(v); }}
+                          otp={verificationOtp}
+                          setOtp={setVerificationOtp}
+                          loading={otpLoading && verificationMethod === "email"}
+                          error={otpError && verificationMethod === "email" ? otpError : ""}
+                          onSelect={handleVerificationSelect}
+                          onSendOtp={handleSendOtp}
+                          onVerifyOtp={handleVerifyOtp}
+                          methodDisabled={verificationStep === "verified" && verificationMethod !== "email"}
+                          lockOtherCard={!!verificationMethod}
+                          inputDisabled={otpLoading}
+                          showPasswordFields={verificationMethod === "email" && verificationStep === "verified"}
+                          passwordFields={passwordFields}
+                          setPasswordFields={setPasswordFields}
+                          passwordError={verificationMethod === "email" ? passwordError || passwordFieldsErrored : ""}
+                        />
+                      </div>
+                    )}
                   </div>
                   <button
                     type="submit"
                     className={`
-                      mt-10 mb-4 sm:mb-3 relative py-3.5 px-8 rounded-full font-extrabold text-black bg-gradient-to-r from-white to-zinc-200
-                      shadow-[0_10px_32px_rgba(255,255,255,0.13)]
+                      mt-8 mb-3 sm:mb-2 relative py-3.5 px-8 rounded-full font-extrabold text-black bg-gradient-to-r from-white to-zinc-200
+                      shadow-[0_10px_34px_rgba(255,255,255,0.17)]
                       overflow-hidden group transition-all duration-600 ease-out
                       tracking-widest text-[1.15rem] select-none
                       disabled:opacity-38 disabled:cursor-not-allowed
-                      ${itemsWithFinalPrice.length === 0 ? "opacity-38 cursor-not-allowed pointer-events-none" : ""}
+                      ${!canContinueToShipping ? "opacity-38 cursor-not-allowed pointer-events-none" : ""}
                     `}
                     style={{
                       fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
                     }}
-                    disabled={itemsWithFinalPrice.length === 0}
+                    disabled={!canContinueToShipping}
                   >
                     <span className="relative z-10 flex items-center transition-all duration-600 ease-out group-hover:text-white">
                       Continue to Shipping
@@ -644,18 +1623,215 @@ export default function CheckoutPage() {
               )}
               {/* --- STEP 2 (Shipping) --- */}
               {step === 2 && (
-                <div className={`premium-step-animate animate-reveal`}>
-                  <h2 className={`mb-5 text-xl font-bold uppercase tracking-wide text-white/93`}>
+                <div className="premium-step-animate animate-reveal">
+                  <h2 className="mb-5 text-xl font-bold uppercase tracking-wide text-white/93">
                     Shipping
                   </h2>
+                  {!authUser && <AddressSummary form={form} />}
+
+                  {/* Logged-in user: address selection + add new */}
+                  {authUser && (
+                    <div className="mb-7 w-full bg-gradient-to-b from-white/5 to-white/0 border border-white/10 rounded-2xl px-6 py-5">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="font-bold tracking-wide text-white/90 uppercase text-sm">
+                          Select Shipping Address
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowAddAddress((v) => !v)}
+                          className="px-4 py-2 rounded-full bg-white text-black font-extrabold text-xs tracking-widest"
+                        >
+                          {showAddAddress ? "Cancel" : "Add New Address"}
+                        </button>
+                      </div>
+
+                      {savedAddresses.length === 0 ? (
+                        <div className="text-white/70 text-sm">
+                          No saved addresses. Please add one.
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {savedAddresses.map((a) => (
+                            <label
+                              key={a._id}
+                              className={`block cursor-pointer rounded-xl border px-4 py-3 transition ${
+                                selectedAddressId === a._id
+                                  ? "border-white/60 bg-white/10"
+                                  : "border-white/10 bg-black/40 hover:border-white/25"
+                              }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                <input
+                                  type="radio"
+                                  name="selectedAddress"
+                                  checked={selectedAddressId === a._id}
+                                  onChange={() => setSelectedAddressId(a._id)}
+                                  className="mt-1"
+                                />
+                                <div className="min-w-0">
+                                  <div className="font-bold text-white/95">
+                                    {a.fullName}
+                                  </div>
+                                  <div className="text-white/70 text-xs font-semibold tracking-widest">
+                                    +91 {a.phone}
+                                  </div>
+                                  <div className="text-white/70 text-xs mt-1">
+                                    {[a.addressLine1, a.addressLine2, a.city, a.state, a.pincode, a.country]
+                                      .filter(Boolean)
+                                      .join(", ")}
+                                  </div>
+                                </div>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+
+                      {showAddAddress && (
+                        <div className="mt-5 border-t border-white/10 pt-5 space-y-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <input
+                              type="text"
+                              placeholder="Full Name*"
+                              className={fieldClass("fullName")}
+                              value={newAddress.fullName}
+                              onChange={(e) => setNewAddress((s) => ({ ...s, fullName: e.target.value }))}
+                            />
+                            <input
+                              type="text"
+                              placeholder="Phone*"
+                              className={fieldClass("phone")}
+                              value={newAddress.phone}
+                              onChange={(e) =>
+                                setNewAddress((s) => ({
+                                  ...s,
+                                  phone: e.target.value.replace(/\D/g, "").slice(0, 10),
+                                }))
+                              }
+                            />
+                            <input
+                              type="text"
+                              placeholder="Address Line 1*"
+                              className={fieldClass("address")}
+                              value={newAddress.addressLine1}
+                              onChange={(e) => setNewAddress((s) => ({ ...s, addressLine1: e.target.value }))}
+                            />
+                            <input
+                              type="text"
+                              placeholder="Address Line 2"
+                              className={fieldClass("apt")}
+                              value={newAddress.addressLine2}
+                              onChange={(e) => setNewAddress((s) => ({ ...s, addressLine2: e.target.value }))}
+                            />
+                            <input
+                              type="text"
+                              placeholder="City*"
+                              className={fieldClass("city")}
+                              value={newAddress.city}
+                              onChange={(e) => setNewAddress((s) => ({ ...s, city: e.target.value }))}
+                            />
+                            <input
+                              type="text"
+                              placeholder="State*"
+                              className={fieldClass("state")}
+                              value={newAddress.state}
+                              onChange={(e) => setNewAddress((s) => ({ ...s, state: e.target.value }))}
+                            />
+                            <input
+                              type="text"
+                              placeholder="Pincode*"
+                              className={fieldClass("pin")}
+                              value={newAddress.pincode}
+                              onChange={(e) =>
+                                setNewAddress((s) => ({
+                                  ...s,
+                                  pincode: e.target.value.replace(/\D/g, "").slice(0, 6),
+                                }))
+                              }
+                            />
+                            <input
+                              type="text"
+                              placeholder="Country"
+                              className={fieldClass("country")}
+                              value={newAddress.country}
+                              onChange={(e) => setNewAddress((s) => ({ ...s, country: e.target.value }))}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={saveNewAddressToUser}
+                            className="px-5 py-2 rounded-full bg-white text-black font-extrabold tracking-widest text-xs"
+                          >
+                            Save Address
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div className={shippingInfoClass}>
-                    <div className="mb-2 font-normal text-white/90">
-                      <span className="text-lg font-black mr-2">Shipping Method:</span>
-                      <span className="ml-2">Express Delivery: <span className="text-white">{shipping === 0 ? "Free" : `₹${shipping}`}</span></span>
-                    </div>
-                    <div className="text-xs text-white/40 mt-1 uppercase tracking-widest font-bold">
-                      Est. Delivery: 2–7 Days Pan India
-                    </div>
+                    {/* Delivery Check Section */}
+                    {deliveryCheckLoading && (
+                      <div className="flex flex-col items-center justify-center py-3 gap-2 w-full">
+                        <div className="w-12 h-4 rounded bg-white/15 mb-2 animate-premiumShine" />
+                        <div className="text-sm text-white/70 font-semibold">Checking delivery availability…</div>
+                      </div>
+                    )}
+                    {deliveryCheckError && (
+                      <div className="text-rose-400/93 font-bold py-2">{deliveryCheckError}</div>
+                    )}
+                    {deliveryCheck && (
+                      <div className="w-full">
+                        <div className="flex items-center mb-2">
+                          <span className="text-lg font-black mr-2">Serviceable:</span>
+                          {deliveryCheck.serviceable ? (
+                            <span className="ml-2 text-green-300/90 font-bold">✓ Delivery available</span>
+                          ) : (
+                            <span className="ml-2 text-rose-400/90 font-semibold">✗ Not available to this address</span>
+                          )}
+                        </div>
+                        <div className="flex items-center mb-2">
+                          <span className="text-lg font-black mr-2">Shipping Charge:</span>
+                          {deliveryCheck.shippingCharge !== null ? (
+                            <span className="ml-2">
+                              {deliveryCheck.shippingCharge === 0 ? (
+                                <span className="text-green-200/95 font-bold">Free</span>
+                              ) : (
+                                <span className="text-white/95 font-bold">₹{deliveryCheck.shippingCharge}</span>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="ml-2 text-white/55">Unknown</span>
+                          )}
+                        </div>
+                        <div className="flex items-center mb-2">
+                          <span className="text-lg font-black mr-2">Estimated Delivery:</span>
+                          {deliveryCheck.eta != null ? (
+                            <span className="ml-2 text-white/95 font-semibold">{deliveryCheck.eta} {deliveryCheck.eta === 1 ? "day" : "days"}</span>
+                          ) : (
+                            <span className="ml-2 text-white/55">Unknown</span>
+                          )}
+                        </div>
+                        <div className="flex items-center mb-1">
+                          <span className="text-lg font-black mr-2">COD:</span>
+                          {deliveryCheck.codAvailable ? (
+                            <span className="ml-2 text-green-300/90 font-semibold">Available</span>
+                          ) : (
+                            <span className="ml-2 text-white/60 font-semibold">Not Available</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {!deliveryCheckLoading && !deliveryCheck && !deliveryCheckError && (
+                      <>
+                        <div className="mb-2 font-normal text-white/90">
+                          <span className="text-lg font-black mr-2">Shipping Method:</span>
+                          <span className="ml-2">Express Delivery: <span className="text-white">{shipping === 0 ? "Free" : `₹${shipping}`}</span></span>
+                        </div>
+                        <div className="text-xs text-white/40 mt-1 uppercase tracking-widest font-bold">
+                          Est. Delivery: 2–7 Days Pan India
+                        </div>
+                      </>
+                    )}
                   </div>
                   <button
                     type="button"
@@ -667,11 +1843,47 @@ export default function CheckoutPage() {
                       disabled:opacity-34 disabled:cursor-not-allowed
                       ${itemsWithFinalPrice.length === 0 ? "opacity-34 cursor-not-allowed pointer-events-none" : ""}
                     `}
-                    onClick={() => itemsWithFinalPrice.length > 0 && setStep(3)}
+                    onClick={async () => {
+                      if (itemsWithFinalPrice.length === 0) return;
+                      // Build shipping snapshot: logged-in uses selected saved address; guest uses form.
+                      let snapshot = null;
+                      if (authUser) {
+                        const sel = savedAddresses.find((a) => a._id === selectedAddressId) || savedAddresses[0];
+                        if (sel) {
+                          snapshot = {
+                            fullName: sel.fullName,
+                            phone: sel.phone,
+                            addressLine1: sel.addressLine1,
+                            addressLine2: sel.addressLine2 || "",
+                            city: sel.city,
+                            state: sel.state,
+                            pincode: sel.pincode,
+                            country: sel.country || "India",
+                          };
+                        }
+                      } else {
+                        snapshot = {
+                          fullName: [form.firstName, form.lastName].filter(Boolean).join(" "),
+                          phone: form.phone,
+                          addressLine1: form.address,
+                          addressLine2: form.apt,
+                          city: form.city,
+                          state: form.state,
+                          pincode: form.pin,
+                          country: form.country,
+                        };
+                      }
+                      if (snapshot) {
+                        await upsertGuestAndDraft(snapshot);
+                      }
+                      setStep(3);
+                    }}
                     style={{
                       fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
                     }}
-                    disabled={itemsWithFinalPrice.length === 0}
+                    disabled={
+                      itemsWithFinalPrice.length === 0
+                    }
                   >
                     <span className="relative z-10 flex items-center transition-all duration-600 ease-out group-hover:text-white">
                       Continue to Payment
@@ -685,136 +1897,120 @@ export default function CheckoutPage() {
                       <span className="absolute bottom-0 left-0 w-full h-full bg-black/90 transition-all duration-600 ease-out" style={{transform: 'translateY(100%)'}}></span>
                     </span>
                   </button>
-                  <button
-                    type="button"
-                    className={`block mt-6 text-white/50 underline underline-offset-4 text-sm font-bold hover:text-white/91 transition select-none focus:underline`}
-                    onClick={() => setStep(1)}
-                  >
-                    Back
-                  </button>
+                  {deliveryCreationError && (
+                    <div className="mt-5 text-rose-400/90 font-bold bg-rose-900/10 rounded-lg py-2 px-4 border border-rose-400/45">{deliveryCreationError}</div>
+                  )}
                 </div>
               )}
               {/* --- STEP 3 (Payment) --- */}
               {step === 3 && (
-                <div className={`premium-step-animate animate-reveal`}>
-                  <h2 className={`mb-7 text-xl font-bold uppercase tracking-wide text-white/93`}>
+                <div className="premium-step-animate animate-reveal">
+                  <h2 className="mb-7 text-xl font-bold uppercase tracking-wide text-white/93">
                     Payment
                   </h2>
                   {/* Payment Method Selection */}
                   <div className="mb-7">
-                    <div className="flex items-center gap-7 sm:gap-4">
-                      <label className="flex items-center cursor-pointer select-none">
-                        <input
-                          type="radio"
-                          className="w-5 h-5 accent-black border border-white/15 mr-2"
-                          name="paymentMethod"
-                          value="online"
-                          checked={paymentMethod === "online"}
-                          onChange={() => setPaymentMethod("online")}
-                        />
-                        <span className="font-semibold text-white/90">
-                          Online Payment <span className="text-xs font-bold uppercase text-white/38 ml-2">Razorpay, UPI, Cards</span>
-                        </span>
-                      </label>
-                      <label className="flex items-center cursor-pointer select-none">
-                        <input
-                          type="radio"
-                          className="w-5 h-5 accent-black border border-white/15 mr-2"
-                          name="paymentMethod"
-                          value="cod"
-                          checked={paymentMethod === "cod"}
-                          onChange={() => setPaymentMethod("cod")}
-                        />
-                        <span className="font-semibold text-white/90">
-                          Cash on Delivery <span className="text-xs font-bold uppercase text-white/38 ml-2">(COD)</span>
-                        </span>
-                      </label>
+                    <div className="flex flex-col gap-5 sm:flex-row sm:gap-6">
+                      <PaymentMethodCard
+                        icon={
+                          <span className="inline-flex items-center justify-center w-9 h-9 sm:w-9 sm:h-9 rounded-full bg-black/70 border border-white/20 mr-2 text-[1.55rem] text-white/95 shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44" width="28" height="28" fill="none"><rect width="44" height="44" rx="13" fill="url(#razor-cc-grad)" /><rect x="8" y="21" width="28" height="3.5" rx="1.6" fill="#fff" fillOpacity=".97"/><rect x="8" y="14.9" width="28" height="4" rx="1.5" fill="#fff" fillOpacity=".89"/><rect x="13.1" y="26.7" width="15.7" height="3.3" rx="1.1" fill="#fff" fillOpacity=".82"/><defs><linearGradient id="razor-cc-grad" x1="0" y1="0" x2="44" y2="44" gradientUnits="userSpaceOnUse"><stop stopColor="#26282b"/><stop offset="1" stopColor="#222024"/></linearGradient></defs></svg>
+                          </span>
+                        }
+                        label="Online Payment"
+                        desc="Razorpay, UPI, Cards"
+                        active={paymentMethod === "online"}
+                        onClick={() => setPaymentMethod("online")}
+                      />
+                      <PaymentMethodCard
+                        icon={
+                          <span className="inline-flex items-center justify-center w-9 h-9 sm:w-9 sm:h-9 rounded-full bg-black/70 border border-white/20 mr-2 text-[1.42rem] text-white/93 shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 44 44" fill="none"><rect width="44" height="44" rx="13" fill="url(#cash-grad)" /><rect x="10.5" y="18" width="23" height="12" rx="2.2" fill="#fff" fillOpacity=".93" stroke="#cbeeca" strokeWidth="2"/><rect x="16.8" y="21.4" width="9.8" height="2.9" rx="1.25" fill="#7ae67a" /><rect x="14.9" y="26.2" width="13.6" height="1.9" rx=".95" fill="#8ad08c" /><defs><linearGradient id="cash-grad" x1="0" y1="0" x2="44" y2="44" gradientUnits="userSpaceOnUse"><stop stopColor="#2b2f27"/><stop offset="1" stopColor="#233024"/></linearGradient></defs></svg>
+                          </span>
+                        }
+                        label="Cash on Delivery"
+                        desc="(COD)"
+                        active={paymentMethod === "cod"}
+                        onClick={() => setPaymentMethod("cod")}
+                      />
                     </div>
                   </div>
-                  {/* Conditional payment action buttons */}
-                  <div className={`flex flex-col gap-7 sm:gap-6`}>
-                    {paymentMethod === "online" && (
-                      <button
-                        ref={paymentButtonRef}
-                        type="button"
-                        className={`
-                          relative py-4 px-8 mt-2 rounded-full font-extrabold text-black bg-gradient-to-r from-white to-zinc-200
-                          shadow-[0_10px_32px_rgba(255,255,255,0.13)]
-                          overflow-hidden group transition-all duration-600 ease-out
-                          tracking-wider text-[1.35rem] select-none
-                          disabled:opacity-36 disabled:cursor-not-allowed
-                          ${razorpayLoading || itemsWithFinalPrice.length === 0 ? "opacity-36 pointer-events-none cursor-not-allowed" : ""}
-                        `}
-                        style={{
-                          fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
-                        }}
-                        onClick={handlePayment}
-                        disabled={razorpayLoading || itemsWithFinalPrice.length === 0}
-                      >
-                        <span className="relative z-10 flex items-center transition-all duration-600 ease-out group-hover:text-white">
-                          Pay&nbsp;
-                          <span className="font-extrabold underline underline-offset-4 bg-gradient-to-r from-white/97 via-white to-zinc-300 bg-clip-text text-transparent text-[1.33em] drop-shadow-[0_0_11px_rgba(255,255,255,0.20)] select-none">
-                            ₹{total.toLocaleString()}
-                          </span>
-                          <span className="ml-2 opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-600 ease-out">
-                            <svg width="18" height="18" fill="none" className="inline" viewBox="0 0 24 24">
-                              <path d="M12 5l7 7-7 7M19 12H5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
-                          </span>
-                          {razorpayLoading &&
-                            <span className="ml-3 text-xs font-normal text-white/60 animate-premiumPulse align-super select-none font-semibold">(processing…)</span>
-                          }
+                  <div className="flex flex-col gap-7 sm:gap-6">
+                    <button
+                      ref={paymentButtonRef}
+                      type="button"
+                      className={`
+                        relative py-4 px-8 mt-2 rounded-full font-extrabold text-black bg-gradient-to-r from-white to-zinc-200
+                        shadow-[0_10px_32px_rgba(255,255,255,0.13)]
+                        overflow-hidden group transition-all duration-600 ease-out
+                        tracking-wider text-[1.35rem] select-none
+                        ${paymentMethod !== "online" || razorpayLoading || itemsWithFinalPrice.length === 0 ? "opacity-36 pointer-events-none cursor-not-allowed" : ""}
+                      `}
+                      style={{
+                        fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
+                        marginBottom: "0.2rem",
+                        display: paymentMethod === "online" ? undefined : "none",
+                      }}
+                      onClick={handlePayment}
+                      disabled={paymentMethod !== "online" || razorpayLoading || itemsWithFinalPrice.length === 0}
+                    >
+                      <span className="relative z-10 flex items-center transition-all duration-600 ease-out group-hover:text-white">
+                        Pay&nbsp;
+                        <span className="font-extrabold underline underline-offset-4 bg-gradient-to-r from-white/97 via-white to-zinc-300 bg-clip-text text-transparent text-[1.33em] drop-shadow-[0_0_11px_rgba(255,255,255,0.20)] select-none">
+                          ₹{total.toLocaleString()}
                         </span>
-                        <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-600 ease-out">
-                          <span className="absolute bottom-0 left-0 w-full h-full bg-black/90 transition-all duration-600 ease-out" style={{transform: 'translateY(100%)'}}></span>
+                        <span className="ml-2 opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-600 ease-out">
+                          <svg width="18" height="18" fill="none" className="inline" viewBox="0 0 24 24">
+                            <path d="M12 5l7 7-7 7M19 12H5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
                         </span>
-                      </button>
-                    )}
-                    {paymentMethod === "cod" && (
-                      <button
-                        type="button"
-                        className={`
-                          relative py-4 px-8 mt-2 rounded-full font-extrabold text-black bg-gradient-to-r from-white to-zinc-200
-                          shadow-[0_12px_32px_rgba(255,255,255,0.13)]
-                          overflow-hidden group transition-all duration-600 ease-out
-                          tracking-wider text-[1.17rem] select-none
-                          disabled:opacity-36 disabled:cursor-not-allowed
-                          ${itemsWithFinalPrice.length === 0 ? "opacity-36 pointer-events-none cursor-not-allowed" : ""}
-                        `}
-                        style={{
-                          fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
-                        }}
-                        onClick={handleCOD}
-                        disabled={itemsWithFinalPrice.length === 0}
-                      >
-                        <span className="relative z-10 flex items-center transition-all duration-600 ease-out group-hover:text-white">
-                          Place Order&nbsp;(Cash on Delivery)
-                          <span className="ml-2 opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-600 ease-out">
-                            <svg width="18" height="18" fill="none" className="inline" viewBox="0 0 24 24">
-                              <path d="M12 5l7 7-7 7M19 12H5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
-                          </span>
+                        {razorpayLoading &&
+                          <span className="ml-3 text-xs font-normal text-white/60 animate-premiumPulse align-super select-none font-semibold">(processing…)</span>
+                        }
+                      </span>
+                      <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-600 ease-out">
+                        <span className="absolute bottom-0 left-0 w-full h-full bg-black/90 transition-all duration-600 ease-out" style={{transform: 'translateY(100%)'}}></span>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`
+                        relative py-4 px-8 mt-2 rounded-full font-extrabold text-black bg-gradient-to-r from-white to-zinc-200
+                        shadow-[0_12px_32px_rgba(255,255,255,0.13)]
+                        overflow-hidden group transition-all duration-600 ease-out
+                        tracking-wider text-[1.17rem] select-none
+                        ${paymentMethod !== "cod" || itemsWithFinalPrice.length === 0 ? "opacity-36 pointer-events-none cursor-not-allowed" : ""}
+                      `}
+                      style={{
+                        fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
+                        display: paymentMethod === "cod" ? undefined : "none",
+                      }}
+                      onClick={handleCOD}
+                      disabled={paymentMethod !== "cod" || itemsWithFinalPrice.length === 0}
+                    >
+                      <span className="relative z-10 flex items-center transition-all duration-600 ease-out group-hover:text-white">
+                        Place Order&nbsp;(Cash on Delivery)
+                        <span className="ml-2 opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-600 ease-out">
+                          <svg width="18" height="18" fill="none" className="inline" viewBox="0 0 24 24">
+                            <path d="M12 5l7 7-7 7M19 12H5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
                         </span>
-                        <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-600 ease-out">
-                          <span className="absolute bottom-0 left-0 w-full h-full bg-black/90 transition-all duration-600 ease-out" style={{transform: 'translateY(100%)'}}></span>
-                        </span>
-                      </button>
-                    )}
+                      </span>
+                      <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-600 ease-out">
+                        <span className="absolute bottom-0 left-0 w-full h-full bg-black/90 transition-all duration-600 ease-out" style={{transform: 'translateY(100%)'}}></span>
+                      </span>
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    className={`block mt-7 text-white/50 underline underline-offset-4 text-sm font-semibold hover:text-white/90 transition select-none focus:underline`}
-                    onClick={() => setStep(2)}
-                  >
-                    Back
-                  </button>
+                  {deliveryCreationError && (
+                    <div className="mt-5 text-rose-400/90 font-bold bg-rose-900/10 rounded-lg py-2 px-4 border border-rose-400/45">{deliveryCreationError}</div>
+                  )}
                 </div>
               )}
             </form>
           </section>
           {/* --- RIGHT ORDER SUMMARY --- */}
-          <aside className={`w-full md:w-[35%] max-w-lg sticky top-10 self-start`}>
-            <div className={asideCardClass + " animate-reveal"}>
+          <aside className="w-full md:w-[38%] max-w-[450px] min-w-[330px] sticky top-8 self-start">
+            <div className={`${asideCardClass} animate-reveal group premium-summary-hover`}>
               <h2 className={`
                 text-xl font-black mb-8 uppercase tracking-[0.19em] bg-gradient-to-r from-white via-white/90 to-zinc-200/70 bg-clip-text text-transparent
                 leading-tight drop-shadow-[0_3px_19px_rgba(255,255,255,0.12)]
@@ -845,10 +2041,7 @@ export default function CheckoutPage() {
                 appliedCoupon={appliedCoupon}
                 showCouponSuccess={showCouponSuccess}
               />
-              {/* --- Summary --- */}
-              <div className={`
-                my-8 border-t border-white/12 pt-6 space-y-4 text-[1.07rem] font-semibold leading-tight
-              `}>
+              <div className={`my-8 border-t border-white/12 pt-6 space-y-4 text-[1.07rem] font-semibold leading-tight`}>
                 <div className="flex justify-between items-center">
                   <span className="text-white/85 font-bold">Subtotal</span>
                   <span className="tracking-wider">₹{subtotal.toLocaleString()}</span>
@@ -862,51 +2055,90 @@ export default function CheckoutPage() {
                   </span>
                 </div>
                 {appliedCoupon && (
-                  <div className="flex justify-between items-center text-green-300/90 font-bold">
+                  <div className={`flex justify-between items-center text-green-300/90 font-bold`}>
                     <span className="font-semibold tracking-wide">Coupon Discount</span>
                     <span className="text-green-200/92 font-bold">-₹{discount.toLocaleString()}</span>
                   </div>
                 )}
-             <div className="flex items-center justify-between pt-3 mt-3 border-t border-white/15">
-            {/* TOTAL LABEL */}
-            <span
-              className="
-                text-white/90 tracking-widest font-extrabold
-                text-sm sm:text-base
-                leading-none select-none
-              "
-            >
-              Total
-            </span>
-
-            {/* TOTAL AMOUNT */}
-            <span
-              className="
-                tracking-widest font-extrabold
-                text-lg sm:text-xl
-                bg-gradient-to-r from-white via-zinc-100 to-white/80
-                bg-clip-text text-transparent
-                leading-none
-                transition-transform duration-300
-                hover:scale-[1.03]
-              "
-            >
-              ₹{total.toLocaleString()}
-            </span>
-          </div>
-           </div>
+                <div className={`flex items-center justify-between pt-3 mt-3 border-t border-white/15`}>
+                  <span
+                    className={`text-white/90 tracking-widest font-extrabold
+                      text-sm sm:text-base
+                      leading-none select-none`}
+                  >
+                    Total
+                  </span>
+                  <span
+                    className={`tracking-widest font-extrabold
+                      text-lg sm:text-xl
+                      bg-gradient-to-r from-white via-zinc-100 to-white/80
+                      bg-clip-text text-transparent
+                      leading-none
+                      transition-transform duration-300
+                      hover:scale-[1.03]`}
+                  >
+                    ₹{total.toLocaleString()}
+                  </span>
+                </div>
+              </div>
             </div>
           </aside>
         </div>
       </div>
       <RootCheckoutPageGlobalStyles />
+      <style jsx global>{`
+        .premium-order-summary-card {
+          /* Add hover lift, border, and subtle shadow, matching other premium cards */
+          position: relative;
+          will-change: transform, box-shadow, border-color;
+          transition: box-shadow .44s cubic-bezier(.4,0,.2,1), transform .43s cubic-bezier(.4,0,.2,1), border-color .44s cubic-bezier(.4,0,.2,1);
+        }
+        .premium-order-summary-card.group:hover,
+        .premium-order-summary-card:focus-within,
+        .premium-summary-hover:hover {
+          border-color: #fff !important;
+          box-shadow: 0 18px 72px 0 rgba(255,255,255,0.18),0 0 0 2.4px rgba(255,255,255,0.11);
+          transform: translateY(-4px) scale(1.018);
+        }
+        .premium-order-summary-card:after,
+        .premium-summary-hover:after {
+          content: '';
+          pointer-events: none;
+          position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+          border-radius: 1.35rem;
+          z-index: 2;
+          box-shadow: 0 0 0 2.5px rgba(255,255,255,0.13);
+          opacity: 0;
+          transition: opacity .62s cubic-bezier(.4,0,.2,1);
+        }
+        .premium-order-summary-card.group:hover:after,
+        .premium-order-summary-card:focus-within:after,
+        .premium-summary-hover:hover:after {
+          opacity: 1;
+        }
+        @media (max-width: 1024px) {
+          .premium-order-summary-card { max-width: 99vw; }
+          .premium-summary-hover { max-width: 99vw; }
+        }
+        /* Animates password fields after OTP verification */
+        @keyframes premiumSlideFadeIn {
+          from { opacity: 0; transform: translateY(21px) scale(.99); }
+          32% { opacity: 1; }
+          to { opacity: 1; transform: none; }
+        }
+        .animate-premiumSlideFadeIn {
+          animation: premiumSlideFadeIn .84s cubic-bezier(.4,0,.2,1);
+        }
+        /* Compact send otp/verify buttons */
+        .premium-send-otp-btn, .premium-verify-btn {
+          min-width: 84px;
+        }
+      `}</style>
     </>
   );
 }
 
-
 // ---- GLOBAL STYLES FOR PREMIUM EFFECTS ----
-
 function RootCheckoutPageGlobalStyles() {
   return (
     <style jsx global>{`
@@ -926,7 +2158,6 @@ function RootCheckoutPageGlobalStyles() {
         opacity: 1;
       }
 
-      /* Premium group-hover interactions for form/action buttons in all steps */
       .group:hover span.absolute>span {
         transform: translateY(0%);
         transition: transform 0.6s cubic-bezier(.4,0,.2,1);
@@ -947,6 +2178,15 @@ function RootCheckoutPageGlobalStyles() {
         100% { opacity: 0; transform: scale(1);}
       }
       .animate-premiumPulse { animation: premiumPulse 1.68s cubic-bezier(.4,0,.2,1); }
+
+      /* Custom fade for AddressSummary */
+      @keyframes premiumFadeIn {
+        from { opacity: 0; transform: scale(0.983) translateY(16px);}
+        to { opacity: 1; transform: none;}
+      }
+      .animate-premiumFadeIn {
+        animation: premiumFadeIn 0.93s cubic-bezier(.4,0,.2,1);
+      }
 
       /* Loader shimmer for mount splash */
       @keyframes loaderShine {
@@ -989,7 +2229,6 @@ function RootCheckoutPageGlobalStyles() {
         from { opacity: 0; transform: scale(0.991) translateY(32px);}
         to { opacity: 1; transform: none;}
       }
-      /* Additional reveal for page load and fade */
       .animate-reveal {
         animation: revealSection .99s cubic-bezier(.41,0,.22,1);
       }
@@ -997,14 +2236,12 @@ function RootCheckoutPageGlobalStyles() {
         from { opacity: 0; transform: scale(0.98) translateY(38px);}
         to { opacity: 1; transform: none;}
       }
-      /* PremiumShine shimmer for cards and line divider */
       @keyframes premiumShine {
         0% { left: -72%; opacity: 0.055;}
         54% { left: 82%; opacity: 0.21;}
         100% { left: 130%; opacity: 0;}
       }
       .animate-premiumShine { animation: premiumShine 1.63s cubic-bezier(.4,0,.2,1); }
-      /* PremiumPulse duplicate for redundancy and build safety */
       .animate-premiumPulse {
         animation: premiumPulse 1.48s cubic-bezier(.4,0,.2,1);
       }
@@ -1014,7 +2251,7 @@ function RootCheckoutPageGlobalStyles() {
         89% { opacity: 1; transform: scale(1);}
         100% { opacity: 0.7; transform: scale(1);}
       }
-      /* Slow down animations by 20% and increase shadow depth slightly. */
+
       input:-webkit-autofill,
       input:-webkit-autofill:focus {
         -webkit-box-shadow: 0 0 0px 1000px #000 inset !important;

@@ -89,7 +89,7 @@ export default function CartPage() {
 
               {cartItems.map((item) => (
                 <div
-                  key={item.id + item.size}
+                  key={item._id + "_" + item.size}
                   className="
                   flex items-center gap-3 sm:gap-4
                   bg-black/60 border border-white/10
@@ -145,7 +145,7 @@ export default function CartPage() {
                       <button
                         onClick={() =>
                           item.quantity > 1 &&
-                          updateQuantity(item.id, item.size, -1)
+                          updateQuantity(item._id, item.size, -1)
                         }
                         className="
                           p-1 rounded-full
@@ -160,7 +160,7 @@ export default function CartPage() {
                       </span>
                       <button
                         onClick={() =>
-                          updateQuantity(item.id, item.size, 1)
+                          updateQuantity(item._id, item.size, 1)
                         }
                         className="
                           p-1 rounded-full
@@ -177,7 +177,7 @@ export default function CartPage() {
                         ₹{(item.price * item.quantity).toLocaleString()}
                       </span>
                       <button
-                        onClick={() => removeItem(item.id, item.size)}
+                        onClick={() => removeItem(item._id, item.size)}
                         className="
                           text-white/40
                           md:hover:text-white
