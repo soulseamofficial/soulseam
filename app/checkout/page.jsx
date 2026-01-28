@@ -56,16 +56,18 @@ const shippingInfoClass = `
 const asideCardClass = premiumCardClass;
 
 const INDIAN_STATES = [
-  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
-  "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka",
-  "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram",
-  "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana",
-  "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Delhi", "Jammu and Kashmir", "Ladakh"
+  "Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh",
+  "Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka",
+  "Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram",
+  "Nagaland","Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana",
+  "Tripura","Uttar Pradesh","Uttarakhand","West Bengal","Delhi",
+  "Jammu and Kashmir","Ladakh"
 ];
 
 // --- Progress Bar ---
 const ProgressBar = ({ step, setStep }) => {
   const router = useRouter();
+
   const progress = ["Cart", "Information", "Shipping", "Payment"];
   const orderDraftExists = typeof window !== "undefined" && !!localStorage.getItem("draftId");
   const canGoToShipping = orderDraftExists;
@@ -125,13 +127,7 @@ const ProgressBar = ({ step, setStep }) => {
               {label}
             </button>
             {idx < progress.length - 1 && (
-              <span
-                className={`
-                  mx-3 w-[14px] h-[2px] rounded-full
-                  bg-gradient-to-r from-white/50 via-white/10 to-white/0
-                  ${idx < step ? "opacity-90" : "opacity-40"}
-                `}
-              />
+              <span className="mx-2 w-4 h-[2px] bg-white/30" />
             )}
           </li>
         ))}
@@ -184,22 +180,11 @@ function CheckoutProductCard({ item }) {
         </span>
         <span className="block text-white/40 text-xs uppercase tracking-widest leading-tight mt-1 font-semibold">
           {item.color} / {item.size}
-        </span>
-        <div className="flex items-center gap-3 mt-2">
-          {item.price !== item.finalPrice && (
-            <span className="text-white/40 line-through text-[.97rem] font-light tracking-wide opacity-50">
-              ₹{item.price.toLocaleString()}
-            </span>
-          )}
-          <span className="font-black text-lg bg-gradient-to-r from-white via-white to-slate-200 bg-clip-text text-transparent tracking-widest drop-shadow-[0_1.8px_7.5px_rgba(255,255,255,0.20)]">
-            ₹{item.finalPrice?.toLocaleString() ?? item.price.toLocaleString()}
-          </span>
+        </div>
+        <div className="font-bold mt-1">
+          ₹{(item.finalPrice ?? item.price).toLocaleString()}
         </div>
       </div>
-      <div className="text-white/85 ml-6 font-semibold text-[15.5px]">×{item.quantity}</div>
-    </div>
-  );
-}
 
 // --- Coupon Input ---
 const couponInputFormClass = `flex items-center gap-2 mt-4 relative group`;
@@ -611,7 +596,6 @@ function usePasswordVerification(accountEnabled, step) {
 }
 
 export default function CheckoutPage() {
-  // Cart hook - must be at the top level
   const { cartItems, clearCart } = useCart();
 
   // Steps and form
@@ -639,12 +623,11 @@ export default function CheckoutPage() {
     lastName: "",
     address: "",
     apt: "",
-    country: "India",
     city: "",
     state: "",
     pin: "",
     phone: "",
-    createAccount: false,
+    country: "India",
   });
 
   const [formErrors, setFormErrors] = useState({});
@@ -839,21 +822,20 @@ export default function CheckoutPage() {
       }))
     : [];
 
-  const subtotal =
-    itemsWithFinalPrice.reduce(
-      (sum, item) => sum + (item.finalPrice ?? item.price) * item.quantity,
-      0
-    );
+  const itemsWithFinalPrice = mounted
+    ? cartItems.map(i => ({
+        ...i,
+        finalPrice: i.finalPrice ?? i.price,
+      }))
+    : [];
 
-  const shipping =
-    subtotal > 15000
-      ? 0
-      : subtotal === 0
-      ? 0
-      : 0;
+  const subtotal = itemsWithFinalPrice.reduce(
+    (sum, i) => sum + i.finalPrice * i.quantity,
+    0
+  );
 
-  const discount = appliedCoupon ? Math.floor(subtotal * 0.15) : 0;
-  const total = subtotal + shipping - discount;
+  const shipping = 0;
+  const total = subtotal + shipping;
 
   function handleApplyCoupon(e) {
     e.preventDefault();
@@ -1167,8 +1149,8 @@ export default function CheckoutPage() {
       window?.alert?.("Please select a payment method and ensure your cart is not empty.");
       return;
     }
+
     setRazorpayLoading(true);
-    if (paymentButtonRef.current) paymentButtonRef.current.disabled = true;
 
     try {
       const res = await fetch("/api/razorpay", {
@@ -1322,6 +1304,7 @@ export default function CheckoutPage() {
                 letterSpacing: '0.13em',
                 textShadow: "0 1.5px 24px rgba(255,255,255,0.15)"
               }}
+              className="mt-6 px-8 py-3 bg-white text-black rounded-full font-bold"
             >
               Checkout
             </h1>

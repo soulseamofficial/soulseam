@@ -7,7 +7,12 @@ export async function POST(req) {
     await connectDB();
     const body = await req.json();
 
-    const order = await Order.create(body);
+    const order = await Order.create({
+      ...body,
+      orderStatus: "draft",
+      payment: { method: "not_selected", status: "not_selected" },
+      deliveryStatus: "not_created",
+    });
 
     return NextResponse.json(
       { success: true, orderId: order._id },
