@@ -66,7 +66,7 @@ export default function CartPage() {
               <div className="space-y-6">
                 {cartItems.map((item) => (
                   <div
-                    key={`${item.id}-${item.size}`}
+                    key={`${item._id}-${item.size}`}
                     className="flex justify-between items-center border-b border-white/10 pb-4 group transition-all hover:scale-[1.01]"
                   >
                     <div className="flex gap-4">
@@ -89,7 +89,7 @@ export default function CartPage() {
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() =>
-                          updateQuantity(item.id, item.size, -1)
+                          updateQuantity(item._id, item.size, -1)
                         }
                         className="icon-btn"
                       >
@@ -100,7 +100,7 @@ export default function CartPage() {
 
                       <button
                         onClick={() =>
-                          updateQuantity(item.id, item.size, 1)
+                          updateQuantity(item._id, item.size, 1)
                         }
                         className="icon-btn"
                       >
@@ -109,7 +109,7 @@ export default function CartPage() {
 
                       <button
                         onClick={() =>
-                          removeItem(item.id, item.size)
+                          removeItem(item._id, item.size)
                         }
                         className="icon-btn text-red-400"
                       >
