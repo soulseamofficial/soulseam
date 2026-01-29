@@ -17,9 +17,34 @@ export default function ProductsPage() {
 
   /* FETCH PRODUCTS */
   const fetchProducts = async () => {
-    const res = await fetch("/api/admin/products");
-    const data = await res.json();
-    setProducts(data);
+    try {
+      const res = await fetch("/api/admin/products", {
+        credentials: "include", // 🔑 IMPORTANT: Include cookies for authentication
+      });
+      
+      if (!res.ok) {
+        if (res.status === 401) {
+          router.replace("/admin/login");
+          return;
+        }
+        console.error("Failed to fetch products:", res.status);
+        setProducts([]);
+        return;
+      }
+      
+      const data = await res.json();
+      
+      // Ensure data is an array
+      if (Array.isArray(data)) {
+        setProducts(data);
+      } else {
+        console.error("Invalid products data format:", data);
+        setProducts([]);
+      }
+    } catch (err) {
+      console.error("Error fetching products:", err);
+      setProducts([]);
+    }
   };
 
   useEffect(() => {
@@ -32,24 +57,47 @@ export default function ProductsPage() {
 
   /* CONFIRM DELETE (actual delete) */
   const handleConfirmDelete = async () => {
-    await fetch(`/api/admin/products?id=${selectedId}`, {
-      method: "DELETE",
-    });
+    try {
+      const res = await fetch(`/api/admin/products?id=${selectedId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
 
-    setConfirmOpen(false);
-    setSelectedId(null);
-    fetchProducts();
+      if (!res.ok) {
+        if (res.status === 401) {
+          router.replace("/admin/login");
+          return;
+        }
+        console.error("Failed to delete product");
+      }
+
+      setConfirmOpen(false);
+      setSelectedId(null);
+      fetchProducts();
+    } catch (err) {
+      console.error("Delete error:", err);
+    }
   };
 
   /* TOGGLE ACTIVE STATUS */
   const handleToggleActive = async (productId, currentStatus) => {
     try {
-      await fetch(`/api/admin/products?id=${productId}`, {
+      const res = await fetch(`/api/admin/products?id=${productId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ isActive: !currentStatus }),
       });
-      fetchProducts();
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          router.replace("/admin/login");
+          return;
+        }
+        console.error("Failed to toggle product status");
+      } else {
+        fetchProducts();
+      }
     } catch (err) {
       console.error("Toggle active error:", err);
     }

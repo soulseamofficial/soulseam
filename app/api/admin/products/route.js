@@ -3,6 +3,8 @@ export const runtime = "nodejs";
 import { connectDB } from "../../../lib/db";
 import Product from "../../../models/product";
 import { v2 as cloudinary } from "cloudinary";
+import { requireAdminAuth } from "@/app/lib/adminAuth";
+import { NextResponse } from "next/server";
 
 /* 🔐 Cloudinary config (server-side only) */
 cloudinary.config({
@@ -13,6 +15,12 @@ cloudinary.config({
 
 /* ================= CREATE PRODUCT ================= */
 export async function POST(req) {
+  // Verify admin authentication
+  const { authorized, error } = await requireAdminAuth(req);
+  
+  if (!authorized) {
+    return NextResponse.json({ error: error || "Unauthorized" }, { status: 401 });
+  }
   try {
     await connectDB();
 
@@ -90,10 +98,10 @@ export async function POST(req) {
       isActive: true, // New products are active by default
     });
 
-    return Response.json(product, { status: 201 });
+    return NextResponse.json(product, { status: 201 });
   } catch (err) {
     console.error("POST product error:", err);
-    return Response.json(
+    return NextResponse.json(
       { error: "Server error" },
       { status: 500 }
     );
@@ -102,6 +110,13 @@ export async function POST(req) {
 
 /* ================= READ PRODUCTS ================= */
 export async function GET(req) {
+  // Verify admin authentication
+  const { authorized, error } = await requireAdminAuth(req);
+  
+  if (!authorized) {
+    return NextResponse.json({ error: error || "Unauthorized" }, { status: 401 });
+  }
+
   try {
     await connectDB();
 
@@ -110,24 +125,42 @@ export async function GET(req) {
 
     if (id) {
       const product = await Product.findById(id);
-      return Response.json(product);
+      if (!product) {
+        return NextResponse.json({ error: "Product not found" }, { status: 404 });
+      }
+      return NextResponse.json(product);
     }
 
     const products = await Product.find().sort({ createdAt: -1 });
-    return Response.json(products);
+    return NextResponse.json(products);
   } catch (err) {
     console.error("GET product error:", err);
-    return Response.json([], { status: 500 });
+    return NextResponse.json([], { status: 500 });
   }
 }
 
 /* ================= UPDATE PRODUCT ================= */
 export async function PUT(req) {
+  // Verify admin authentication
+  const { authorized, error } = await requireAdminAuth(req);
+  
+  if (!authorized) {
+    return NextResponse.json({ error: error || "Unauthorized" }, { status: 401 });
+  }
+
   try {
     await connectDB();
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
+    
+    if (!id) {
+      return NextResponse.json(
+        { error: "Product ID required" },
+        { status: 400 }
+      );
+    }
+
     const body = await req.json();
 
     // Build update object with only provided fields
@@ -146,16 +179,16 @@ export async function PUT(req) {
     );
 
     if (!updated) {
-      return Response.json(
+      return NextResponse.json(
         { error: "Product not found" },
         { status: 404 }
       );
     }
 
-    return Response.json(updated);
+    return NextResponse.json(updated);
   } catch (err) {
     console.error("PUT product error:", err);
-    return Response.json(
+    return NextResponse.json(
       { error: "Update failed" },
       { status: 500 }
     );
@@ -164,6 +197,13 @@ export async function PUT(req) {
 
 /* ================= DELETE PRODUCT ================= */
 export async function DELETE(req) {
+  // Verify admin authentication
+  const { authorized, error } = await requireAdminAuth(req);
+  
+  if (!authorized) {
+    return NextResponse.json({ error: error || "Unauthorized" }, { status: 401 });
+  }
+
   try {
     await connectDB();
 
@@ -171,18 +211,26 @@ export async function DELETE(req) {
     const id = searchParams.get("id");
 
     if (!id) {
-      return Response.json(
+      return NextResponse.json(
         { error: "Product id required" },
         { status: 400 }
       );
     }
 
-    await Product.findByIdAndDelete(id);
-    return Response.json({ success: true });
+    const deleted = await Product.findByIdAndDelete(id);
+    
+    if (!deleted) {
+      return NextResponse.json(
+        { error: "Product not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
   } catch (err) {
     console.error("DELETE product error:", err);
-    return Response.json(
-      { success: false },
+    return NextResponse.json(
+      { error: "Delete failed" },
       { status: 500 }
     );
   }

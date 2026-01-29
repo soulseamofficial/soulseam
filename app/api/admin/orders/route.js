@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/app/lib/db";
 import Order from "@/app/models/Order";
+import { requireAdminAuth } from "@/app/lib/adminAuth";
 
-export async function GET() {
+export async function GET(req) {
+  // Verify admin authentication
+  const { authorized, error } = await requireAdminAuth(req);
+  
+  if (!authorized) {
+    return NextResponse.json({ error: error || "Unauthorized" }, { status: 401 });
+  }
+
   try {
     await connectDB();
 
@@ -16,7 +24,7 @@ export async function GET() {
   } catch (error) {
     console.error("Admin orders fetch error:", error);
     return NextResponse.json(
-      { success: false },
+      { success: false, error: "Failed to fetch orders" },
       { status: 500 }
     );
   }
