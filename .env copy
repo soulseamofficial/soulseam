@@ -1,5 +1,7 @@
 MONGODB_URI=mongodb+srv://soulseamofficial_db_user:Soulseamssm@cluster0.ypitncs.mongodb.net/soulseam
 ADMIN_ENTRY_KEY=SSM_2026
+# ====== JWT SECRET (REQUIRED) =======
+JWT_SECRET=your-secret-key-here-generate-a-long-random-string
 
 
 
