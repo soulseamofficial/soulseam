@@ -17,7 +17,7 @@ export async function GET(req, context) {
       );
     }
 
-    const product = await Product.findById(id);
+    const product = await Product.findOne({ _id: id, isActive: { $ne: false } });
 
     if (!product) {
       return NextResponse.json(

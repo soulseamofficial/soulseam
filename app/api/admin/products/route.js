@@ -87,6 +87,7 @@ export async function POST(req) {
       category,
       images: uploadedImages, // ✅ Cloudinary URLs
       sizes,
+      isActive: true, // New products are active by default
     });
 
     return Response.json(product, { status: 201 });
@@ -129,17 +130,27 @@ export async function PUT(req) {
     const id = searchParams.get("id");
     const body = await req.json();
 
+    // Build update object with only provided fields
+    const updateData = {};
+    if (body.title !== undefined) updateData.title = body.title;
+    if (body.price !== undefined) updateData.price = body.price;
+    if (body.description !== undefined) updateData.description = body.description;
+    if (body.category !== undefined) updateData.category = body.category;
+    if (body.sizes !== undefined) updateData.sizes = body.sizes;
+    if (body.isActive !== undefined) updateData.isActive = body.isActive;
+
     const updated = await Product.findByIdAndUpdate(
       id,
-      {
-        title: body.title,
-        price: body.price,
-        description: body.description,
-        category: body.category,
-        sizes: body.sizes,
-      },
+      updateData,
       { new: true }
     );
+
+    if (!updated) {
+      return Response.json(
+        { error: "Product not found" },
+        { status: 404 }
+      );
+    }
 
     return Response.json(updated);
   } catch (err) {

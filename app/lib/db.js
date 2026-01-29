@@ -1,17 +1,16 @@
 import mongoose from "mongoose";
 
-let isConnected = false;
-
 export async function connectDB() {
-  if (isConnected) return;
+  if (mongoose.connection.readyState >= 1) {
+    return;
+  }
 
   try {
-    await mongoose.connect(process.env.MONGODB_URI, {
-      dbName: "soulseam",
-    });
-
-    isConnected = true;
-    console.log("✅ MongoDB connected");
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log(
+      "✅ MongoDB connected to:",
+      mongoose.connection.db.databaseName
+    );
   } catch (error) {
     console.error("❌ MongoDB connection failed", error);
     throw new Error("DB connection failed");

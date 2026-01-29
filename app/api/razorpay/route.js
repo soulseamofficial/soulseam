@@ -3,7 +3,15 @@ import { NextResponse } from "next/server";
 
 export async function POST(req) {
   try {
-    const { amount } = await req.json();
+    const body = await req.json();
+    const { amount } = body;
+
+    if (!amount || typeof amount !== "number" || amount <= 0) {
+      return NextResponse.json(
+        { error: "Invalid amount" },
+        { status: 400 }
+      );
+    }
 
     // ✅ Create Razorpay instance INSIDE handler
     const razorpay = new Razorpay({
@@ -12,7 +20,10 @@ export async function POST(req) {
     });
 
     if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-      throw new Error("Razorpay keys missing");
+      return NextResponse.json(
+        { error: "Razorpay configuration missing" },
+        { status: 500 }
+      );
     }
 
     const order = await razorpay.orders.create({
@@ -21,6 +32,13 @@ export async function POST(req) {
       receipt: "rcpt_" + Date.now()
     });
 
+    if (!order || !order.id) {
+      return NextResponse.json(
+        { error: "Failed to create payment order" },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json({
       orderId: order.id,
       amount: order.amount
@@ -28,7 +46,7 @@ export async function POST(req) {
   } catch (err) {
     console.error("Razorpay API error:", err);
     return NextResponse.json(
-      { error: "Order creation failed" },
+      { error: err.message || "Order creation failed" },
       { status: 500 }
     );
   }

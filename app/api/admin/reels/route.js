@@ -1,18 +1,10 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import mongoose from "mongoose";
 import path from "path";
 import fs from "fs/promises";
+import { connectDB } from "../../../lib/db";
 import Reel from "../../../models/Reel";
-
-let isConnected = false;
-
-async function connectDB() {
-  if (isConnected) return;
-  await mongoose.connect(process.env.MONGODB_URI);
-  isConnected = true;
-}
 
 export async function POST(req) {
   try {
