@@ -37,9 +37,11 @@ export default function AdminLoginPage() {
       }
 
       // ✅ cookie already set by API
+      setLoading(false);
       router.replace("/admin/dashboard");
     } catch (err) {
-      setError("Something went wrong");
+      console.error("Login error:", err);
+      setError("Something went wrong. Please try again.");
       setLoading(false);
     }
   };
