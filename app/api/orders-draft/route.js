@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/app/lib/db";
 import OrderDraft from "@/app/models/OrderDraft";
 import { getAuthUserFromCookies } from "@/app/lib/auth";
+import mongoose from "mongoose";
 
 function normalizeItems(items) {
   if (!Array.isArray(items)) return [];
@@ -37,18 +38,43 @@ export async function POST(req) {
     const body = await req.json();
 
     const authed = await getAuthUserFromCookies();
-    const userId = authed?._id?.toString() || null;
-    const guestUserId =
-      !userId && typeof body?.guestUserId === "string" ? body.guestUserId.trim() : null;
+    const userId = authed?._id || null;
+    let guestUserId = null;
+    
+    // Handle guestUserId - can be string or ObjectId
+    if (!userId && body?.guestUserId) {
+      const guestIdValue = body.guestUserId;
+      if (typeof guestIdValue === "string" && guestIdValue.trim()) {
+        const guestIdStr = guestIdValue.trim();
+        // Validate and convert to ObjectId
+        if (mongoose.Types.ObjectId.isValid(guestIdStr)) {
+          guestUserId = new mongoose.Types.ObjectId(guestIdStr);
+        } else {
+          return NextResponse.json({ message: "Invalid guestUserId format" }, { status: 400 });
+        }
+      } else if (guestIdValue instanceof mongoose.Types.ObjectId) {
+        guestUserId = guestIdValue;
+      }
+    }
 
     // Checkout must never block: we only validate minimally to avoid garbage writes.
     if (!userId && !guestUserId) {
-      return NextResponse.json({ message: "userId or guestUserId required" }, { status: 400 });
+      console.error("OrderDraft creation failed: missing both userId and guestUserId", {
+        hasAuth: !!authed,
+        hasGuestUserId: !!body?.guestUserId,
+        guestUserIdType: typeof body?.guestUserId
+      });
+      return NextResponse.json({ 
+        message: "userId or guestUserId required. Please ensure you are logged in or have a valid guest session." 
+      }, { status: 400 });
     }
 
     const shippingAddress = normalizeAddress(body?.shippingAddress);
     if (!shippingAddress) {
-      return NextResponse.json({ message: "Valid shippingAddress required" }, { status: 400 });
+      console.error("OrderDraft creation failed: invalid shipping address", body?.shippingAddress);
+      return NextResponse.json({ 
+        message: "Valid shippingAddress required. Please ensure all required address fields are filled." 
+      }, { status: 400 });
     }
 
     const items = normalizeItems(body?.items);
@@ -66,8 +92,11 @@ export async function POST(req) {
 
     const draftId = typeof body?.draftId === "string" ? body.draftId.trim() : "";
 
-    if (draftId) {
-      const query = { _id: draftId, ...(userId ? { userId } : { guestUserId }) };
+    if (draftId && mongoose.Types.ObjectId.isValid(draftId)) {
+      const query = { 
+        _id: new mongoose.Types.ObjectId(draftId), 
+        ...(userId ? { userId } : { guestUserId }) 
+      };
       const updated = await OrderDraft.findOneAndUpdate(
         query,
         {
@@ -103,7 +132,23 @@ export async function POST(req) {
 
     return NextResponse.json({ draftId: created._id.toString() }, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ message: error.message }, { status: 500 });
+    console.error("❌ OrderDraft creation error:", error);
+    // Handle Mongoose validation errors
+    if (error.name === "ValidationError") {
+      const messages = Object.values(error.errors).map((e) => e.message).join(", ");
+      console.error("Validation errors:", messages);
+      return NextResponse.json({ message: `Validation error: ${messages}` }, { status: 400 });
+    }
+    // Handle pre-validation hook errors
+    if (error.message && error.message.includes("exactly one of userId or guestUserId")) {
+      console.error("Pre-validation error: userId/guestUserId conflict");
+      return NextResponse.json({ 
+        message: "Order draft validation failed. Please refresh and try again." 
+      }, { status: 400 });
+    }
+    return NextResponse.json({ 
+      message: error.message || "Failed to create order draft. Please try again." 
+    }, { status: 500 });
   }
 }
 

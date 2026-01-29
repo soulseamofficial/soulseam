@@ -47,6 +47,12 @@ const ProductSchema = new mongoose.Schema(
       type: [SizeSchema],
       required: true,
     },
+
+    // 🔥 ACTIVE STATUS - Hide products without deleting them
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
   },
   { timestamps: true }
 );

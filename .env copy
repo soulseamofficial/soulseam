@@ -1,0 +1,30 @@
+MONGODB_URI=mongodb+srv://soulseamofficial_db_user:Soulseamssm@cluster0.ypitncs.mongodb.net/soulseam
+ADMIN_ENTRY_KEY=SSM_2026
+
+
+
+RAZORPAY_KEY_ID=rzp_live_S7lCGxp2ypH7R6
+RAZORPAY_KEY_SECRET=6DxSbGo5ZVq4FfnJ23Tm64Az
+NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_live_S7lCGxp2ypH7R6
+
+#========MONGODB===========
+MONGODB_URI=mongodb+srv://soulseamofficial_db_user:Soulseamssm@cluster0.ypitncs.mongodb.net/soulseam
+# =======COLUDINARY=============
+CLOUDINARY_CLOUD_NAME=dmjsdtu8a
+CLOUDINARY_API_KEY=896181449793183
+CLOUDINARY_API_SECRET=Ig1kjfCFJ3kzsvt9ob5DI-leQT8
+# ============FIREBASE==========
+NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSyDg_qKWtoNiq2zMXSQvStC_CGAQtNpeh9o
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=soulseam-a6e22.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=soulseam-a6e22
+# ===== MSG91 OTP CONFIG =====
+MSG91_AUTH_KEY=489886AymfmVi26eYq69722146P1
+MSG91_TEMPLATE_ID=697223ee9ddc2a2c005c69f8
+# ======RAZOR PAY ========
+RAZORPAY_KEY_ID=rzp_live_S7lCGxp2ypH7R6
+RAZORPAY_KEY_SECRET=6DxSbGo5ZVq4FfnJ23Tm64Az
+NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_live_S7lCGxp2ypH7R6
+
+DELIVERY_PROVIDER=delhivery
+DELHIVERY_API_BASE_URL=https://track.delhivery.com
+DELHIVERY_API_TOKEN=424748f70a2e406771cc0fb224f60636f01b99ea

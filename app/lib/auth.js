@@ -8,7 +8,8 @@ const COOKIE_NAME = "user_token";
 export function signUserToken(payload) {
   const secret = process.env.JWT_SECRET;
   if (!secret) throw new Error("JWT_SECRET missing");
-  return jwt.sign(payload, secret, { expiresIn: "30d" });
+  // Session persists indefinitely (10 years) - only expires on explicit logout
+  return jwt.sign(payload, secret, { expiresIn: "3650d" });
 }
 
 export function verifyUserToken(token) {
@@ -38,7 +39,8 @@ export function setUserAuthCookie(res, token) {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 24 * 30,
+    // Session persists indefinitely (10 years) - only expires on explicit logout
+    maxAge: 60 * 60 * 24 * 3650,
   });
 }
 

@@ -41,6 +41,20 @@ export default function ProductsPage() {
     fetchProducts();
   };
 
+  /* TOGGLE ACTIVE STATUS */
+  const handleToggleActive = async (productId, currentStatus) => {
+    try {
+      await fetch(`/api/admin/products?id=${productId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !currentStatus }),
+      });
+      fetchProducts();
+    } catch (err) {
+      console.error("Toggle active error:", err);
+    }
+  };
+
   /* SEARCH */
   const filteredProducts = products.filter((p) =>
     p.title.toLowerCase().includes(query.toLowerCase())
@@ -147,9 +161,20 @@ export default function ProductsPage() {
                   <p className="text-white/80">₹ {p.price}</p>
                   <p className="text-sm text-white/50">{p.category}</p>
 
-                  <p className="text-sm text-emerald-400 mt-2">
-                    Total Stock: {totalStock}
-                  </p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <p className="text-sm text-emerald-400">
+                      Total Stock: {totalStock}
+                    </p>
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                        p.isActive !== false
+                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                          : "bg-gray-500/20 text-gray-400 border border-gray-500/30"
+                      }`}
+                    >
+                      {p.isActive !== false ? "Active" : "Inactive"}
+                    </span>
+                  </div>
 
                   {lowStock && (
                     <p className="text-xs text-rose-400 font-semibold">
@@ -188,6 +213,20 @@ export default function ProductsPage() {
                       "
                     >
                       Edit
+                    </button>
+
+                    <button
+                      onClick={() => handleToggleActive(p._id, p.isActive !== false)}
+                      className={`
+                        px-4 py-1.5 rounded-xl border transition
+                        ${
+                          p.isActive !== false
+                            ? "border-yellow-500/50 text-yellow-400 hover:bg-yellow-500/10"
+                            : "border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10"
+                        }
+                      `}
+                    >
+                      {p.isActive !== false ? "Deactivate" : "Activate"}
                     </button>
 
                     <button

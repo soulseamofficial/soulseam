@@ -23,12 +23,15 @@ export async function POST(req) {
 
     if (!name) return NextResponse.json({ message: "Name required" }, { status: 400 });
     if (!isValidEmail(email)) return NextResponse.json({ message: "Valid email required" }, { status: 400 });
-    if (!isValidPhone(phone)) return NextResponse.json({ message: "Valid phone required" }, { status: 400 });
+    // Phone is optional - only validate if provided
+    if (phone && !isValidPhone(phone)) return NextResponse.json({ message: "Valid phone required" }, { status: 400 });
     if (!password || password.length < 6)
       return NextResponse.json({ message: "Password must be at least 6 characters" }, { status: 400 });
 
     // Uniqueness (blocking) only for users collection
-    const existing = await User.findOne({ $or: [{ email }, { phone }] }).lean();
+    // Only check phone uniqueness if phone is provided
+    const existingQuery = phone ? { $or: [{ email }, { phone }] } : { email };
+    const existing = await User.findOne(existingQuery).lean();
     if (existing) {
       return NextResponse.json({ message: "Email or phone already registered" }, { status: 409 });
     }

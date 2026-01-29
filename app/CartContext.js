@@ -13,7 +13,7 @@ export const useCart = () => {
 };
 
 export const CartProvider = ({ children }) => {
-  // SSR-safe cart initialization from localStorage
+  // ✅ FIX: Lazy initializer (NO useEffect setState)
   const [cartItems, setCartItems] = useState(() => {
     if (typeof window === "undefined") return [];
     try {
@@ -24,7 +24,7 @@ export const CartProvider = ({ children }) => {
     }
   });
 
-  // Persist cart to localStorage on cartItems change
+  // Save cart to localStorage when cartItems change
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -37,7 +37,7 @@ export const CartProvider = ({ children }) => {
     }
   }, [cartItems]);
 
-  // Cross-tab sync (use _id as primary identifier)
+  // Sync cart between tabs/windows
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -56,36 +56,16 @@ export const CartProvider = ({ children }) => {
     return () => window.removeEventListener("storage", handler);
   }, []);
 
-  /**
-   * Add a product to the cart.
-   * Enforces:
-   *   - Required: product._id (from MongoDB)
-   *   - Required: size MUST be supplied (not null/undefined/empty string)
-   *   - Items are identified by _id + size
-   */
-  const addToCart = (product, size, quantity = 1, color = "Black") => {
-    // Enforce product object and ._id presence
-    if (
-      !product ||
-      typeof product !== "object" ||
-      typeof product._id !== "string"
-    ) {
-      return;
-    }
-
-    // Require valid size selection (must be provided and non-empty string)
-    if (!size || typeof size !== "string" || size.trim() === "") {
-      // Optionally: Log or handle error/UI feedback here.
-      return;
-    }
+  // Add product to cart
+  const addToCart = (product, size = "M", quantity = 1, color = "Black") => {
+    if (!product || typeof product !== "object") return;
 
     setCartItems((prevItems) => {
       const idx = prevItems.findIndex(
-        (item) => item._id === product._id && item.size === size
+        (item) => item.id === product.id && item.size === size
       );
 
       if (idx !== -1) {
-        // If already in cart, update quantity
         return prevItems.map((item, i) =>
           i === idx
             ? { ...item, quantity: item.quantity + quantity }
@@ -93,11 +73,10 @@ export const CartProvider = ({ children }) => {
         );
       }
 
-      // Add new cart item (store _id, not id)
       return [
         ...prevItems,
         {
-          _id: product._id,
+          id: product.id,
           name: product.name,
           price: product.price,
           image:
@@ -114,33 +93,24 @@ export const CartProvider = ({ children }) => {
     });
   };
 
-  /**
-   * Update quantity of an item by _id and size
-   */
-  const updateQuantity = (_id, size, change) => {
-    if (!_id || !size) return;
+  const updateQuantity = (id, size, change) => {
     setCartItems((prev) =>
       prev.map((item) =>
-        item._id === _id && item.size === size
+        item.id === id && item.size === size
           ? { ...item, quantity: Math.max(1, item.quantity + change) }
           : item
       )
     );
   };
 
-  /**
-   * Remove item from cart (by _id and size)
-   */
-  const removeItem = (_id, size) => {
-    if (!_id || !size) return;
+  const removeItem = (id, size) => {
     setCartItems((prev) =>
-      prev.filter((item) => !(item._id === _id && item.size === size))
+      prev.filter((item) => !(item.id === id && item.size === size))
     );
   };
 
   const clearCart = () => setCartItems([]);
 
-  // Cart count and subtotal
   const cartCount = cartItems.reduce(
     (sum, item) => sum + (item.quantity || 0),
     0
