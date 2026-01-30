@@ -35,7 +35,7 @@ export async function GET(req) {
       // As User model import failed, users will always be 0
       users = 0;
     } catch (err) {
-      console.error("Stats fetch error:", err);
+      console.error("[Admin Stats] Database query error:", err);
       return NextResponse.json({ error: "Failed to fetch stats" }, { status: 500 });
     }
 
@@ -46,7 +46,7 @@ export async function GET(req) {
       users
     });
   } catch (err) {
-    console.error("Stats route error:", err);
+    console.error("[Admin Stats] Route error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

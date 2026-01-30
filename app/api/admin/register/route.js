@@ -20,31 +20,29 @@ export async function POST(req) {
     // Normalize email to lowercase for consistency
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Check if admin exists (case-insensitive)
-    const exists = await Admin.findOne({ 
-      $or: [
-        { email: normalizedEmail },
-        { email: { $regex: new RegExp(`^${email.trim()}$`, 'i') } }
-      ]
-    });
-    if (exists) {
+    // Check if admin already exists
+    const existingAdmin = await Admin.findOne({ email: normalizedEmail });
+    if (existingAdmin) {
+      console.error(`[Admin Register] Admin already exists for email: ${normalizedEmail}`);
       return Response.json(
         { message: "Admin already exists" },
         { status: 400 }
       );
     }
 
-    // 🔐 HASH PASSWORD
+    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    await Admin.create({
-      email: normalizedEmail, // Store lowercase for consistency
+    // Create new admin
+    const newAdmin = await Admin.create({
+      email: normalizedEmail,
       password: hashedPassword
     });
 
-    return Response.json({ success: true });
+    console.log(`[Admin Register] New admin created with email: ${normalizedEmail}`);
+    return Response.json({ success: true, adminId: newAdmin._id });
   } catch (err) {
-    console.error(err);
+    console.error("[Admin Register] Database error:", err);
     return Response.json(
       { message: "Register failed" },
       { status: 500 }

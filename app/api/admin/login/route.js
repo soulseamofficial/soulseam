@@ -17,35 +17,31 @@ export async function POST(req) {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
-    console.log("Login attempt for email:", normalizedEmail);
-
-    // Try both lowercase and original case to handle existing admins
+    
+    // Find admin by email (case-insensitive lookup for consistency)
     const admin = await Admin.findOne({ 
-      $or: [
-        { email: normalizedEmail },
-        { email: email.trim() }
-      ]
+      email: normalizedEmail
     }).select("+password");
     
     if (!admin) {
-      console.log("Admin not found for email:", normalizedEmail);
+      console.error(`[Admin Login] Admin not found for email: ${normalizedEmail}`);
       return NextResponse.json(
         { error: "Invalid credentials" },
         { status: 401 }
       );
     }
 
-    console.log("Admin found, comparing password...");
-    const ok = await bcrypt.compare(password, admin.password);
-    if (!ok) {
-      console.log("Password mismatch for email:", normalizedEmail);
+    // Verify password
+    const passwordMatch = await bcrypt.compare(password, admin.password);
+    if (!passwordMatch) {
+      console.error(`[Admin Login] Password mismatch for email: ${normalizedEmail}`);
       return NextResponse.json(
         { error: "Invalid credentials" },
         { status: 401 }
       );
     }
 
-    console.log("Login successful for email:", normalizedEmail);
+    console.log(`[Admin Login] Successful login for email: ${normalizedEmail}`);
 
     // ✅ Token is admin ID
     const token = admin._id.toString();
@@ -64,7 +60,7 @@ export async function POST(req) {
 
     return res;
   } catch (err) {
-    console.error("Admin login error:", err);
+    console.error("[Admin Login] Database error:", err);
     return NextResponse.json(
       { error: "Server error" },
       { status: 500 }

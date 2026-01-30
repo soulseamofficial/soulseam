@@ -32,9 +32,12 @@ export async function verifyAdminToken(token) {
   try {
     await connectDB();
     const admin = await Admin.findById(token);
+    if (!admin) {
+      console.warn(`[Admin Auth] Invalid admin token: ${token}`);
+    }
     return admin;
   } catch (err) {
-    console.error("Admin token verification error:", err);
+    console.error("[Admin Auth] Token verification error:", err);
     return null;
   }
 }
@@ -47,6 +50,7 @@ export async function requireAdminAuth(req) {
   const token = await getAdminToken(req);
   
   if (!token) {
+    console.warn("[Admin Auth] Request missing admin token");
     return {
       authorized: false,
       admin: null,
@@ -57,6 +61,7 @@ export async function requireAdminAuth(req) {
   const admin = await verifyAdminToken(token);
   
   if (!admin) {
+    console.warn("[Admin Auth] Invalid or expired admin token");
     return {
       authorized: false,
       admin: null,

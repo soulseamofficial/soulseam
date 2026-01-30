@@ -22,7 +22,7 @@ export async function GET(req) {
       orders,
     });
   } catch (error) {
-    console.error("Admin orders fetch error:", error);
+    console.error("[Admin Orders] Fetch error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to fetch orders" },
       { status: 500 }

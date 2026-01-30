@@ -2,16 +2,9 @@ export const runtime = "nodejs";
 
 import { connectDB } from "../../../lib/db";
 import Product from "../../../models/product";
-import { v2 as cloudinary } from "cloudinary";
+import { getCloudinary } from "@/app/lib/cloudinary";
 import { requireAdminAuth } from "@/app/lib/adminAuth";
 import { NextResponse } from "next/server";
-
-/* 🔐 Cloudinary config (server-side only) */
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
 
 /* ================= CREATE PRODUCT ================= */
 export async function POST(req) {
@@ -63,6 +56,9 @@ export async function POST(req) {
       );
     }
 
+    // Configure and get Cloudinary instance
+    const cloudinary = getCloudinary();
+
     const uploadedImages = [];
 
     for (const file of files) {
@@ -98,9 +94,10 @@ export async function POST(req) {
       isActive: true, // New products are active by default
     });
 
+    console.log(`[Admin Products] Product created: ${product.title} (ID: ${product._id})`);
     return NextResponse.json(product, { status: 201 });
   } catch (err) {
-    console.error("POST product error:", err);
+    console.error("[Admin Products] POST error:", err);
     return NextResponse.json(
       { error: "Server error" },
       { status: 500 }
@@ -132,10 +129,14 @@ export async function GET(req) {
     }
 
     const products = await Product.find().sort({ createdAt: -1 });
+    console.log(`[Admin Products] Fetched ${products.length} products`);
     return NextResponse.json(products);
   } catch (err) {
-    console.error("GET product error:", err);
-    return NextResponse.json([], { status: 500 });
+    console.error("[Admin Products] GET error:", err);
+    return NextResponse.json(
+      { error: "Failed to fetch products" },
+      { status: 500 }
+    );
   }
 }
 
@@ -185,9 +186,10 @@ export async function PUT(req) {
       );
     }
 
+    console.log(`[Admin Products] Product updated: ${updated.title} (ID: ${updated._id})`);
     return NextResponse.json(updated);
   } catch (err) {
-    console.error("PUT product error:", err);
+    console.error("[Admin Products] PUT error:", err);
     return NextResponse.json(
       { error: "Update failed" },
       { status: 500 }
@@ -226,9 +228,10 @@ export async function DELETE(req) {
       );
     }
 
+    console.log(`[Admin Products] Product deleted (ID: ${id})`);
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error("DELETE product error:", err);
+    console.error("[Admin Products] DELETE error:", err);
     return NextResponse.json(
       { error: "Delete failed" },
       { status: 500 }
