@@ -65,16 +65,8 @@ const ProgressBar = ({ step, setStep }) => {
   const router = useRouter();
 
   const progress = ["Cart", "Information", "Shipping", "Payment"];
-  let orderDraftExists = false;
-  if (typeof window !== "undefined") {
-    try {
-      orderDraftExists = !!window.localStorage.getItem("draftId");
-    } catch (e) {
-      orderDraftExists = false;
-    }
-  }
-  const canGoToShipping = orderDraftExists;
-  const canGoToPayment = step > 2 || (typeof window !== "undefined" && !!window.localStorage.getItem("draftId") && step >= 2);
+  const canGoToShipping = true;
+  const canGoToPayment = step >= 2;
 
   return (
     <nav aria-label="Progress" className="mb-10 sm:mb-8">
@@ -608,7 +600,6 @@ export default function CheckoutPage() {
   const [authUser, setAuthUser] = useState(null);
   const [guestSessionId, setGuestSessionId] = useState(null);
   const [guestUserId, setGuestUserId] = useState(null);
-  const [draftId, setDraftId] = useState(null);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [showAddAddress, setShowAddAddress] = useState(false);
@@ -655,9 +646,7 @@ export default function CheckoutPage() {
     const sid = localStorage.getItem("guestSessionId") || crypto?.randomUUID?.() || String(Date.now());
     localStorage.setItem("guestSessionId", sid);
     setGuestSessionId(sid);
-    const d = localStorage.getItem("draftId");
     const g = localStorage.getItem("guestUserId");
-    if (d) setDraftId(d);
     if (g) setGuestUserId(g);
     fetch("/api/auth/user/me", { credentials: "include" })
       .then((r) => r.json())
@@ -794,20 +783,7 @@ export default function CheckoutPage() {
         };
         setDeliveryCheck(dc);
 
-        const orderId = localStorage.getItem("orderId");
-        if (orderId) {
-          await fetch("/api/orders/update", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              orderId,
-              deliveryCheck: dc,
-              orderStatus: "draft",
-              paymentStatus: "not_selected",
-              deliveryStatus: "not_created",
-            }),
-          });
-        }
+        // Delivery check complete - no need to update order at this stage
       } catch (err) {
         setDeliveryCheckError(
           err && err.message ? err.message : "Could not check delivery availability."
@@ -858,7 +834,7 @@ export default function CheckoutPage() {
     }
   }
 
-  async function upsertGuestAndDraft(shippingAddressSnapshot) {
+  async function upsertGuestUser(shippingAddressSnapshot) {
     // Guest user upsert (idempotent) if not logged in
     let gId = guestUserId;
     if (!authUser) {
@@ -884,30 +860,7 @@ export default function CheckoutPage() {
         // never block checkout
       }
     }
-
-    // Draft upsert
-    const dres = await fetch("/api/orders-draft", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        draftId,
-        guestUserId: gId || undefined,
-        shippingAddress: shippingAddressSnapshot,
-        items: cartItems,
-        coupon: appliedCoupon ? { code: couponCode.trim(), discount } : null,
-        subtotal,
-        discount,
-        total,
-      }),
-    });
-    const ddata = await dres.json();
-    if (dres.ok && ddata?.draftId) {
-      setDraftId(ddata.draftId);
-      localStorage.setItem("draftId", ddata.draftId);
-      return ddata.draftId;
-    }
-    // still don't block: return null and allow UI to continue (payment finalize will fail gracefully)
-    return null;
+    return gId;
   }
 
   function fieldRequired(key) {
@@ -1090,30 +1043,65 @@ export default function CheckoutPage() {
         pincode: form.pin,
         country: form.country,
       };
-      const ensuredDraftId = draftId || (await upsertGuestAndDraft(shippingAddressSnapshot));
-      if (!ensuredDraftId) {
-        window?.alert?.("Could not create order draft. Please try again.");
+
+      // Ensure guest user exists if not logged in
+      const gId = await upsertGuestUser(shippingAddressSnapshot);
+
+      // Ensure items are available - use cartItems directly if itemsWithFinalPrice is empty
+      let itemsToSend = [];
+      
+      if (itemsWithFinalPrice.length > 0) {
+        itemsToSend = itemsWithFinalPrice;
+      } else if (cartItems.length > 0) {
+        // Map cartItems to ensure they have all required fields
+        itemsToSend = cartItems.map(item => ({
+          id: item.id || item._id || item.productId || "",
+          name: item.name || "",
+          image: item.image || "",
+          size: item.size || "",
+          color: item.color || "",
+          price: item.price || 0,
+          finalPrice: item.finalPrice ?? item.price ?? 0,
+          quantity: item.quantity || 1,
+        }));
+      }
+
+      console.log("handleCOD: Items to send", {
+        itemsWithFinalPriceCount: itemsWithFinalPrice.length,
+        cartItemsCount: cartItems.length,
+        itemsToSendCount: itemsToSend.length,
+        itemsToSend,
+      });
+
+      if (itemsToSend.length === 0) {
+        window?.alert?.("Your cart is empty. Please add items before placing an order.");
         return;
       }
 
-      const finalizeRes = await fetch("/api/orders/finalize", {
+      // Create order directly via checkout API
+      const checkoutRes = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          draftId: ensuredDraftId,
-          guestUserId: guestUserId || undefined,
+          guestUserId: gId || undefined,
+          shippingAddress: shippingAddressSnapshot,
+          items: itemsToSend,
+          coupon: appliedCoupon ? { code: couponCode.trim(), discount } : null,
+          subtotal,
+          discount,
+          total,
           paymentMethod: "COD",
         }),
       });
-      const finalizeData = await finalizeRes.json().catch(() => ({}));
-      if (!finalizeRes.ok) {
-        window?.alert?.(finalizeData?.message || "Could not place order. Please try again.");
+
+      const checkoutData = await checkoutRes.json().catch(() => ({}));
+      if (!checkoutRes.ok) {
+        window?.alert?.(checkoutData?.message || "Could not place order. Please try again.");
         return;
       }
 
       window.alert("Order placed with Cash on Delivery.");
       clearCart();
-      localStorage.removeItem("draftId");
       setStep(1);
       setPaymentMethod("not_selected");
     } catch (err) {
@@ -1167,34 +1155,68 @@ export default function CheckoutPage() {
             pincode: form.pin,
             country: form.country,
           };
-          const ensuredDraftId = draftId || (await upsertGuestAndDraft(shippingAddressSnapshot));
-          if (!ensuredDraftId) {
-            window?.alert?.("Could not create order draft. Please try again.");
+
+          // Ensure guest user exists if not logged in
+          const gId = await upsertGuestUser(shippingAddressSnapshot);
+
+          // Ensure items are available - use cartItems directly if itemsWithFinalPrice is empty
+          let itemsToSend = [];
+          
+          if (itemsWithFinalPrice.length > 0) {
+            itemsToSend = itemsWithFinalPrice;
+          } else if (cartItems.length > 0) {
+            // Map cartItems to ensure they have all required fields
+            itemsToSend = cartItems.map(item => ({
+              id: item.id || item._id || item.productId || "",
+              name: item.name || "",
+              image: item.image || "",
+              size: item.size || "",
+              color: item.color || "",
+              price: item.price || 0,
+              finalPrice: item.finalPrice ?? item.price ?? 0,
+              quantity: item.quantity || 1,
+            }));
+          }
+
+          console.log("handlePayment: Items to send", {
+            itemsWithFinalPriceCount: itemsWithFinalPrice.length,
+            cartItemsCount: cartItems.length,
+            itemsToSendCount: itemsToSend.length,
+            itemsToSend,
+          });
+
+          if (itemsToSend.length === 0) {
+            window?.alert?.("Your cart is empty. Please add items before placing an order.");
             return;
           }
 
-          // Verify + finalize
-          const finalizeRes = await fetch("/api/orders/finalize", {
+          // Create order directly via checkout API with payment verification
+          const checkoutRes = await fetch("/api/checkout", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              draftId: ensuredDraftId,
-              guestUserId: guestUserId || undefined,
+              guestUserId: gId || undefined,
+              shippingAddress: shippingAddressSnapshot,
+              items: itemsToSend,
+              coupon: appliedCoupon ? { code: couponCode.trim(), discount } : null,
+              subtotal,
+              discount,
+              total,
               paymentMethod: "ONLINE",
               razorpay_order_id: data.orderId,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
             }),
           });
-          const finalizeData = await finalizeRes.json().catch(() => ({}));
-          if (!finalizeRes.ok) {
-            window?.alert?.(finalizeData?.message || "Payment verified but order finalization failed.");
+
+          const checkoutData = await checkoutRes.json().catch(() => ({}));
+          if (!checkoutRes.ok) {
+            window?.alert?.(checkoutData?.message || "Payment verified but order creation failed.");
             return;
           }
 
           window.alert("Payment Successful! Order placed.");
           clearCart();
-          localStorage.removeItem("draftId");
           setStep(1);
           setPaymentMethod("not_selected");
         },
@@ -1885,7 +1907,7 @@ export default function CheckoutPage() {
                         };
                       }
                       if (snapshot) {
-                        await upsertGuestAndDraft(snapshot);
+                        await upsertGuestUser(snapshot);
                       }
                       setStep(3);
                     }}
