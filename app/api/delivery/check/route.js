@@ -22,32 +22,54 @@ export async function POST(req) {
       );
     }
 
-    // Check if API token is configured
-    if (!process.env.DELHIVERY_API_TOKEN) {
-      console.error("DELHIVERY_API_TOKEN is not configured");
-      return NextResponse.json(
-        { error: "Delivery service is not configured. Please contact support." },
-        { status: 500 }
-      );
+    // Check if API token is configured (support both DELHIVERY_API_KEY and DELHIVERY_API_TOKEN)
+    const API_KEY = process.env.DELHIVERY_API_KEY || process.env.DELHIVERY_API_TOKEN;
+    if (!API_KEY) {
+      console.warn("⚠️ DELHIVERY_API_KEY or DELHIVERY_API_TOKEN is not configured. Delivery check will proceed with fallback.");
+      // Don't block checkout - return success with message
+      return NextResponse.json({
+        serviceable: true,
+        codAvailable: true,
+        eta: null,
+        shippingCharge: null,
+        message: "Delivery will be confirmed after order placement.",
+      });
     }
 
     // Call Delhivery API
-    const res = await fetch(
-      `https://track.delhivery.com/c/api/pin-codes/json/?filter_codes=${pin}`,
-      {
-        headers: {
-          Authorization: `Token ${process.env.DELHIVERY_API_TOKEN}`,
-        },
-      }
-    );
+    let res;
+    try {
+      res = await fetch(
+        `https://track.delhivery.com/c/api/pin-codes/json/?filter_codes=${pin}`,
+        {
+          headers: {
+            Authorization: `Token ${API_KEY}`,
+          },
+        }
+      );
+    } catch (fetchError) {
+      // Network error - don't block checkout
+      console.error("⚠️ Delhivery API network error (non-blocking):", fetchError);
+      return NextResponse.json({
+        serviceable: true,
+        codAvailable: true,
+        eta: null,
+        shippingCharge: null,
+        message: "Delivery will be confirmed after order placement.",
+      });
+    }
 
     // Check if the external API call was successful
     if (!res.ok) {
-      console.error(`Delhivery API error: ${res.status} ${res.statusText}`);
-      return NextResponse.json(
-        { error: "Unable to check delivery. Try again later." },
-        { status: 502 }
-      );
+      console.error(`⚠️ Delhivery API error (non-blocking): ${res.status} ${res.statusText}`);
+      // Don't block checkout - return success with message
+      return NextResponse.json({
+        serviceable: true,
+        codAvailable: true,
+        eta: null,
+        shippingCharge: null,
+        message: "Delivery will be confirmed after order placement.",
+      });
     }
 
     // Parse response
@@ -55,11 +77,15 @@ export async function POST(req) {
     try {
       data = await res.json();
     } catch (parseError) {
-      console.error("Failed to parse Delhivery API response:", parseError);
-      return NextResponse.json(
-        { error: "Invalid response from delivery service. Try again later." },
-        { status: 502 }
-      );
+      console.error("⚠️ Failed to parse Delhivery API response (non-blocking):", parseError);
+      // Don't block checkout - return success with message
+      return NextResponse.json({
+        serviceable: true,
+        codAvailable: true,
+        eta: null,
+        shippingCharge: null,
+        message: "Delivery will be confirmed after order placement.",
+      });
     }
 
     const pinData = data?.delivery_codes?.[0]?.postal_code;
@@ -82,11 +108,15 @@ export async function POST(req) {
       shippingCharge: 0,
     });
   } catch (error) {
-    // Handle any unexpected errors
-    console.error("Delivery check error:", error);
-    return NextResponse.json(
-      { error: "Unable to check delivery. Try again later." },
-      { status: 500 }
-    );
+    // Handle any unexpected errors - don't block checkout
+    console.error("⚠️ Delivery check error (non-blocking):", error);
+    // Return success response so checkout can proceed
+    return NextResponse.json({
+      serviceable: true,
+      codAvailable: true,
+      eta: null,
+      shippingCharge: null,
+      message: "Delivery will be confirmed after order placement.",
+    });
   }
 }

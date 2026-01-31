@@ -30,6 +30,46 @@ export default function CartPage() {
     <div className="min-h-screen bg-black text-white overflow-x-hidden">
       <div className="px-4 sm:px-6 lg:px-20 py-8 sm:py-14">
 
+        {/* Mobile: Back button */}
+        <button
+          onClick={() => router.push("/")}
+          className="md:hidden flex items-center justify-center w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition-all duration-200 mb-4"
+          aria-label="Go back to home"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="white"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+        </button>
+
+        {/* Desktop: Back button */}
+        <button
+          onClick={() => router.push("/")}
+          className="hidden md:flex group relative px-6 py-3 rounded-full bg-gradient-to-b from-[#1a1a1a] to-[#0a0a0a] border border-white/15 text-white/90 font-semibold tracking-wide overflow-hidden transition-all duration-300 ease-in-out cursor-pointer hover:border-white/30 hover:text-white active:scale-[0.97] mb-4"
+          style={{
+            fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.1)'
+          }}
+        >
+          <span className="relative z-10 flex items-center transition-all duration-300 ease-in-out">
+            <svg width="16" height="16" fill="none" className="mr-2" viewBox="0 0 24 24">
+              <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Back
+          </span>
+          <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out">
+            <span className="absolute inset-0 bg-gradient-to-b from-white/5 via-transparent to-transparent rounded-full"></span>
+          </span>
+        </button>
+
         {/* HEADER */}
         <h1 className="text-3xl sm:text-4xl font-extrabold tracking-[0.18em]
                        bg-gradient-to-r from-white to-neutral-400
