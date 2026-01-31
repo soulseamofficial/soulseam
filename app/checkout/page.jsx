@@ -192,66 +192,81 @@ function CouponInput({
   setCouponCode,
   applyCoupon,
   appliedCoupon,
-  showCouponSuccess
+  showCouponSuccess,
+  couponError,
+  onCouponCodeChange
 }) {
   return (
-    <form
-      onSubmit={applyCoupon}
-      autoComplete="off"
-      className={couponInputFormClass}
-    >
-      <input
-        type="text"
-        name="coupon"
-        value={couponCode}
-        disabled={appliedCoupon}
-        onChange={e => setCouponCode(e.target.value)}
-        className={`
-          flex-1 rounded-2xl px-4 py-2 bg-black/85 border border-white/15 text-white
-          font-semibold placeholder:text-white/35 outline-none ring-0
-          transition-all duration-600 ease-out
-          focus:ring-2 focus:ring-white/20 focus:border-white/40 focus:bg-black/80
-          hover:border-white/25
-          ${appliedCoupon ? "opacity-60 cursor-not-allowed" : ""}
-        `}
-        placeholder="Gift card or discount code"
+    <div className="mt-4">
+      <form
+        onSubmit={applyCoupon}
         autoComplete="off"
-        style={{
-          fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
-        }}
-      />
-      <button
-        type="submit"
-        disabled={appliedCoupon}
-        className={`
-          relative px-5 py-2 rounded-full font-black text-black bg-gradient-to-r from-white to-zinc-200
-          shadow-[0_10px_32px_rgba(255,255,255,0.12)]
-          overflow-hidden group transition-all duration-600 ease-out
-          focus:ring-2 focus:ring-white/30 focus:scale-98
-          disabled:opacity-40 disabled:cursor-not-allowed
-          flex-shrink-0 self-center
-        `}
-        style={{
-          height: 'fit-content',
-          minHeight: '42px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}
+        className={couponInputFormClass}
       >
-        <span className="relative z-20 transition-all duration-600 ease-out group-hover:text-white">
-          Apply
-        </span>
-        <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-600 ease-out z-10">
-          <span className="absolute inset-0 w-full h-full bg-black/85 transition-all duration-600 ease-out"></span>
-        </span>
-      </button>
-      {showCouponSuccess && (
-        <span className="ml-3 text-[1rem] font-bold text-green-300 animate-premiumPulse select-none">
-          Coupon applied!
+        <input
+          type="text"
+          name="coupon"
+          value={couponCode}
+          disabled={appliedCoupon}
+          onChange={e => {
+            setCouponCode(e.target.value);
+            if (onCouponCodeChange) {
+              onCouponCodeChange();
+            }
+          }}
+          className={`
+            flex-1 rounded-2xl px-4 py-2 bg-black/85 border border-white/15 text-white
+            font-semibold placeholder:text-white/35 outline-none ring-0
+            transition-all duration-600 ease-out
+            focus:ring-2 focus:ring-white/20 focus:border-white/40 focus:bg-black/80
+            hover:border-white/25
+            ${appliedCoupon ? "opacity-60 cursor-not-allowed" : ""}
+            ${couponError ? "border-red-400/50 focus:border-red-400/70" : ""}
+          `}
+          placeholder="Gift card or discount code"
+          autoComplete="off"
+          style={{
+            fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
+          }}
+        />
+        <button
+          type="submit"
+          disabled={appliedCoupon}
+          className={`
+            relative px-5 py-2 rounded-full font-black text-black bg-gradient-to-r from-white to-zinc-200
+            shadow-[0_10px_32px_rgba(255,255,255,0.12)]
+            overflow-hidden group transition-all duration-600 ease-out
+            focus:ring-2 focus:ring-white/30 focus:scale-98
+            disabled:opacity-40 disabled:cursor-not-allowed
+            flex-shrink-0 self-center
+          `}
+          style={{
+            height: 'fit-content',
+            minHeight: '42px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <span className="relative z-20 transition-all duration-600 ease-out group-hover:text-white">
+            Apply
+          </span>
+          <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-600 ease-out z-10">
+            <span className="absolute inset-0 w-full h-full bg-black/85 transition-all duration-600 ease-out"></span>
+          </span>
+        </button>
+        {showCouponSuccess && (
+          <span className="ml-3 text-[1rem] font-bold text-green-300 animate-premiumPulse select-none">
+            Coupon applied!
+          </span>
+        )}
+      </form>
+      {couponError && !showCouponSuccess && (
+        <span className="mt-2 block text-sm font-semibold text-red-400 animate-premiumPulse">
+          {couponError}
         </span>
       )}
-    </form>
+    </div>
   );
 }
 
@@ -641,6 +656,14 @@ export default function CheckoutPage() {
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState(false);
   const [showCouponSuccess, setShowCouponSuccess] = useState(false);
+  const [couponError, setCouponError] = useState("");
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [appliedCouponCode, setAppliedCouponCode] = useState("");
+  // State for order totals (trust backend finalTotal)
+  // These will be initialized in useEffect when cart is loaded
+  const [orderSubtotal, setOrderSubtotal] = useState(0);
+  const [orderDiscount, setOrderDiscount] = useState(0);
+  const [orderTotal, setOrderTotal] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState("not_selected");
   const paymentButtonRef = useRef(null);
   const [razorpayLoading, setRazorpayLoading] = useState(false);
@@ -816,32 +839,99 @@ export default function CheckoutPage() {
       }))
     : [];
 
-  const subtotal =
+  // Calculate subtotal from cart items
+  const calculatedSubtotal =
     itemsWithFinalPrice.reduce(
       (sum, item) => sum + (item.finalPrice ?? item.price) * item.quantity,
       0
     );
 
+  // Initialize order totals when cart changes or on mount
+  useEffect(() => {
+    if (mounted) {
+      // Always update subtotal from cart calculation
+      const newSubtotal = calculatedSubtotal;
+      setOrderSubtotal(newSubtotal);
+      // If no coupon applied, reset discount and total
+      if (!appliedCoupon) {
+        setOrderDiscount(0);
+        setOrderTotal(newSubtotal);
+      } else {
+        // If coupon is applied, keep discount but update subtotal reference
+        // Total remains from backend finalTotal
+      }
+    }
+  }, [mounted, calculatedSubtotal, appliedCoupon]);
+
   const shipping =
-    subtotal > 15000
+    orderSubtotal > 15000
       ? 0
-      : subtotal === 0
+      : orderSubtotal === 0
       ? 0
       : 0;
 
-  const discount = appliedCoupon ? Math.floor(subtotal * 0.15) : 0;
-  const total = subtotal + shipping - discount;
+  // Use state values for display (trust backend finalTotal)
+  // Fallback to calculated values if state not initialized yet
+  const subtotal = orderSubtotal > 0 ? orderSubtotal : calculatedSubtotal;
+  const discount = orderDiscount;
+  // Total = backend finalTotal + shipping (or calculated if no coupon applied)
+  const total = orderTotal > 0 ? orderTotal + shipping : (calculatedSubtotal + shipping - discount);
 
-  function handleApplyCoupon(e) {
+  async function handleApplyCoupon(e) {
     e.preventDefault();
     if (appliedCoupon) return;
-    if (couponCode.trim().toLowerCase() === "soul15") {
-      setAppliedCoupon(true);
-      setShowCouponSuccess(true);
-      setTimeout(() => setShowCouponSuccess(false), 1700);
-    } else {
+
+    const code = couponCode.trim();
+    if (!code) {
+      setCouponError("Please enter a coupon code");
       setShowCouponSuccess(false);
-      window?.alert?.("Invalid coupon code.");
+      return;
+    }
+
+    setCouponError("");
+    setShowCouponSuccess(false);
+
+    try {
+      const res = await fetch("/api/coupons/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code,
+          cartTotal: orderSubtotal > 0 ? orderSubtotal : calculatedSubtotal,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setCouponError(data.error || "Failed to apply coupon");
+        setShowCouponSuccess(false);
+        setAppliedCoupon(false);
+        setCouponDiscount(0);
+        setOrderDiscount(0);
+        setOrderTotal(orderSubtotal || calculatedSubtotal); // Reset to original subtotal
+        setAppliedCouponCode("");
+        return;
+      }
+
+      // Successfully applied - trust backend finalTotal
+      setAppliedCoupon(true);
+      setCouponDiscount(data.discountAmount);
+      setAppliedCouponCode(code.toUpperCase().trim());
+      // Update order totals from backend response
+      setOrderDiscount(data.discountAmount);
+      setOrderTotal(Math.max(0, data.finalTotal)); // Use backend finalTotal, ensure >= 0
+      setShowCouponSuccess(true);
+      setTimeout(() => setShowCouponSuccess(false), 3000);
+    } catch (err) {
+      console.error("Coupon apply error:", err);
+      setCouponError("Failed to apply coupon. Please try again.");
+      setShowCouponSuccess(false);
+      setAppliedCoupon(false);
+      setCouponDiscount(0);
+      setOrderDiscount(0);
+      setOrderTotal(subtotal); // Reset to original subtotal
+      setAppliedCouponCode("");
     }
   }
 
@@ -1097,7 +1187,7 @@ export default function CheckoutPage() {
           guestUserId: gId || undefined,
           shippingAddress: shippingAddressSnapshot,
           items: itemsToSend,
-          coupon: appliedCoupon ? { code: couponCode.trim(), discount } : null,
+          coupon: appliedCoupon && appliedCouponCode ? { code: appliedCouponCode, discount } : null,
           subtotal,
           discount,
           total,
@@ -1115,6 +1205,15 @@ export default function CheckoutPage() {
       clearCart();
       setStep(1);
       setPaymentMethod("not_selected");
+      // Reset coupon state
+      setAppliedCoupon(false);
+      setCouponCode("");
+      setCouponDiscount(0);
+      setOrderDiscount(0);
+      setOrderTotal(orderSubtotal || calculatedSubtotal);
+      setAppliedCouponCode("");
+      setCouponError("");
+      setShowCouponSuccess(false);
     } catch (err) {
       setDeliveryCreationError(
         err && err.message
@@ -1209,7 +1308,7 @@ export default function CheckoutPage() {
               guestUserId: gId || undefined,
               shippingAddress: shippingAddressSnapshot,
               items: itemsToSend,
-              coupon: appliedCoupon ? { code: couponCode.trim(), discount } : null,
+              coupon: appliedCoupon && appliedCouponCode ? { code: appliedCouponCode, discount } : null,
               subtotal,
               discount,
               total,
@@ -1230,6 +1329,12 @@ export default function CheckoutPage() {
           clearCart();
           setStep(1);
           setPaymentMethod("not_selected");
+          // Reset coupon state
+          setAppliedCoupon(false);
+          setCouponCode("");
+          setCouponDiscount(0);
+          setCouponError("");
+          setShowCouponSuccess(false);
         },
         prefill: {
           name: form.firstName + " " + form.lastName,
@@ -2232,6 +2337,12 @@ export default function CheckoutPage() {
                 applyCoupon={handleApplyCoupon}
                 appliedCoupon={appliedCoupon}
                 showCouponSuccess={showCouponSuccess}
+                couponError={couponError}
+                onCouponCodeChange={() => {
+                  if (couponError) {
+                    setCouponError("");
+                  }
+                }}
               />
               <div className={`my-8 border-t border-white/12 pt-6 space-y-4 text-[1.07rem] font-semibold leading-tight`}>
                 <div className="flex justify-between items-center">

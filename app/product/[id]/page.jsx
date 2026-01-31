@@ -485,47 +485,33 @@ export default function ProductPage() {
       >
         <div className="w-full max-w-lg mx-auto">
           {/* Headline + Price */}
-          <h1 className="font-extrabold text-[2.2rem] leading-tight text-white mb-1 tracking-tight mt-3 text-center drop-shadow-[0_1px_16px_rgba(255,255,255,0.09)]" style={{fontFamily: "'Neue Haas Grotesk Display', 'Inter', 'system-ui', serif"}}>
-            {product.name}
-          </h1>
-          <div className="flex flex-row items-center justify-center gap-2 mb-1">
-            <span className="text-white text-xl font-black">{formatPrice(product.price)}</span>
-            {originalPrice > product.price && (
-              <span className="text-white/35 line-through text-base font-normal pl-1">{formatPrice(originalPrice)}</span>
-            )}
-            <span className={badge + " ml-1"}>
-              {product.totalStock > 0 ? <><IconCheck/> In Stock</> : "Sold Out"}
-            </span>
-          </div>
-          {/* Rating */}
-          <div className="flex items-center gap-1 justify-center mb-5">
-            {[1,2,3,4,5].map(star => (
-              <IconStar key={star} filled={avgRating >= star - 0.3}/>
-            ))}
-            <span className="text-white/80 font-semibold text-base ml-2">{avgRating.toFixed(1)}</span>
-            <span className="text-white/50 text-xs ml-2">{numReviews} reviews</span>
-          </div>
-          {/* Description accordion */}
-          <div className="my-3 mx-0">
-            <AccordionGroup openKey={openAccordionKey} setOpenKey={setOpenAccordionKey}>
-              <LuxuryAccordion title="Product Description" accordionKey="philosophy">
-                <div className="text-white/70 text-[1rem] leading-loose font-light tracking-normal pt-0">
-                  <p className="mb-3">
-                    Cut from soft, high-density organic cotton jersey, this piece reflects a pursuit of clean lines and considered proportions—marrying comfort with refinement.
-                  </p>
-                  <p className="mb-3">
-                    Effortlessly versatile and meant to elevate everyday essentials, it embodies a poised, yet understated confidence.
-                  </p>
-                  <p className="mt-2 text-white/45 text-base font-extralight leading-relaxed">
-                    Feel the signature drape, precision-crafted fit, and subtle details exclusive to atelier-level garments.
-                  </p>
-                </div>
-              </LuxuryAccordion>
-            </AccordionGroup>
+          <div className="text-center mb-4">
+            <h1 className="font-extrabold text-[2.2rem] leading-tight text-white mb-3 tracking-tight mt-3 drop-shadow-[0_1px_16px_rgba(255,255,255,0.09)]" style={{fontFamily: "'Neue Haas Grotesk Display', 'Inter', 'system-ui', serif"}}>
+              {product.name}
+            </h1>
+            <div className="flex flex-row items-center justify-center gap-3 mb-2">
+              <span className="text-white text-2xl font-black">{formatPrice(product.price)}</span>
+              {originalPrice > product.price && (
+                <span className="text-white/35 line-through text-lg font-normal">{formatPrice(originalPrice)}</span>
+              )}
+            </div>
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <span className={badge}>
+                {product.totalStock > 0 ? <><IconCheck/> In Stock</> : "Sold Out"}
+              </span>
+            </div>
+            {/* Rating */}
+            <div className="flex items-center gap-1 justify-center mb-5">
+              {[1,2,3,4,5].map(star => (
+                <IconStar key={star} filled={avgRating >= star - 0.3}/>
+              ))}
+              <span className="text-white/80 font-semibold text-base ml-2">{avgRating.toFixed(1)}</span>
+              <span className="text-white/50 text-xs ml-2">{numReviews} reviews</span>
+            </div>
           </div>
           {/* Size selector */}
-          <div className="my-3">
-            <div className="font-semibold text-white/80 text-lg mb-3">Select Size</div>
+          <div className="my-4">
+            <div className="font-semibold text-white/80 text-lg mb-3 text-center">Select Size</div>
             <div className="flex flex-wrap gap-2 mb-1 justify-center">
               {product.sizes.map((sz) => {
                 const isDisabled = !sz.stock;
@@ -568,8 +554,8 @@ export default function ProductPage() {
             </div>
           </div>
           {/* Quantity Selector */}
-          <div className="flex items-center gap-4 justify-center mt-3 mb-3">
-            <span className="font-medium text-white/85 mr-2">Quantity</span>
+          <div className="flex items-center gap-4 justify-center mt-4 mb-4">
+            <span className="font-medium text-white/85 text-lg">Quantity</span>
             <button
               type="button"
               className={qtyBtn}
@@ -596,7 +582,7 @@ export default function ProductPage() {
             }
           </div>
           {/* CTA Buttons: Buy Now & View Cart (twin premium) */}
-          <div className="flex flex-col gap-3 mt-0 mb-3">
+          <div className="flex flex-col gap-3 mt-4 mb-4">
             <LuxuryActionButton
               onClick={handleBuyNow}
               disabled={!canBuyNow}
@@ -625,10 +611,26 @@ export default function ProductPage() {
             </LuxuryActionButton>
             {/* Trust markers */}
             <div className="mt-4 flex flex-wrap gap-2 items-center justify-center text-white/75 text-[1rem]">
-              <span className={badge + " bg-white/10"}><IconTruck/>Free next-day Delivery</span>
               <span className={badge + " bg-white/10"}><IconLock/> Secure Checkout</span>
-              <span className={badge + " bg-white/10"}><IconCheck className="mr-2"/>90-day extended Returns</span>
             </div>
+          </div>
+          {/* Product Description - moved after CTAs and badges for mobile */}
+          <div className="my-3 mx-0 mt-6">
+            <AccordionGroup openKey={openAccordionKey} setOpenKey={setOpenAccordionKey}>
+              <LuxuryAccordion title="Product Description" accordionKey="philosophy">
+                <div className="text-white/70 text-[1rem] leading-loose font-light tracking-normal pt-0">
+                  <p className="mb-3">
+                    Cut from soft, high-density organic cotton jersey, this piece reflects a pursuit of clean lines and considered proportions—marrying comfort with refinement.
+                  </p>
+                  <p className="mb-3">
+                    Effortlessly versatile and meant to elevate everyday essentials, it embodies a poised, yet understated confidence.
+                  </p>
+                  <p className="mt-2 text-white/45 text-base font-extralight leading-relaxed">
+                    Feel the signature drape, precision-crafted fit, and subtle details exclusive to atelier-level garments.
+                  </p>
+                </div>
+              </LuxuryAccordion>
+            </AccordionGroup>
           </div>
           {/* Key Highlights, Fabric, Fit, Delivery */}
           <div className="flex flex-col gap-2 min-w-[260px] mt-6 mb-2">
@@ -784,29 +786,32 @@ export default function ProductPage() {
         {/* PRODUCT INFO (RIGHT) */}
         <section className="relative flex-[1.15] flex flex-col px-4 md:px-12 pt-7 md:pt-12 justify-between z-10 min-w-[340px]">
           <div className={"w-full max-w-2xl mx-auto rounded-3xl px-6 py-8 mb-5 shadow-[0_6px_54px_0_rgba(25,27,32,0.32)] " + glassCard}>
-            <h1 className="font-extrabold text-[2.7rem] leading-[1.1] md:text-[3.2rem] text-white mb-3 tracking-tight drop-shadow-[0_1px_36px_rgba(255,255,255,0.15)]" style={{fontFamily: "'Neue Haas Grotesk Display', 'Inter', 'system-ui', serif"}}>
-              {product.name}
-            </h1>
-            <div className="flex flex-row items-center gap-3 mb-1">
-              <span className="text-white text-2xl md:text-3xl font-black">{formatPrice(product.price)}</span>
-              {originalPrice > product.price && (
-                <span className="text-white/35 line-through text-base font-normal pl-1">
-                  {formatPrice(originalPrice)}
+            <div className="text-center mb-6">
+              <h1 className="font-extrabold text-[2.7rem] leading-[1.1] md:text-[3.2rem] text-white mb-4 tracking-tight drop-shadow-[0_1px_36px_rgba(255,255,255,0.15)]" style={{fontFamily: "'Neue Haas Grotesk Display', 'Inter', 'system-ui', serif"}}>
+                {product.name}
+              </h1>
+              <div className="flex flex-row items-center justify-center gap-3 mb-3">
+                <span className="text-white text-2xl md:text-3xl font-black">{formatPrice(product.price)}</span>
+                {originalPrice > product.price && (
+                  <span className="text-white/35 line-through text-lg font-normal">
+                    {formatPrice(originalPrice)}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center justify-center gap-3 mb-3">
+                <span className={badge}>
+                  {product.totalStock > 0 ? <><IconCheck/> In Stock</> : "Sold Out"}
                 </span>
-              )}
-              <span className={badge + " ml-2"}>
-                {product.totalStock > 0 ? <><IconCheck/> In Stock</> : "Sold Out"}
-              </span>
-              <span className="ml-2 text-xs text-white/45">Free Next-day Delivery</span>
-            </div>
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-white text-lg font-medium flex items-center">
-                {[1,2,3,4,5].map(star => (
-                  <IconStar key={star} filled={avgRating >= star - 0.3}/>
-                ))}
-                <span className="text-white/80 font-semibold text-base ml-2">{avgRating.toFixed(1)}</span>
-              </span>
-              <span className="text-white/40 text-sm ml-3">{numReviews} reviews</span>
+              </div>
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <span className="text-white text-lg font-medium flex items-center">
+                  {[1,2,3,4,5].map(star => (
+                    <IconStar key={star} filled={avgRating >= star - 0.3}/>
+                  ))}
+                  <span className="text-white/80 font-semibold text-base ml-2">{avgRating.toFixed(1)}</span>
+                </span>
+                <span className="text-white/40 text-sm ml-3">{numReviews} reviews</span>
+              </div>
             </div>
             <div className="my-4 mx-0 max-w-2xl">
               <AccordionGroup openKey={openAccordionKey} setOpenKey={setOpenAccordionKey}>
@@ -829,8 +834,8 @@ export default function ProductPage() {
           <div className="w-full max-w-2xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="flex flex-col gap-6 w-full">
               <div>
-                <div className="font-semibold text-white/80 text-lg mb-3">Select Size</div>
-                <div className="flex flex-wrap gap-2 mb-1">
+                <div className="font-semibold text-white/80 text-lg mb-3 text-center">Select Size</div>
+                <div className="flex flex-wrap gap-2 mb-1 justify-center">
                   {product.sizes.map((sz) => {
                     const isDisabled = !sz.stock;
                     const isSelected = selectedSize === sz.size;
@@ -867,12 +872,12 @@ export default function ProductPage() {
                     Please select a valid size before continuing.
                   </div>
                 )}
-                <div className="mt-1 text-xs text-white/35">
+                <div className="mt-1 text-xs text-white/35 text-center">
                   View <span className="underline hover:text-white/65 cursor-pointer">Size Guide</span>
                 </div>
               </div>
-              <div className="flex items-center gap-4 mt-1">
-                <span className="font-medium text-white/85 mr-2">Quantity</span>
+              <div className="flex items-center gap-4 mt-1 justify-center">
+                <span className="font-medium text-white/85 text-lg">Quantity</span>
                 <button
                   type="button"
                   className={qtyBtn}
@@ -899,7 +904,7 @@ export default function ProductPage() {
                 }
               </div>
               {/* Twin luxury action buttons */}
-              <div className="flex flex-col gap-3 mt-1">
+              <div className="flex flex-col gap-3 mt-2">
                 <LuxuryActionButton
                   onClick={handleBuyNow}
                   disabled={!canBuyNow}
@@ -928,12 +933,8 @@ export default function ProductPage() {
                 </LuxuryActionButton>
               </div>
               <div className="mt-6 flex flex-col gap-2">
-                <div className="flex flex-wrap gap-3 items-center text-white/75 text-[1rem]">
-                  <span className={badge + " bg-white/10"}><IconTruck/>Free next-day Delivery</span>
+                <div className="flex flex-wrap gap-3 items-center justify-center text-white/75 text-[1rem]">
                   <span className={badge + " bg-white/10"}><IconLock/> Secure Checkout</span>
-                  <span className={badge + " bg-white/10"}>
-                    <IconCheck className="mr-2"/>90-day extended Returns
-                  </span>
                 </div>
               </div>
             </div>

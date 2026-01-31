@@ -28,6 +28,9 @@ const SoulSeamEcommerce = () => {
   const [announcementIndex, setAnnouncementIndex] = useState(0);
   const [heroAnimationComplete, setHeroAnimationComplete] = useState(false);
   const [gsapLoaded, setGsapLoaded] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Removed all quick view related state
   const scrollContainerRef = useRef(null);
@@ -141,12 +144,18 @@ const SoulSeamEcommerce = () => {
     const container = sparkleContainerRef.current;
     container.innerHTML = "";
 
-    for (let i = 0; i < 25; i++) {
+    // Detect mobile screen size
+    const isMobile = window.innerWidth < 768;
+    const sparkleCount = isMobile ? 30 : 25;
+    const minSize = isMobile ? 2 : 1;
+    const maxSize = isMobile ? 5 : 3;
+
+    for (let i = 0; i < sparkleCount; i++) {
       const sparkle = document.createElement("div");
       sparkle.className = "absolute pointer-events-none";
       const x = 40 + Math.random() * 60;
       const y = 40 + Math.random() * 20;
-      const size = 1 + Math.random() * 3;
+      const size = minSize + Math.random() * (maxSize - minSize);
       const delay = Math.random() * 2;
       sparkle.style.cssText = `
         left: ${x}%;
@@ -155,7 +164,7 @@ const SoulSeamEcommerce = () => {
         height: ${size}px;
         background: rgba(255, 255, 255, ${0.3 + Math.random() * 0.3});
         border-radius: 50%;
-        box-shadow: 0 0 ${size * 2}px rgba(255, 255, 255, 0.5);
+        box-shadow: 0 0 ${size * (isMobile ? 3 : 2)}px rgba(255, 255, 255, 0.5);
         animation: sparkleFloat 3s ease-in-out ${delay}s infinite;
       `;
       container.appendChild(sparkle);
@@ -263,6 +272,10 @@ const SoulSeamEcommerce = () => {
   }, [gsapLoaded]);
 
   useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
@@ -270,6 +283,18 @@ const SoulSeamEcommerce = () => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Prevent body scroll when search modal is open
+  useEffect(() => {
+    if (isSearchOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isSearchOpen]);
 
   // NEW ProductCard component: navigates to /product/_id, no modal, no quick view
   const ProductCard = ({ product }) => {
@@ -399,7 +424,12 @@ const SoulSeamEcommerce = () => {
               </a>
             </nav>
             <div className="flex items-center space-x-2 sm:space-x-4 md:space-x-6">
-              <button className="p-1.5 sm:p-2 hover:bg-gray-800 rounded-full transition-colors touch-manipulation" type="button" aria-label="Search">
+              <button 
+                onClick={() => setIsSearchOpen(true)}
+                className="p-1.5 sm:p-2 hover:bg-gray-800 rounded-full transition-colors touch-manipulation" 
+                type="button" 
+                aria-label="Search"
+              >
                 <Search className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
               <button
@@ -425,7 +455,7 @@ const SoulSeamEcommerce = () => {
                 aria-label="Shopping Cart"
               >
                 <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
-                {cartCount > 0 && (
+                {isMounted && cartCount > 0 && (
                   <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] sm:text-xs rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center">
                     {cartCount}
                   </span>
@@ -494,11 +524,11 @@ const SoulSeamEcommerce = () => {
           className="absolute inset-0 flex items-center"
           style={{ willChange: "transform, opacity" }}
         >
-          <div className="flex gap-4 sm:gap-6 md:gap-8 lg:gap-12 pl-4 sm:pl-6 md:pl-8">
+          <div className="flex gap-6 sm:gap-6 md:gap-8 lg:gap-12 pl-4 sm:pl-6 md:pl-8">
             {fashionImages.map((img, index) => (
               <div
                 key={index}
-                className="relative flex-shrink-0 w-[200px] h-[300px] xs:w-[240px] xs:h-[360px] sm:w-[280px] sm:h-[420px] md:w-[320px] md:h-[480px] lg:w-[400px] lg:h-[600px] overflow-hidden group"
+                className="relative flex-shrink-0 w-[85vw] h-[65vh] max-w-[320px] max-h-[480px] sm:w-[280px] sm:h-[420px] md:w-[320px] md:h-[480px] lg:w-[400px] lg:h-[600px] overflow-hidden group"
                 style={{
                   perspective: "1000px",
                   transformStyle: "preserve-3d",
@@ -544,7 +574,7 @@ const SoulSeamEcommerce = () => {
         </div>
         <div
           ref={heroContentRef}
-          className="absolute inset-0 flex flex-col items-center justify-center px-4"
+          className="absolute inset-0 flex flex-col items-center justify-center px-4 sm:px-4"
         >
           <div
             ref={sparkleContainerRef}
@@ -554,8 +584,8 @@ const SoulSeamEcommerce = () => {
               pointerEvents: "none",
             }}
           ></div>
-          <div ref={logoRef} className="relative mb-6 sm:mb-8 lg:mb-12 px-4">
-            <div className="relative w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 lg:w-96 lg:h-96 mx-auto mb-8 sm:mb-12 md:mb-16 lg:mb-20">
+          <div ref={logoRef} className="relative mb-8 sm:mb-8 lg:mb-12 px-4">
+            <div className="relative w-[70vw] h-[70vw] max-w-[280px] max-h-[280px] sm:w-64 sm:h-64 md:w-80 md:h-80 lg:w-96 lg:h-96 mx-auto mb-10 sm:mb-12 md:mb-16 lg:mb-20">
               <div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm border-2 border-white/10"></div>
               <div className="absolute inset-4 sm:inset-6 md:inset-8 lg:inset-10 rounded-full bg-gradient-to-br from-black to-gray-900 flex items-center justify-center p-4 sm:p-6 md:p-8">
                 <img
@@ -566,29 +596,29 @@ const SoulSeamEcommerce = () => {
               </div>
               <div className="absolute inset-0 rounded-full blur-3xl bg-white/10 opacity-0 animate-pulse"></div>
             </div>
-            <h1 className="text-3xl xs:text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl 2xl:text-9xl font-light tracking-[0.1em] sm:tracking-[0.15em] md:tracking-[0.2em] text-white text-center relative px-2">
+            <h1 className="text-5xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl 2xl:text-9xl font-light tracking-[0.1em] sm:tracking-[0.15em] md:tracking-[0.2em] text-white text-center relative px-2">
               SOUL SEAM
               <div className="absolute -inset-2 sm:-inset-4 blur-xl bg-white/5 -z-10"></div>
             </h1>
-            <div className="h-[1px] bg-gradient-to-r from-transparent via-white/30 to-transparent mt-4 sm:mt-6 lg:mt-8 w-3/4 mx-auto"></div>
+            <div className="h-[1px] bg-gradient-to-r from-transparent via-white/30 to-transparent mt-6 sm:mt-6 lg:mt-8 w-3/4 mx-auto"></div>
           </div>
           <p
             ref={taglineRef}
-            className="text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl text-white/90 font-light tracking-[0.05em] mb-8 sm:mb-10 md:mb-12 lg:mb-16 text-center max-w-2xl mx-auto px-4 leading-relaxed"
+            className="text-xl sm:text-lg md:text-xl lg:text-2xl xl:text-3xl text-white/90 font-light tracking-[0.05em] mb-10 sm:mb-10 md:mb-12 lg:mb-16 text-center max-w-2xl mx-auto px-4 leading-relaxed"
           >
             Every Seam Connects Your Soul
           </p>
           {heroAnimationComplete && (
-            <div className="absolute bottom-6 sm:bottom-8 md:bottom-12 lg:bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4 sm:gap-6 animate-float w-full px-4">
+            <div className="absolute bottom-8 sm:bottom-8 md:bottom-12 lg:bottom-16 left-1/2 -translate-x-1/2 flex flex-col items-center gap-5 sm:gap-6 animate-float w-full px-4">
               <div className="flex flex-col items-center gap-2">
-                <span className="text-white/40 text-[10px] xs:text-xs tracking-[0.2em]">
+                <span className="text-white/40 text-xs sm:text-xs tracking-[0.2em]">
                   SCROLL
                 </span>
-                <div className="w-[1px] h-12 sm:h-16 md:h-20 bg-gradient-to-b from-white/50 via-white/20 to-transparent"></div>
+                <div className="w-[1px] h-14 sm:h-16 md:h-20 bg-gradient-to-b from-white/50 via-white/20 to-transparent"></div>
               </div>
               <Link
                 href="/explore"
-                className="group relative px-6 sm:px-8 md:px-12 lg:px-16 py-3 sm:py-4 md:py-5 bg-white text-black text-xs sm:text-sm md:text-base font-medium tracking-[0.1em] sm:tracking-[0.15em] overflow-hidden rounded-full border border-white/20 transition-all duration-500 hover:bg-transparent hover:text-white inline-block touch-manipulation w-full sm:w-auto max-w-xs sm:max-w-none"
+                className="group relative px-8 sm:px-8 md:px-12 lg:px-16 py-4 sm:py-4 md:py-5 bg-white text-black text-sm sm:text-sm md:text-base font-medium tracking-[0.1em] sm:tracking-[0.15em] overflow-hidden rounded-full border border-white/20 transition-all duration-500 hover:bg-transparent hover:text-white inline-block touch-manipulation w-full sm:w-auto max-w-xs sm:max-w-none"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 <span className="relative z-10 flex items-center justify-center gap-2 sm:gap-3">
@@ -733,14 +763,21 @@ const SoulSeamEcommerce = () => {
                 Stylish, sustainable, and crafted to make a statement. Each tee is
                 printed with eco-friendly inks for a premium look.
               </p>
-              <button className="group relative overflow-hidden px-6 py-3 rounded-full bg-white text-black text-xs sm:text-sm font-semibold">
-                <span className="relative z-10 flex items-center gap-2">
+              <button className="group relative overflow-hidden px-6 py-3 rounded-full bg-white text-black text-xs sm:text-sm font-semibold transition-all duration-300 ease-in-out cursor-pointer">
+                <span className="relative z-10 flex items-center gap-2 transition-colors duration-300 ease-in-out group-hover:text-white">
                   SHOP NOW
-                  <span className="transition-transform duration-500 group-hover:translate-x-2">→</span>
+                  <span className="transition-transform duration-300 ease-in-out group-hover:translate-x-2">→</span>
                 </span>
-                <span className="absolute inset-0 bg-black translate-y-full group-hover:translate-y-0 transition-transform duration-500"></span>
-                <span className="absolute inset-0 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                  SHOP NOW →
+                {/* Premium dark glass hover overlay */}
+                <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out">
+                  {/* Dark gradient background (charcoal → black) */}
+                  <span className="absolute inset-0 bg-gradient-to-b from-[#2a2a2a] via-[#1a1a1a] to-[#0a0a0a] rounded-full"></span>
+                  {/* Inner highlight (top) */}
+                  <span className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-transparent rounded-full"></span>
+                  {/* Outer glow */}
+                  <span className="absolute inset-0 rounded-full" style={{
+                    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.15), 0 0 20px rgba(0,0,0,0.6), 0 0 40px rgba(0,0,0,0.4)'
+                  }}></span>
                 </span>
               </button>
             </div>
@@ -754,14 +791,21 @@ const SoulSeamEcommerce = () => {
                 Soft, breathable, and effortlessly cool. Designed for everyday comfort
                 with timeless style.
               </p>
-              <button className="group relative overflow-hidden px-6 py-3 rounded-full bg-white text-black text-xs sm:text-sm font-semibold">
-                <span className="relative z-10 flex items-center gap-2">
+              <button className="group relative overflow-hidden px-6 py-3 rounded-full bg-white text-black text-xs sm:text-sm font-semibold transition-all duration-300 ease-in-out cursor-pointer">
+                <span className="relative z-10 flex items-center gap-2 transition-colors duration-300 ease-in-out group-hover:text-white">
                   SHOP NOW
-                  <span className="transition-transform duration-500 group-hover:translate-x-2">→</span>
+                  <span className="transition-transform duration-300 ease-in-out group-hover:translate-x-2">→</span>
                 </span>
-                <span className="absolute inset-0 bg-black translate-y-full group-hover:translate-y-0 transition-transform duration-500"></span>
-                <span className="absolute inset-0 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                  SHOP NOW →
+                {/* Premium dark glass hover overlay */}
+                <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out">
+                  {/* Dark gradient background (charcoal → black) */}
+                  <span className="absolute inset-0 bg-gradient-to-b from-[#2a2a2a] via-[#1a1a1a] to-[#0a0a0a] rounded-full"></span>
+                  {/* Inner highlight (top) */}
+                  <span className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-transparent rounded-full"></span>
+                  {/* Outer glow */}
+                  <span className="absolute inset-0 rounded-full" style={{
+                    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.15), 0 0 20px rgba(0,0,0,0.6), 0 0 40px rgba(0,0,0,0.4)'
+                  }}></span>
                 </span>
               </button>
             </div>
@@ -887,6 +931,120 @@ const SoulSeamEcommerce = () => {
         </div>
       </footer>
 
+      {/* Search Modal */}
+      {isSearchOpen && (
+        <div 
+          className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-sm"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsSearchOpen(false);
+              setSearchQuery("");
+            }
+          }}
+        >
+          <div className="max-w-4xl mx-auto px-4 pt-20 pb-8">
+            {/* Search Input */}
+            <div className="relative mb-8">
+              <input
+                type="text"
+                placeholder="Search products..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                autoFocus
+                className="w-full px-6 py-4 pr-12 rounded-full bg-white/10 border border-white/20 text-white text-lg placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-white/40"
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    setIsSearchOpen(false);
+                    setSearchQuery("");
+                  }
+                }}
+              />
+              <button
+                onClick={() => {
+                  setIsSearchOpen(false);
+                  setSearchQuery("");
+                }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 p-2 hover:bg-white/10 rounded-full transition-colors"
+                aria-label="Close search"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
+            </div>
+
+            {/* Search Results */}
+            {searchQuery.trim() && (
+              <div className="max-h-[60vh] overflow-y-auto">
+                {(() => {
+                  const query = searchQuery.toLowerCase();
+                  const filtered = products.filter((product) => {
+                    const name = product.name?.toLowerCase() || "";
+                    const description = product.description?.toLowerCase() || "";
+                    const category = product.category?.toLowerCase() || "";
+                    return name.includes(query) || description.includes(query) || category.includes(query);
+                  });
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="text-center py-12">
+                        <p className="text-white/60 text-lg">No products found</p>
+                        <p className="text-white/40 text-sm mt-2">Try a different search term</p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {filtered.slice(0, 6).map((product) => (
+                        <div
+                          key={product._id}
+                          onClick={() => {
+                            router.push(`/product/${product._id}`);
+                            setIsSearchOpen(false);
+                            setSearchQuery("");
+                          }}
+                          className="group relative overflow-hidden bg-black/60 border border-white/10 rounded-lg cursor-pointer hover:border-white/30 transition-all duration-300 hover:scale-105"
+                        >
+                          <div className="relative aspect-[3/4] overflow-hidden rounded-t-lg">
+                            <img
+                              src={product.image || "/coming-soon.jpg"}
+                              alt={product.name}
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                            />
+                          </div>
+                          <div className="p-4">
+                            <h3 className="font-semibold text-white mb-2 line-clamp-2">
+                              {product.name}
+                            </h3>
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg font-bold text-white">
+                                Rs. {Number(product.price).toLocaleString()}
+                              </span>
+                              {product.originalPrice > product.price && (
+                                <span className="text-sm text-white/50 line-through">
+                                  Rs. {Number(product.originalPrice).toLocaleString()}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* Empty State */}
+            {!searchQuery.trim() && (
+              <div className="text-center py-12">
+                <Search className="w-16 h-16 text-white/30 mx-auto mb-4" />
+                <p className="text-white/60 text-lg">Start typing to search products</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <style jsx>{`
         @keyframes float {
           0%,
@@ -899,6 +1057,17 @@ const SoulSeamEcommerce = () => {
         }
         .animate-float {
           animation: float 3s ease-in-out infinite;
+        }
+        @keyframes sparkleFloat {
+          0%,
+          100% {
+            transform: translateY(0) scale(1);
+            opacity: 0.6;
+          }
+          50% {
+            transform: translateY(-20px) scale(1.2);
+            opacity: 1;
+          }
         }
         h1,
         p,
