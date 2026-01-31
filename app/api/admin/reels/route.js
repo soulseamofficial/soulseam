@@ -1,12 +1,19 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import path from "path";
-import fs from "fs/promises";
 import { connectDB } from "../../../lib/db";
 import Reel from "../../../models/Reel";
+import { getCloudinary } from "@/app/lib/cloudinary";
+import { requireAdminAuth } from "@/app/lib/adminAuth";
 
 export async function POST(req) {
+  // Verify admin authentication
+  const { authorized, error } = await requireAdminAuth(req);
+  
+  if (!authorized) {
+    return NextResponse.json({ error: error || "Unauthorized" }, { status: 401 });
+  }
+
   try {
     await connectDB();
 
@@ -33,31 +40,45 @@ export async function POST(req) {
       );
     }
 
-    // uploads folder
-    const uploadDir = path.join(process.cwd(), "public/uploads");
-    await fs.mkdir(uploadDir, { recursive: true });
+    /* 🔥 VIDEO UPLOAD TO CLOUDINARY */
+    const cloudinary = getCloudinary();
 
-    // save file
     const bytes = await video.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    const fileName = `${Date.now()}-${video.name}`;
-    const filePath = path.join(uploadDir, fileName);
-    await fs.writeFile(filePath, buffer);
+    const uploadResult = await new Promise((resolve, reject) => {
+      cloudinary.uploader
+        .upload_stream(
+          {
+            folder: "soulseam/reels",
+            resource_type: "video",
+          },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          }
+        )
+        .end(buffer);
+    });
 
-    const videoUrl = `/uploads/${fileName}`;
+    // Safety check: ensure secure_url exists
+    if (!uploadResult?.secure_url) {
+      throw new Error("Cloudinary upload failed: secure_url not returned");
+    }
 
+    /* 🔥 SAVE REEL */
     const reel = await Reel.create({
       title: title.trim(),
       category,
       duration,
-      videoUrl,
+      videoUrl: uploadResult.secure_url, // ✅ Cloudinary URL - stored directly, no manipulation
     });
 
+    console.log(`[Admin Reels] Reel created: ${reel.title} (ID: ${reel._id})`);
     return NextResponse.json({ success: true, reel });
 
   } catch (err) {
-    console.error("REEL UPLOAD ERROR:", err);
+    console.error("[Admin Reels] POST error:", err);
     return NextResponse.json(
       { message: "Upload failed" },
       { status: 500 }

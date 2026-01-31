@@ -40,7 +40,36 @@ export default function AddReelPage() {
     }
 
     setLoading(true);
-    setTimeout(() => router.push("/admin/reels"), 800);
+    setError("");
+
+    try {
+      const formData = new FormData();
+      formData.append("video", form.video);
+      formData.append("title", form.title);
+      formData.append("category", form.category);
+      formData.append("duration", form.duration);
+
+      const res = await fetch("/api/admin/reels", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || data.error || "Upload failed");
+        setLoading(false);
+        return;
+      }
+
+      // Success - redirect to reels page
+      router.push("/admin/reels");
+    } catch (err) {
+      console.error("Upload error:", err);
+      setError("Network error. Please try again.");
+      setLoading(false);
+    }
   }
 
   return (
