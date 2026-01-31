@@ -233,11 +233,11 @@ async function sendOrderToDelhiveryAndUpdate(order) {
     } else {
       updateData.delhiverySent = false;
       updateData.delhiveryError = delhiveryResponse?.error || "Unknown error";
-      updateData.delhiveryDeliveryStatus = "NOT_SENT";
+      updateData.delhiveryDeliveryStatus = "PENDING";
       updateData.delivery_provider = "DELHIVERY"; // Still mark provider even on failure
-      updateData.delivery_status = "NOT_SENT";
+      updateData.delivery_status = "PENDING"; // Changed to PENDING as per requirements
       
-      console.error("❌ Failed to send order to Delhivery via webhook:", {
+      console.error("❌ Failed to send order to Delhivery via webhook (status: PENDING):", {
         orderId: order._id,
         error: updateData.delhiveryError,
       });
@@ -250,9 +250,10 @@ async function sendOrderToDelhiveryAndUpdate(order) {
       $set: {
         delhiverySent: false,
         delhiveryError: error.message || "Unknown error",
-        delhiveryDeliveryStatus: "NOT_SENT",
+        delhiveryDeliveryStatus: "PENDING",
         delivery_provider: "DELHIVERY",
-        delivery_status: "NOT_SENT",
+        delivery_status: "PENDING",
+        shipment_status: "PENDING", // Set shipment_status to PENDING on error
       },
     });
   }

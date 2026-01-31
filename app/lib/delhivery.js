@@ -11,8 +11,18 @@
 /**
  * Logs environment configuration safely (without exposing secrets)
  */
+/**
+ * Gets Delhivery API key from environment variables
+ * Supports both DELHIVERY_API_KEY and DELHIVERY_API_TOKEN for backward compatibility
+ * Prefers DELHIVERY_API_KEY if both are set
+ */
+function getDelhiveryApiKey() {
+  return process.env.DELHIVERY_API_KEY || process.env.DELHIVERY_API_TOKEN;
+}
+
 function logDelhiveryConfig() {
-  const hasApiKey = !!process.env.DELHIVERY_API_KEY;
+  const apiKey = getDelhiveryApiKey();
+  const hasApiKey = !!apiKey;
   const mockMode = process.env.DELHIVERY_MOCK === "true";
   const baseUrl = process.env.DELHIVERY_API_BASE_URL || "https://track.delhivery.com";
   const nodeEnv = process.env.NODE_ENV;
@@ -23,6 +33,7 @@ function logDelhiveryConfig() {
     apiBaseUrl: baseUrl,
     nodeEnv: nodeEnv,
     mockFlag: process.env.DELHIVERY_MOCK || "not set",
+    envVarUsed: process.env.DELHIVERY_API_KEY ? "DELHIVERY_API_KEY" : (process.env.DELHIVERY_API_TOKEN ? "DELHIVERY_API_TOKEN" : "none"),
   });
 }
 
@@ -36,6 +47,224 @@ function isValidWaybill(waybill) {
   if (!waybill || typeof waybill !== "string") return false;
   // Real waybills are numeric, not prefixed with "MOCK"
   return /^\d+$/.test(waybill.trim()) && !waybill.toUpperCase().startsWith("MOCK");
+}
+
+/**
+ * City abbreviation to full name mapping
+ * Common Indian city abbreviations that cause Delhivery API errors
+ */
+const CITY_ABBREVIATION_MAP = {
+  "akp": "Anakapalli",
+  "hyd": "Hyderabad",
+  "mum": "Mumbai",
+  "del": "Delhi",
+  "blr": "Bangalore",
+  "chn": "Chennai",
+  "kol": "Kolkata",
+  "pune": "Pune", // Already full, but included for consistency
+  "ahm": "Ahmedabad",
+  "jpr": "Jaipur",
+  "lko": "Lucknow",
+  "kan": "Kanpur",
+  "nag": "Nagpur",
+  "ind": "Indore",
+  "thr": "Thane",
+  "bho": "Bhopal",
+  "vis": "Visakhapatnam",
+  "pat": "Patna",
+  "vad": "Vadodara",
+  "gur": "Gurgaon",
+  "coi": "Coimbatore",
+  "mad": "Madurai",
+  "vij": "Vijayawada",
+  "raj": "Rajahmundry",
+  "gnt": "Guntur",
+  "kak": "Kakinada",
+  "elr": "Eluru",
+  "tad": "Tadepalligudem",
+  "ong": "Ongole",
+  "chir": "Chirala",
+  "bza": "Bhimavaram",
+  "nrt": "Narasaraopet",
+  "nlr": "Nellore",
+  "tir": "Tirupati",
+  "kdp": "Kadapa",
+  "anr": "Anantapur",
+  "kum": "Kurnool",
+  "nzb": "Nizamabad",
+  "kar": "Karimnagar",
+  "war": "Warangal",
+  "khmm": "Khammam",
+  "mdm": "Mahbubnagar",
+  "ngd": "Nalgonda",
+  "skt": "Srikakulam",
+  "vzm": "Vizianagaram",
+  "pkl": "Prakasam",
+  "kri": "Krishna",
+  "wgl": "West Godavari",
+  "egl": "East Godavari",
+};
+
+/**
+ * Normalizes city name by expanding abbreviations
+ * 
+ * @param {string} city - City name (may be abbreviated)
+ * @returns {string} - Full city name
+ */
+function normalizeCity(city) {
+  if (!city || typeof city !== "string") return city || "";
+  
+  const cityTrimmed = city.trim();
+  if (cityTrimmed.length === 0) return "";
+  
+  // Check if city is an abbreviation (typically 3-4 characters, all caps or mixed case)
+  const cityLower = cityTrimmed.toLowerCase();
+  
+  // If it's a known abbreviation, expand it
+  if (CITY_ABBREVIATION_MAP[cityLower]) {
+    return CITY_ABBREVIATION_MAP[cityLower];
+  }
+  
+  // If city is very short (<= 4 chars) and looks like an abbreviation, try to match
+  // This handles cases like "Akp" -> "Anakapalli"
+  if (cityTrimmed.length <= 4 && cityTrimmed.length >= 2) {
+    // Check for partial matches (e.g., "Akp" matches "Anakapalli" start)
+    const possibleMatch = Object.entries(CITY_ABBREVIATION_MAP).find(
+      ([abbr]) => abbr.startsWith(cityLower) || cityLower.startsWith(abbr)
+    );
+    if (possibleMatch) {
+      return possibleMatch[1];
+    }
+  }
+  
+  // Return original city if no abbreviation found
+  return cityTrimmed;
+}
+
+/**
+ * Validates if city is a full name (not abbreviated)
+ * 
+ * @param {string} city - City name to validate
+ * @returns {boolean} - True if city appears to be a full name
+ */
+function isValidCityName(city) {
+  if (!city || typeof city !== "string") return false;
+  
+  const cityTrimmed = city.trim();
+  if (cityTrimmed.length === 0) return false;
+  
+  // Full city names are typically longer than 4 characters
+  // Very short names (<= 4 chars) are likely abbreviations
+  if (cityTrimmed.length <= 4) {
+    // Check if it's a known abbreviation
+    const cityLower = cityTrimmed.toLowerCase();
+    if (CITY_ABBREVIATION_MAP[cityLower]) {
+      return false; // It's an abbreviation
+    }
+    // Very short names are suspicious
+    return false;
+  }
+  
+  // Check if normalized version differs from original (indicates abbreviation)
+  const normalized = normalizeCity(cityTrimmed);
+  if (normalized.toLowerCase() !== cityTrimmed.toLowerCase() && normalized.length > cityTrimmed.length) {
+    return false; // Was an abbreviation
+  }
+  
+  return true;
+}
+
+/**
+ * Normalizes address to ensure it's detailed enough
+ * 
+ * @param {string} address - Address string
+ * @param {string} area - Area/locality (optional)
+ * @param {string} city - City name (optional)
+ * @returns {string} - Normalized full address
+ */
+function normalizeAddress(address, area = "", city = "") {
+  if (!address || typeof address !== "string") address = "";
+  
+  let fullAddress = address.trim();
+  
+  // If address is too short, try to enhance it with area and city
+  if (fullAddress.length < 20) {
+    const parts = [];
+    if (fullAddress) parts.push(fullAddress);
+    if (area && typeof area === "string" && area.trim()) parts.push(area.trim());
+    if (city && typeof city === "string" && city.trim()) parts.push(city.trim());
+    
+    fullAddress = parts.join(", ");
+  }
+  
+  return fullAddress.trim();
+}
+
+/**
+ * Validates if address is detailed enough (>= 20 characters)
+ * 
+ * @param {string} address - Address string to validate
+ * @returns {boolean} - True if address is detailed enough
+ */
+function isValidAddress(address) {
+  if (!address || typeof address !== "string") return false;
+  return address.trim().length >= 20;
+}
+
+/**
+ * Validates shipment data before sending to Delhivery
+ * 
+ * @param {Object} shipment - Shipment object to validate
+ * @returns {Object} - { valid: boolean, errors: string[] }
+ */
+function validateShipmentData(shipment) {
+  const errors = [];
+  
+  // Check city
+  if (!shipment.city || !isValidCityName(shipment.city)) {
+    errors.push(`City must be a full name (not abbreviated). Received: "${shipment.city}"`);
+  }
+  
+  // Check address
+  if (!shipment.add || !isValidAddress(shipment.add)) {
+    errors.push(`Address must be detailed (at least 20 characters). Received length: ${shipment.add?.length || 0}`);
+  }
+  
+  // CRITICAL: Validate mandatory numeric dimensions (Delhivery Python backend crashes if missing or wrong type)
+  // These fields MUST be numbers, not strings, or Delhivery throws: "'unicode' object has no attribute 'get'"
+  if (shipment.weight === undefined || shipment.weight === null || typeof shipment.weight !== "number" || isNaN(shipment.weight)) {
+    errors.push(`weight must be a valid number. Received: ${shipment.weight} (type: ${typeof shipment.weight})`);
+  }
+  
+  if (shipment.shipment_length === undefined || shipment.shipment_length === null || typeof shipment.shipment_length !== "number" || isNaN(shipment.shipment_length)) {
+    errors.push(`shipment_length must be a valid number. Received: ${shipment.shipment_length} (type: ${typeof shipment.shipment_length})`);
+  }
+  
+  if (shipment.shipment_breadth === undefined || shipment.shipment_breadth === null || typeof shipment.shipment_breadth !== "number" || isNaN(shipment.shipment_breadth)) {
+    errors.push(`shipment_breadth must be a valid number. Received: ${shipment.shipment_breadth} (type: ${typeof shipment.shipment_breadth})`);
+  }
+  
+  if (shipment.shipment_height === undefined || shipment.shipment_height === null || typeof shipment.shipment_height !== "number" || isNaN(shipment.shipment_height)) {
+    errors.push(`shipment_height must be a valid number. Received: ${shipment.shipment_height} (type: ${typeof shipment.shipment_height})`);
+  }
+  
+  // Validate string fields are strings
+  if (typeof shipment.pin !== "string") {
+    errors.push(`pin must be a string. Received: ${shipment.pin} (type: ${typeof shipment.pin})`);
+  }
+  
+  if (typeof shipment.phone !== "string") {
+    errors.push(`phone must be a string. Received: ${shipment.phone} (type: ${typeof shipment.phone})`);
+  }
+  
+  if (typeof shipment.order !== "string") {
+    errors.push(`order must be a string. Received: ${shipment.order} (type: ${typeof shipment.order})`);
+  }
+  
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
 }
 
 /**
@@ -55,7 +284,7 @@ export async function sendOrderToDelhivery(orderData) {
     logDelhiveryConfig();
 
     // Get environment variables
-    const API_KEY = process.env.DELHIVERY_API_KEY;
+    const API_KEY = getDelhiveryApiKey();
     const API_BASE_URL = process.env.DELHIVERY_API_BASE_URL || "https://track.delhivery.com";
     const MOCK_MODE = process.env.DELHIVERY_MOCK === "true";
 
@@ -78,10 +307,12 @@ export async function sendOrderToDelhivery(orderData) {
     // REAL MODE: Check if API key exists
     if (!API_KEY) {
       console.warn("⚠️ Delhivery API key not configured. Skipping Delhivery order creation.");
+      console.warn("⚠️ Please set either DELHIVERY_API_KEY or DELHIVERY_API_TOKEN in environment variables.");
       return {
         success: false,
-        error: "DELHIVERY_API_KEY not configured",
-        deliveryStatus: "NOT_SENT",
+        error: "DELHIVERY_API_KEY or DELHIVERY_API_TOKEN not configured",
+        deliveryStatus: "PENDING",
+        shipment_status: "PENDING",
         isMock: false,
       };
     }
@@ -97,144 +328,672 @@ export async function sendOrderToDelhivery(orderData) {
       return {
         success: false,
         error: "Invalid order data",
-        deliveryStatus: "NOT_SENT",
+        deliveryStatus: "PENDING",
+        shipment_status: "PENDING",
         isMock: false,
       };
     }
 
-    // Prepare pickup location from environment variables
-    const pickupLocation = {
-      name: process.env.DELHIVERY_PICKUP_NAME || "SOULSEAM",
-      phone: process.env.DELHIVERY_PICKUP_PHONE || "",
-      pin: process.env.DELHIVERY_PICKUP_PINCODE || "",
-      address: process.env.DELHIVERY_PICKUP_ADDRESS || "",
-      city: process.env.DELHIVERY_PICKUP_CITY || "",
-      state: process.env.DELHIVERY_PICKUP_STATE || "",
-    };
-
-    // Validate pickup location
-    if (!pickupLocation.pin || !pickupLocation.address || !pickupLocation.city || !pickupLocation.state) {
-      console.error("❌ Delhivery pickup location not configured properly");
-      return {
-        success: false,
-        error: "Pickup location not configured",
-        deliveryStatus: "NOT_SENT",
-        isMock: false,
-      };
+    // Get pickup location name from environment variable
+    // IMPORTANT: This must EXACTLY match one of the active pickup location names in Delhivery dashboard
+    // Active locations: "SOULSEAM C2C", "Soul seam 2"
+    let pickupLocationName = process.env.DELHIVERY_PICKUP_NAME?.trim();
+    let usingFallback = false;
+    
+    // Validate pickup location name exists and is not empty
+    if (!pickupLocationName || pickupLocationName.length === 0) {
+      // Safe fallback ONLY for local development (not production)
+      if (process.env.NODE_ENV !== "production") {
+        pickupLocationName = "SOULSEAM C2C";
+        usingFallback = true;
+        console.log("⚠️ DELHIVERY_PICKUP_NAME not set. Using local dev fallback:", {
+          fallback: `"${pickupLocationName}"`,
+          nodeEnv: process.env.NODE_ENV,
+          note: "This fallback is ONLY for local development. Production requires DELHIVERY_PICKUP_NAME to be set.",
+        });
+      } else {
+        // Production: REQUIRE the environment variable
+        const errorMsg = "DELHIVERY_PICKUP_NAME environment variable is missing or empty. Must match exact pickup location name from Delhivery dashboard (e.g., 'SOULSEAM C2C' or 'Soul seam 2')";
+        console.error("❌", errorMsg);
+        return {
+          success: false,
+          error: errorMsg,
+          deliveryStatus: "PENDING",
+          shipment_status: "PENDING",
+          isMock: false,
+        };
+      }
     }
+
+    // Debug log: Print the pickup location being used (case-sensitive)
+    console.log("📍 Delhivery Pickup Location:", {
+      name: pickupLocationName,
+      length: pickupLocationName.length,
+      exactMatch: `"${pickupLocationName}"`,
+      usingFallback: usingFallback,
+      nodeEnv: process.env.NODE_ENV,
+      note: "Must exactly match dashboard pickup location name (case-sensitive)",
+    });
 
     // Prepare shipment data
     const shippingAddress = orderData.shippingAddress;
     const fullName = shippingAddress.fullName || `${shippingAddress.firstName || ""} ${shippingAddress.lastName || ""}`.trim();
+    const isCOD = orderData.paymentMethod === "COD";
     
+    // Extract raw address fields
+    const rawCity = shippingAddress.city || "";
+    const rawAddress = shippingAddress.addressLine1 || shippingAddress.address || "";
+    const rawArea = shippingAddress.area || shippingAddress.locality || "";
+    
+    // Normalize city and address BEFORE creating shipment
+    const normalizedCity = normalizeCity(rawCity);
+    const normalizedAddress = normalizeAddress(rawAddress, rawArea, normalizedCity);
+    
+    // Log normalization changes for debugging
+    if (normalizedCity !== rawCity || normalizedAddress !== rawAddress) {
+      console.log("🔄 Address normalization applied:", {
+        original_city: rawCity,
+        normalized_city: normalizedCity,
+        original_address: rawAddress,
+        normalized_address: normalizedAddress,
+        address_length: normalizedAddress.length,
+      });
+    }
+    
+    // CRITICAL: Delhivery CMU Python backend requires ALL numeric fields to be numbers (not strings)
+    // Missing or string-typed dimensions cause: "'unicode' object has no attribute 'get'"
+    // Default dimensions (in cm): 20x15x10 (standard small package)
+    const defaultLength = 20;
+    const defaultBreadth = 15;
+    const defaultHeight = 10;
+    const defaultWeight = 0.5; // kg
+
+    // CRITICAL: products_desc MUST be an ARRAY of objects, not a string
+    // Delhivery's Python backend expects products_desc as array and calls .get() on each product object
+    // Sending as string causes: "'unicode' object has no attribute 'get'" error
+    // Each product object must have: name, quantity, and value fields
+    const totalQuantity = Number(orderData.items.reduce((sum, item) => sum + (item.quantity || 1), 0));
+    const totalAmount = Number(orderData.totalAmount || 0);
+    const productsDesc = Array.isArray(orderData.items) && orderData.items.length > 0
+      ? orderData.items.map(item => ({
+          name: String(item.name || item.title || item.productName || item.product?.name || "Item").substring(0, 100), // Max 100 chars
+          quantity: Number(item.quantity || 1),
+          value: Number(item.price || item.amount || item.value || item.totalPrice || 0)
+        }))
+      : [{
+          name: "Item",
+          quantity: totalQuantity || 1,
+          value: isCOD ? totalAmount : 0
+        }];
+
     const shipment = {
-      order: orderData.orderId.toString(), // Use MongoDB order ID as reference
-      payment_mode: orderData.paymentMethod === "COD" ? "COD" : "Prepaid",
-      total_amount: Number(orderData.totalAmount),
       name: fullName || "Customer",
-      phone: shippingAddress.phone || "",
-      add: shippingAddress.addressLine1 || shippingAddress.address || "",
-      pin: shippingAddress.pincode || shippingAddress.pin || "",
-      city: shippingAddress.city || "",
+      add: normalizedAddress, // Use normalized address
+      city: normalizedCity, // Use normalized city
       state: shippingAddress.state || "",
-      country: shippingAddress.country || "India",
-      products_desc: orderData.items.map(item => `${item.name || "Product"} (Qty: ${item.quantity || 1})`).join(", "),
-      quantity: orderData.items.reduce((sum, item) => sum + (item.quantity || 1), 0),
-      weight: orderData.weight || 0.5, // Default 0.5kg if not specified
+      pin: String(shippingAddress.pincode || shippingAddress.pin || ""), // MUST be string
+      country: "India",
+      phone: String(shippingAddress.phone || ""), // MUST be string
+      order: String(orderData.orderId), // MUST be string
+      payment_mode: isCOD ? "COD" : "Prepaid",
+      // CRITICAL: products_desc MUST be an ARRAY of product objects (not a string)
+      // Delhivery's Python backend calls .get() on each product object in the array
+      products_desc: productsDesc, // MUST be array of objects with name, quantity, value
+      quantity: totalQuantity, // MUST be number
+      weight: Number(orderData.weight || defaultWeight), // MUST be number (kg)
+      shipment_length: Number(orderData.shipment_length || defaultLength), // MUST be number (cm)
+      shipment_breadth: Number(orderData.shipment_breadth || defaultBreadth), // MUST be number (cm)
+      shipment_height: Number(orderData.shipment_height || defaultHeight), // MUST be number (cm)
     };
 
-    // Validate shipment data
+    // Add cod_amount only for COD orders (mandatory field for COD)
+    // CRITICAL: COD requires cod_amount > 0
+    if (isCOD) {
+      const codAmount = Number(orderData.totalAmount);
+      if (!codAmount || codAmount <= 0) {
+        console.error("❌ Invalid COD amount:", {
+          orderId: orderData.orderId,
+          codAmount: codAmount,
+          totalAmount: orderData.totalAmount,
+          note: "COD orders require cod_amount > 0",
+        });
+        return {
+          success: false,
+          error: "COD orders require cod_amount > 0",
+          deliveryStatus: "PENDING",
+          shipment_status: "PENDING",
+          isMock: false,
+        };
+      }
+      shipment.cod_amount = codAmount; // MUST be number > 0
+    }
+
+    // Validate shipment data - ensure all mandatory fields are present
     if (!shipment.name || !shipment.phone || !shipment.add || !shipment.pin || !shipment.city || !shipment.state) {
-      console.error("❌ Invalid shipment data:", {
+      console.error("❌ Invalid shipment data (missing mandatory fields):", {
         hasName: !!shipment.name,
         hasPhone: !!shipment.phone,
         hasAddress: !!shipment.add,
         hasPin: !!shipment.pin,
         hasCity: !!shipment.city,
         hasState: !!shipment.state,
+        hasCountry: !!shipment.country,
+        hasOrder: !!shipment.order,
+        hasPaymentMode: !!shipment.payment_mode,
+        hasQuantity: shipment.quantity !== undefined,
+        hasWeight: shipment.weight !== undefined,
+        hasShipmentLength: shipment.shipment_length !== undefined,
+        hasShipmentBreadth: shipment.shipment_breadth !== undefined,
+        hasShipmentHeight: shipment.shipment_height !== undefined,
+        hasCodAmount: shipment.cod_amount !== undefined || !isCOD,
       });
       return {
         success: false,
-        error: "Invalid shipment data",
-        deliveryStatus: "NOT_SENT",
+        error: "Invalid shipment data - missing mandatory fields",
+        deliveryStatus: "PENDING",
+        shipment_status: "PENDING",
+        isMock: false,
+      };
+    }
+    
+    // CRITICAL: Validate mandatory numeric dimensions before API call
+    // Delhivery Python backend crashes with "'unicode' object has no attribute 'get'" if dimensions are missing or strings
+    const dimensionErrors = [];
+    if (shipment.weight === undefined || shipment.weight === null || typeof shipment.weight !== "number" || isNaN(shipment.weight)) {
+      dimensionErrors.push(`weight must be a number (received: ${shipment.weight}, type: ${typeof shipment.weight})`);
+    }
+    if (shipment.shipment_length === undefined || shipment.shipment_length === null || typeof shipment.shipment_length !== "number" || isNaN(shipment.shipment_length)) {
+      dimensionErrors.push(`shipment_length must be a number (received: ${shipment.shipment_length}, type: ${typeof shipment.shipment_length})`);
+    }
+    if (shipment.shipment_breadth === undefined || shipment.shipment_breadth === null || typeof shipment.shipment_breadth !== "number" || isNaN(shipment.shipment_breadth)) {
+      dimensionErrors.push(`shipment_breadth must be a number (received: ${shipment.shipment_breadth}, type: ${typeof shipment.shipment_breadth})`);
+    }
+    if (shipment.shipment_height === undefined || shipment.shipment_height === null || typeof shipment.shipment_height !== "number" || isNaN(shipment.shipment_height)) {
+      dimensionErrors.push(`shipment_height must be a number (received: ${shipment.shipment_height}, type: ${typeof shipment.shipment_height})`);
+    }
+    
+    if (dimensionErrors.length > 0) {
+      console.error("❌ Invalid shipment dimensions (preventing Delhivery API call):", {
+        orderId: orderData.orderId,
+        errors: dimensionErrors,
+        weight: shipment.weight,
+        shipment_length: shipment.shipment_length,
+        shipment_breadth: shipment.shipment_breadth,
+        shipment_height: shipment.shipment_height,
+        note: "Delhivery Python backend crashes if dimensions are missing or not numbers. Shipment will NOT be sent.",
+      });
+      return {
+        success: false,
+        error: `Missing or invalid shipment dimensions: ${dimensionErrors.join("; ")}`,
+        deliveryStatus: "PENDING",
+        shipment_status: "PENDING",
+        isMock: false,
+      };
+    }
+    
+    // STRICT VALIDATION: Validate city and address format before calling Delhivery
+    // This prevents Delhivery backend crashes from invalid data
+    const validation = validateShipmentData(shipment);
+    if (!validation.valid) {
+      console.error("❌ Shipment validation failed (preventing Delhivery API call):", {
+        orderId: orderData.orderId,
+        errors: validation.errors,
+        original_city: rawCity,
+        normalized_city: normalizedCity,
+        original_address: rawAddress,
+        normalized_address: normalizedAddress,
+        address_length: normalizedAddress.length,
+        note: "Shipment will NOT be sent to Delhivery. Status set to PENDING.",
+      });
+      return {
+        success: false,
+        error: `Validation failed: ${validation.errors.join("; ")}`,
+        deliveryStatus: "PENDING",
+        shipment_status: "PENDING",
         isMock: false,
       };
     }
 
     // Prepare API payload
-    const payload = {
-      pickup_location: pickupLocation,
-      shipments: [shipment],
-    };
-
-    // Make API call to Delhivery (REAL API)
-    const apiUrl = `${API_BASE_URL}/api/cmu/create.json`;
+    // CRITICAL FIX: pickup_location MUST be a STRING, not an object
+    // Delhivery CMU API expects: "Soul seam 2" (string), NOT {"name": "Soul seam 2"} (object)
+    // Sending as object causes: "'unicode' object has no attribute 'get'" error
+    // CRITICAL: Ensure all numeric fields remain as numbers (not strings) in the final JSON
     
-    console.log("📦 Sending order to Delhivery (REAL API):", {
-      orderId: orderData.orderId,
-      apiUrl,
-      paymentMode: shipment.payment_mode,
-      totalAmount: shipment.total_amount,
-      customerName: shipment.name,
-      customerPin: shipment.pin,
-    });
-
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Token ${API_KEY}`,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    let responseData;
-    try {
-      responseData = await response.json();
-    } catch (parseError) {
-      console.error("❌ Failed to parse Delhivery API response:", parseError);
-      const textResponse = await response.text();
-      console.error("Raw response:", textResponse);
-      return {
-        success: false,
-        error: "Invalid response from Delhivery API",
-        deliveryStatus: "NOT_SENT",
-        isMock: false,
-        rawResponse: textResponse,
-      };
+    // Sanitize shipment: Remove null/undefined fields and "N/A" values to prevent parsing errors
+    // Keep empty strings for required fields that might be empty
+    // CRITICAL: products_desc MUST be included as an array (already set above)
+    // CRITICAL: cod_amount must be REMOVED for Prepaid orders (only present for COD)
+    const sanitizedShipment = {};
+    for (const [key, value] of Object.entries(shipment)) {
+      // Skip null, undefined, and "N/A" values
+      // For Prepaid orders, explicitly remove cod_amount if it exists
+      if (value !== null && value !== undefined && value !== "N/A") {
+        // Remove cod_amount for Prepaid orders
+        if (key === "cod_amount" && !isCOD) {
+          continue; // Skip cod_amount for Prepaid orders
+        }
+        sanitizedShipment[key] = value;
+      }
     }
-
-    // Check if API call was successful
-    if (!response.ok) {
-      console.error("❌ Delhivery API error:", {
-        status: response.status,
-        statusText: response.statusText,
-        data: responseData,
+    
+    // CRITICAL: Ensure products_desc is always present and is an array (mandatory for Delhivery CMU)
+    if (!sanitizedShipment.products_desc || !Array.isArray(sanitizedShipment.products_desc)) {
+      sanitizedShipment.products_desc = [{
+        name: "Item",
+        quantity: sanitizedShipment.quantity || 1,
+        value: isCOD ? totalAmount : 0
+      }];
+    }
+    
+    // Validate products_desc array structure
+    if (!Array.isArray(sanitizedShipment.products_desc) || sanitizedShipment.products_desc.length === 0) {
+      console.error("❌ Invalid products_desc (must be non-empty array):", {
+        orderId: orderData.orderId,
+        products_desc: sanitizedShipment.products_desc,
+        type: typeof sanitizedShipment.products_desc,
+        isArray: Array.isArray(sanitizedShipment.products_desc),
       });
       return {
         success: false,
-        error: responseData?.error || responseData?.message || `API error: ${response.status}`,
-        deliveryStatus: "NOT_SENT",
+        error: "products_desc must be a non-empty array of product objects",
+        deliveryStatus: "PENDING",
+        shipment_status: "PENDING",
         isMock: false,
-        rawResponse: responseData,
       };
     }
-
-    // Parse Delhivery response
-    // Delhivery API returns: { packages: [{ waybill, ... }] }
-    const packages = responseData?.packages || responseData?.package || [];
     
-    if (!packages || packages.length === 0 || !packages[0]?.waybill) {
-      console.error("❌ Delhivery response missing waybill:", responseData);
+    // Ensure each product object has required fields with correct types
+    for (let i = 0; i < sanitizedShipment.products_desc.length; i++) {
+      const product = sanitizedShipment.products_desc[i];
+      if (!product || typeof product !== 'object') {
+        console.error(`❌ Invalid products_desc[${i}] (must be object):`, {
+          orderId: orderData.orderId,
+          product,
+          type: typeof product,
+        });
+        return {
+          success: false,
+          error: `products_desc[${i}] must be an object with name, quantity, and value fields`,
+          deliveryStatus: "PENDING",
+          shipment_status: "PENDING",
+          isMock: false,
+        };
+      }
+      // Ensure name is a string
+      if (!product.name || typeof product.name !== 'string') {
+        sanitizedShipment.products_desc[i].name = "Item";
+      }
+      // Ensure quantity is a number
+      if (typeof product.quantity !== 'number' || isNaN(product.quantity)) {
+        sanitizedShipment.products_desc[i].quantity = 1;
+      }
+      // Ensure value is a number
+      if (typeof product.value !== 'number' || isNaN(product.value)) {
+        sanitizedShipment.products_desc[i].value = 0;
+      }
+    }
+    
+    // Validate that 'add' key exists (not 'address')
+    if (!sanitizedShipment.add) {
+      console.error("❌ Missing 'add' field in shipment (address key must be 'add', not 'address'):", {
+        orderId: orderData.orderId,
+        shipmentKeys: Object.keys(sanitizedShipment),
+      });
       return {
         success: false,
-        error: "No waybill in Delhivery response",
-        deliveryStatus: "NOT_SENT",
+        error: "Missing 'add' field in shipment. Address key must be 'add', not 'address'",
+        deliveryStatus: "PENDING",
+        shipment_status: "PENDING",
+        isMock: false,
+      };
+    }
+    
+    // Build payload with proper structure
+    const payload = {
+      // Optional: Add client name if configured (helps with multi-client accounts)
+      ...(process.env.DELHIVERY_CLIENT_NAME ? { client: process.env.DELHIVERY_CLIENT_NAME } : {}),
+      // CRITICAL: pickup_location must be STRING, not object
+      pickup_location: pickupLocationName, // Must match dashboard exactly (case-sensitive)
+      shipments: [sanitizedShipment],
+    };
+
+    // CRITICAL: Validate JSON structure before stringifying to ensure proper format
+    // This ensures numeric values stay as numbers (not strings) in the final JSON
+    // Delhivery's Python backend expects numbers, not strings, for numeric fields
+    const payloadString = JSON.stringify(payload);
+    
+    // Verify the JSON string contains proper numeric values (not string numbers)
+    // This is a sanity check to ensure JSON.stringify preserved numbers correctly
+    try {
+      const parsed = JSON.parse(payloadString);
+      const firstShipment = parsed.shipments?.[0];
+      if (firstShipment) {
+        // Ensure critical numeric fields are actually numbers
+        const numericFields = ['weight', 'shipment_length', 'shipment_breadth', 'shipment_height', 'quantity'];
+        if (firstShipment.cod_amount !== undefined) numericFields.push('cod_amount');
+        
+        for (const field of numericFields) {
+          if (firstShipment[field] !== undefined && typeof firstShipment[field] !== 'number') {
+            console.warn(`⚠️ Warning: ${field} is not a number in payload:`, typeof firstShipment[field], firstShipment[field]);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("❌ Failed to validate JSON payload structure:", e);
+    }
+
+    // Debug log: Print the normalized payload being sent (without sensitive data)
+    console.log("📤 Delhivery API Payload (Normalized):", {
+      pickup_location: payload.pickup_location,
+      client: payload.client || "N/A (not configured)",
+      shipment_count: payload.shipments.length,
+      order_id: sanitizedShipment.order,
+      payment_mode: sanitizedShipment.payment_mode,
+      customer_pin: sanitizedShipment.pin,
+      cod_amount: sanitizedShipment.cod_amount !== undefined ? sanitizedShipment.cod_amount : undefined,
+      customer_name: sanitizedShipment.name,
+      customer_city: sanitizedShipment.city,
+      customer_state: sanitizedShipment.state,
+      address_length: sanitizedShipment.add?.length || 0,
+      address_preview: sanitizedShipment.add?.substring(0, 50) + (sanitizedShipment.add?.length > 50 ? "..." : "") || "N/A",
+      weight: sanitizedShipment.weight,
+      shipment_length: sanitizedShipment.shipment_length,
+      shipment_breadth: sanitizedShipment.shipment_breadth,
+      shipment_height: sanitizedShipment.shipment_height,
+      note: "Payload has been validated, normalized, and sanitized (null/undefined fields removed, pickup_location as string)",
+    });
+    
+    // Log full normalized shipment payload for debugging (safe - no sensitive payment data)
+    console.log("📋 Normalized Shipment Payload (Full):", JSON.stringify(sanitizedShipment, null, 2));
+    console.log("📋 Full Payload Structure:", JSON.stringify(payload, null, 2));
+
+    // Make API call to Delhivery (REAL API) with retry logic
+    // CRITICAL: Delhivery CMU API STRICTLY requires application/x-www-form-urlencoded with BOTH 'data' AND 'format' keys
+    // - format = "json" (STRING ONLY, must never contain JSON)
+    // - data = JSON.stringify(payload)
+    // Error "Unsupported format" occurs if format contains JSON instead of the string "json"
+    const apiUrl = `${API_BASE_URL}/api/cmu/create.json`;
+    
+    // Log request summary (safe, no secrets)
+    console.log("📦 Sending order to Delhivery (REAL API):", {
+      orderId: orderData.orderId,
+      apiUrl,
+      pickup_location: payload.pickup_location,
+      customer_pin: sanitizedShipment.pin,
+      paymentMode: sanitizedShipment.payment_mode,
+      customerName: sanitizedShipment.name,
+    });
+
+    // Prepare form-encoded body with BOTH 'data' AND 'format' keys
+    // CRITICAL: Delhivery CMU API requires:
+    // - format = "json" (STRING ONLY, not JSON)
+    // - data = JSON.stringify(payload) - use the validated payload string
+    // Error "Unsupported format" occurs if format contains JSON instead of "json" string
+    const formData = new URLSearchParams();
+    formData.append("format", "json"); // STRING "json", not JSON.stringify(payload)
+    formData.append("data", payloadString); // Use the validated JSON string
+    
+    // Debug log: Print form data entries to verify format="json" and data="<json string>"
+    console.log("📋 Delhivery form data entries:", [...formData.entries()]);
+
+    // Retry logic with exponential backoff
+    const maxRetries = 3;
+    const baseDelay = 2000; // 2 seconds
+    let lastError = null;
+    let lastResponse = null;
+    let lastResponseData = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        if (attempt > 1) {
+          const delay = baseDelay * Math.pow(2, attempt - 2); // Exponential backoff: 2s, 4s, 8s
+          console.log(`🔄 Retry attempt ${attempt}/${maxRetries} after ${delay}ms delay...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+
+        const response = await fetch(apiUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Authorization: `Token ${API_KEY}`,
+          },
+          body: formData.toString(),
+          // Add timeout to prevent hanging
+          signal: AbortSignal.timeout(30000), // 30 second timeout
+        });
+
+        lastResponse = response;
+        let responseData;
+        
+        try {
+          responseData = await response.json();
+          lastResponseData = responseData;
+        } catch (parseError) {
+          console.error("❌ Failed to parse Delhivery API response:", parseError);
+          const textResponse = await response.text();
+          console.error("Raw response:", textResponse);
+          
+          // If it's the last attempt, return error
+          if (attempt === maxRetries) {
+            return {
+              success: false,
+              error: "Invalid response from Delhivery API",
+              deliveryStatus: "PENDING",
+              shipment_status: "PENDING",
+              isMock: false,
+              rawResponse: textResponse,
+            };
+          }
+          // Otherwise, retry
+          lastError = parseError;
+          continue;
+        }
+
+        // Check if API call was successful (HTTP status)
+        if (!response.ok) {
+          const errorMessage = responseData?.error || responseData?.message || `API error: ${response.status}`;
+          
+          // Check if package was created despite error (half-success scenario)
+          const packages = responseData?.packages || responseData?.package || [];
+          const uploadWbn = responseData?.upload_wbn;
+          const packageCount = responseData?.package_count || packages?.length || 0;
+          const hasWaybill = packages?.[0]?.waybill;
+          
+          // If package was created (upload_wbn or package_count > 0), treat as success, don't retry
+          if (uploadWbn || (packageCount > 0 && hasWaybill)) {
+            console.log("⚠️ Delhivery returned error but package was created (half-success). Treating as success:", {
+              status: response.status,
+              error: errorMessage,
+              upload_wbn: uploadWbn || "N/A",
+              package_count: packageCount,
+              has_waybill: !!hasWaybill,
+            });
+            // Break out of retry loop - we'll handle this in response parsing
+            break;
+          }
+          
+          // Check for specific errors that shouldn't be retried
+          const errorMsgStr = typeof errorMessage === "string" ? errorMessage : String(errorMessage || "");
+          const isNonRetryableError = 
+            errorMsgStr.toLowerCase().includes("pickup location") ||
+            errorMsgStr.toLowerCase().includes("clientwarehouse matching query doesn't exist") ||
+            errorMsgStr.toLowerCase().includes("client name") ||
+            errorMsgStr.toLowerCase().includes("invalid") ||
+            response.status === 400; // Bad request - don't retry
+          
+          if (isNonRetryableError || attempt === maxRetries) {
+            // Don't retry for these errors or if last attempt
+            console.error("❌ Delhivery API error (non-retryable or last attempt):", {
+              status: response.status,
+              statusText: response.statusText,
+              error: errorMessage,
+              pickup_location_used: payload.pickup_location,
+              attempt,
+            });
+            
+            // Check if error is related to pickup location
+            if (errorMsgStr.toLowerCase().includes("pickup location") || 
+                errorMsgStr.toLowerCase().includes("clientwarehouse")) {
+              console.error("⚠️ Pickup location error detected. Verify DELHIVERY_PICKUP_NAME matches dashboard exactly:", {
+                configured_name: `"${pickupLocationName}"`,
+                expected_names: ["SOULSEAM C2C", "Soul seam 2"],
+                note: "Name must match exactly (case-sensitive, including spaces). pickup_location must be sent as STRING: 'Soul seam 2'",
+              });
+            }
+            
+            return {
+              success: false,
+              error: errorMessage,
+              deliveryStatus: "PENDING",
+              shipment_status: "PENDING",
+              isMock: false,
+              rawResponse: responseData,
+            };
+          }
+          
+          // Retry for other errors (only if no package was created)
+          console.warn(`⚠️ Delhivery API error (attempt ${attempt}/${maxRetries}), will retry:`, {
+            status: response.status,
+            error: errorMessage,
+            note: "No package created yet, retrying...",
+          });
+          lastError = new Error(errorMessage);
+          continue;
+        }
+
+        // Success - break out of retry loop
+        break;
+        
+      } catch (fetchError) {
+        lastError = fetchError;
+        
+        // Check if it's a timeout or network error (retryable)
+        const isRetryable = 
+          fetchError.name === "AbortError" ||
+          fetchError.name === "TimeoutError" ||
+          fetchError.message?.includes("network") ||
+          fetchError.message?.includes("timeout");
+        
+        if (!isRetryable || attempt === maxRetries) {
+          // Don't retry for non-retryable errors or if last attempt
+          console.error("❌ Delhivery API fetch error (non-retryable or last attempt):", fetchError);
+          return {
+            success: false,
+            error: fetchError.message || "Network error",
+            deliveryStatus: "PENDING",
+            shipment_status: "PENDING",
+            isMock: false,
+          };
+        }
+        
+        console.warn(`⚠️ Delhivery API fetch error (attempt ${attempt}/${maxRetries}), will retry:`, fetchError.message);
+      }
+    }
+
+    // If we get here, we either succeeded or exhausted retries
+    if (!lastResponse || !lastResponseData) {
+      return {
+        success: false,
+        error: lastError?.message || "Failed after retries",
+        deliveryStatus: "PENDING",
+        shipment_status: "PENDING",
+        isMock: false,
+      };
+    }
+
+    const response = lastResponse;
+    const responseData = lastResponseData;
+
+
+    // Parse Delhivery response
+    // Delhivery API returns: { packages: [{ waybill, ... }] } or { success: true, packages: [...] }
+    // IMPORTANT: Delhivery sometimes returns success=false but still creates package (half-success scenario)
+    // We should treat responses with upload_wbn OR package_count > 0 as SUCCESS
+    const packages = responseData?.packages || responseData?.package || [];
+    const uploadWbn = responseData?.upload_wbn;
+    const packageCount = responseData?.package_count || packages?.length || 0;
+    const hasWaybill = packages?.[0]?.waybill;
+    
+    // CRITICAL: Treat as SUCCESS if:
+    // 1. success === true AND waybill exists (normal success)
+    // 2. upload_wbn exists (package was created even if success=false)
+    // 3. package_count > 0 (packages were created even if success=false)
+    const isSuccess = 
+      (responseData?.success === true && hasWaybill) ||
+      (uploadWbn && uploadWbn.trim().length > 0) ||
+      (packageCount > 0 && hasWaybill);
+    
+    if (!isSuccess) {
+      // True failure case: No package created, no upload_wbn, no package_count
+      // FIX: Use responseData.rmk safely (only if it's a string)
+      const rmkValue = typeof responseData?.rmk === "string" ? responseData.rmk : (responseData?.rmk ? String(responseData.rmk) : "");
+      const errorMessage = responseData?.error || responseData?.message || rmkValue || "Delhivery order creation failed";
+      
+      console.error("❌ Delhivery response indicates failure (no package created):", {
+        success: responseData?.success,
+        error: errorMessage,
+        rmk: rmkValue || "N/A",
+        upload_wbn: uploadWbn || "N/A",
+        package_count: packageCount,
+        has_packages: !!packages,
+        pickup_location_used: pickupLocationName,
+        fullResponse: responseData,
+      });
+      
+      // Check if error mentions missing keys or unsupported format
+      // FIX: Only call toLowerCase() if values are strings
+      const errorMsgStr = typeof errorMessage === "string" ? errorMessage : String(errorMessage || "");
+      const rmkStr = typeof responseData?.rmk === "string" ? (responseData.rmk || "") : "";
+      const errorText = errorMsgStr + " " + rmkStr;
+      if (errorText.toLowerCase().includes("data key missing") || 
+          errorText.toLowerCase().includes("format key missing") ||
+          errorText.toLowerCase().includes("unsupported format")) {
+        console.error("⚠️ Delhivery key/format error detected. Verify payload is wrapped correctly:", {
+          pickup_location: pickupLocationName,
+          note: "Payload must be sent as form-urlencoded with format='json' (string) and data=JSON.stringify(payload)",
+        });
+      }
+      
+      return {
+        success: false,
+        error: errorMessage,
+        deliveryStatus: "PENDING",
+        shipment_status: "PENDING",
         isMock: false,
         rawResponse: responseData,
       };
     }
-
+    
+    // SUCCESS CASE: Package was created (even if success=false in response)
+    // This handles the half-success scenario where Delhivery creates package but returns success=false
+    if (uploadWbn && !hasWaybill) {
+      // If we have upload_wbn but no waybill in packages, use upload_wbn as waybill
+      console.log("⚠️ Delhivery returned upload_wbn but no waybill in packages. Using upload_wbn as waybill:", uploadWbn);
+      const waybill = String(uploadWbn).trim();
+      if (isValidWaybill(waybill)) {
+        const trackingUrl = `https://www.delhivery.com/track/${waybill}`;
+        console.log("✅ Delhivery order created successfully (using upload_wbn):", {
+          orderId: orderData.orderId,
+          waybill: waybill,
+          trackingUrl: trackingUrl,
+          note: "Delhivery returned success=false but created package (half-success scenario)",
+        });
+        return {
+          success: true,
+          waybill: waybill,
+          courier_name: "Delhivery",
+          delivery_status: "CREATED",
+          tracking_url: trackingUrl,
+          deliveryStatus: "SENT",
+          shipment_status: "SHIPPED",
+          isMock: false,
+          rawResponse: responseData,
+        };
+      }
+    }
+    
+    // Extract waybill from response (reached if package was created, even if success=false)
     const packageData = packages[0];
     const waybill = String(packageData.waybill || "").trim();
 
@@ -244,7 +1003,8 @@ export async function sendOrderToDelhivery(orderData) {
       return {
         success: false,
         error: `Invalid waybill format: ${waybill}`,
-        deliveryStatus: "NOT_SENT",
+        deliveryStatus: "PENDING",
+        shipment_status: "PENDING",
         isMock: false,
         rawResponse: responseData,
       };
@@ -253,13 +1013,31 @@ export async function sendOrderToDelhivery(orderData) {
     // Construct tracking URL
     const trackingUrl = `https://www.delhivery.com/track/${waybill}`;
 
-    console.log("✅ Delhivery order created successfully (REAL):", {
+    // Log success (even if Delhivery returned success=false but created package)
+    const wasHalfSuccess = responseData?.success === false && (uploadWbn || packageCount > 0);
+    console.log(`✅ Delhivery order created successfully (REAL${wasHalfSuccess ? " - half-success scenario" : ""}):`, {
       orderId: orderData.orderId,
       waybill: waybill,
       courierName: packageData.courier_name || "Delhivery",
       trackingUrl: trackingUrl,
+      delhiverySuccess: responseData?.success,
+      upload_wbn: uploadWbn || "N/A",
+      package_count: packageCount,
+      note: wasHalfSuccess ? "Delhivery returned success=false but created package. Treating as success." : "Normal success response",
     });
 
+    // Log response summary (safe, no secrets)
+    console.log("📋 Delhivery Response Summary:", {
+      success: true,
+      waybill: waybill,
+      hasWaybill: !!waybill,
+      packageCount: packages.length,
+      pickup_location_used: pickupLocationName,
+      order_id: orderData.orderId,
+      form_keys_used: ["data", "format"], // Confirms we used both 'data' and 'format' keys in request
+    });
+
+    // Success: Save waybill and set shipment_status = "SHIPPED"
     return {
       success: true,
       waybill: waybill,
@@ -267,6 +1045,7 @@ export async function sendOrderToDelhivery(orderData) {
       delivery_status: packageData.status || "CREATED",
       tracking_url: trackingUrl,
       deliveryStatus: "SENT",
+      shipment_status: "SHIPPED", // Set shipment_status to SHIPPED on success
       isMock: false,
       rawResponse: responseData,
     };
@@ -275,7 +1054,8 @@ export async function sendOrderToDelhivery(orderData) {
     return {
       success: false,
       error: error.message || "Unknown error",
-      deliveryStatus: "NOT_SENT",
+      deliveryStatus: "PENDING",
+      shipment_status: "PENDING",
       isMock: false,
     };
   }
@@ -296,7 +1076,7 @@ export async function trackShipment(waybill) {
       };
     }
 
-    const API_KEY = process.env.DELHIVERY_API_KEY;
+    const API_KEY = getDelhiveryApiKey();
     const API_BASE_URL = process.env.DELHIVERY_API_BASE_URL || "https://track.delhivery.com";
     const MOCK_MODE = process.env.DELHIVERY_MOCK === "true";
 
@@ -313,7 +1093,7 @@ export async function trackShipment(waybill) {
     if (!API_KEY) {
       return {
         success: false,
-        error: "DELHIVERY_API_KEY not configured",
+        error: "DELHIVERY_API_KEY or DELHIVERY_API_TOKEN not configured",
       };
     }
 

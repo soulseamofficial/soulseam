@@ -354,6 +354,7 @@ export async function POST(req) {
             // Standardized delivery fields
             updateData.delivery_provider = "DELHIVERY";
             updateData.delivery_status = delhiveryResponse.delivery_status || "CREATED";
+            updateData.shipment_status = delhiveryResponse.shipment_status || "SHIPPED"; // Set to SHIPPED on success
             
             // Legacy fields for backward compatibility
             updateData.delhiveryAWB = delhiveryResponse.waybill;
@@ -371,16 +372,19 @@ export async function POST(req) {
               isMock: delhiveryResponse.isMock || false,
             });
           } else {
-            // Failure: Mark as NOT_SENT but keep order as CONFIRMED
+            // Failure: Mark as PENDING but keep order as CONFIRMED (order doesn't fail)
             updateData.delhiverySent = false;
             updateData.delhiveryError = delhiveryResponse?.error || "Unknown error";
-            updateData.delhiveryDeliveryStatus = "NOT_SENT";
+            updateData.delhiveryDeliveryStatus = "PENDING";
             updateData.delivery_provider = "DELHIVERY"; // Still mark provider even on failure
-            updateData.delivery_status = "NOT_SENT";
+            updateData.delivery_status = "PENDING";
+            updateData.shipment_status = delhiveryResponse?.shipment_status || "PENDING"; // Set to PENDING on failure
             
-            console.error("❌ Failed to send order to Delhivery (order still confirmed):", {
+            // Log full Delhivery response for debugging
+            console.error("❌ Failed to send order to Delhivery (order still confirmed, status: PENDING):", {
               orderId: order._id,
               error: updateData.delhiveryError,
+              delhiveryResponse: delhiveryResponse?.rawResponse || delhiveryResponse,
             });
           }
 
@@ -391,14 +395,15 @@ export async function POST(req) {
         // Log error but don't fail the order creation
         console.error("❌ Delhivery creation error (non-blocking):", delhiveryError);
         
-        // Mark order as NOT_SENT
+        // Mark order as PENDING (order doesn't fail, shipment status is PENDING)
         await Order.findByIdAndUpdate(order._id, {
           $set: {
             delhiverySent: false,
             delhiveryError: delhiveryError.message || "Unknown error",
-            delhiveryDeliveryStatus: "NOT_SENT",
+            delhiveryDeliveryStatus: "PENDING",
             delivery_provider: "DELHIVERY",
-            delivery_status: "NOT_SENT",
+            delivery_status: "PENDING",
+            shipment_status: "PENDING", // Set shipment_status to PENDING on error
           },
         });
       }

@@ -4,6 +4,7 @@ import { useRef, useState, useEffect } from "react";
 import { useCart } from "../CartContext";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import MobileCheckoutHeader from "../components/MobileCheckoutHeader";
 
 // CONSTANTS (unchanged)
 const premiumCardClass = `
@@ -22,7 +23,7 @@ const pageCenterClass =
   "w-full min-h-screen flex flex-col items-center justify-center bg-black/95 py-32 px-5 sm:px-10";
 
 const mainPageClass =
-  "min-h-screen w-full bg-black flex flex-col py-6 px-1 sm:px-3 justify-between";
+  "min-h-screen w-full bg-black flex flex-col pt-16 md:pt-6 pb-6 px-1 sm:px-3 justify-between";
 const mainLayoutClass =
   "max-w-[1200px] w-full mx-auto flex flex-col md:flex-row items-start justify-between gap-9 md:gap-7";
 const leftFormSectionClass = premiumCardClass;
@@ -223,18 +224,26 @@ function CouponInput({
         type="submit"
         disabled={appliedCoupon}
         className={`
-          relative px-5 py-2 sm:py-2.5 rounded-full font-black text-black bg-gradient-to-r from-white to-zinc-200
+          relative px-5 py-2 rounded-full font-black text-black bg-gradient-to-r from-white to-zinc-200
           shadow-[0_10px_32px_rgba(255,255,255,0.12)]
           overflow-hidden group transition-all duration-600 ease-out
           focus:ring-2 focus:ring-white/30 focus:scale-98
           disabled:opacity-40 disabled:cursor-not-allowed
+          flex-shrink-0 self-center
         `}
+        style={{
+          height: 'fit-content',
+          minHeight: '42px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
       >
-        <span className="relative z-10 transition-all duration-600 ease-out group-hover:text-white">
+        <span className="relative z-20 transition-all duration-600 ease-out group-hover:text-white">
           Apply
         </span>
-        <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-600 ease-out">
-          <span className="absolute bottom-0 left-0 w-full h-full bg-black/85 transition-all duration-600 ease-out" style={{transform: 'translateY(100%)'}}></span>
+        <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-600 ease-out z-10">
+          <span className="absolute inset-0 w-full h-full bg-black/85 transition-all duration-600 ease-out"></span>
         </span>
       </button>
       {showCouponSuccess && (
@@ -594,6 +603,7 @@ const discount = 0;
 export default function CheckoutPage() {
   // All code here is unchanged except discount definition added above and error fixes below.
   const { cartItems, clearCart } = useCart();
+  const router = useRouter();
 
   // Steps and form (unchanged)
   const [step, setStep] = useState(1); // 1 = Info, 2 = Shipping, 3 = Payment
@@ -624,6 +634,7 @@ export default function CheckoutPage() {
     pin: "",
     phone: "",
     country: "India",
+    createAccount: false,
   });
   const [formErrors, setFormErrors] = useState({});
   const [touched, setTouched] = useState({});
@@ -1291,9 +1302,33 @@ export default function CheckoutPage() {
     );
   }
 
+  // Handle back navigation based on current step
+  const handleBack = () => {
+    if (step === 3) {
+      // Payment → Shipping
+      setStep(2);
+    } else if (step === 2) {
+      // Shipping → Information
+      setStep(1);
+    } else if (step === 1) {
+      // Information → Cart
+      router.push("/cart");
+    }
+  };
+
+  // Get current step name for MobileCheckoutHeader
+  const getCurrentStepName = () => {
+    if (step === 1) return 'information';
+    if (step === 2) return 'shipping';
+    if (step === 3) return 'payment';
+    return 'information';
+  };
+
   // ---- Main Page ----
   return (
     <>
+      {/* Mobile: Fixed Back button at top-left */}
+      <MobileCheckoutHeader currentStep={getCurrentStepName()} onBack={handleBack} />
       <div
         className={`${mainPageClass} animate-reveal`}
         style={{
@@ -1327,7 +1362,7 @@ export default function CheckoutPage() {
             >
               {/* --- STEP 1 --- */}
               {step === 1 && (
-                <div className="premium-step-animate animate-reveal">
+                <div className="premium-step-animate animate-reveal pt-16 md:pt-0">
                   <h2 className="mb-5 text-xl font-bold uppercase tracking-wide text-white/93">
                     Information
                   </h2>
@@ -1625,38 +1660,68 @@ export default function CheckoutPage() {
                       </div>
                     )}
                   </div>
-                  <button
-                    type="submit"
-                    className={`
-                      mt-8 mb-3 sm:mb-2 relative py-3.5 px-8 rounded-full font-extrabold text-black bg-gradient-to-r from-white to-zinc-200
-                      shadow-[0_10px_34px_rgba(255,255,255,0.17)]
-                      overflow-hidden group transition-all duration-600 ease-out
-                      tracking-widest text-[1.15rem] select-none
-                      disabled:opacity-38 disabled:cursor-not-allowed
-                      ${!canContinueToShipping ? "opacity-38 cursor-not-allowed pointer-events-none" : ""}
-                    `}
-                    style={{
-                      fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
-                    }}
-                    disabled={!canContinueToShipping}
-                  >
-                    <span className="relative z-10 flex items-center transition-all duration-600 ease-out group-hover:text-white">
-                      Continue to Shipping
-                      <span className="ml-2 opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-600 ease-out">
-                        <svg width="18" height="18" fill="none" className="inline" viewBox="0 0 24 24">
-                          <path d="M12 5l7 7-7 7M19 12H5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <div className="flex items-center gap-4 mt-8 md:mt-8">
+                    {/* Desktop: Back button */}
+                    <button
+                      type="button"
+                      onClick={() => router.push("/cart")}
+                      className="hidden md:flex group relative px-6 py-3 rounded-full bg-gradient-to-b from-[#1a1a1a] to-[#0a0a0a] border border-white/15 text-white/90 font-semibold tracking-wide overflow-hidden transition-all duration-300 ease-in-out cursor-pointer hover:border-white/30 hover:text-white active:scale-[0.97]"
+                      style={{
+                        fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.1)'
+                      }}
+                    >
+                      <span className="relative z-10 flex items-center transition-all duration-300 ease-in-out">
+                        <svg width="16" height="16" fill="none" className="mr-2" viewBox="0 0 24 24">
+                          <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
+                        Back
                       </span>
-                    </span>
-                    <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-600 ease-out">
-                      <span className="absolute bottom-0 left-0 w-full h-full bg-black/90 transition-all duration-600 ease-out" style={{transform: 'translateY(100%)'}}></span>
-                    </span>
-                  </button>
+                      <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out">
+                        <span className="absolute inset-0 bg-gradient-to-b from-white/5 via-transparent to-transparent rounded-full"></span>
+                      </span>
+                    </button>
+                    <button
+                      type="submit"
+                      className={`
+                        flex-1 relative py-3.5 px-8 rounded-full font-extrabold text-black bg-gradient-to-r from-white to-zinc-200
+                        shadow-[0_10px_34px_rgba(255,255,255,0.17)]
+                        overflow-hidden group transition-all duration-300 ease-in-out cursor-pointer
+                        tracking-widest text-[1.15rem] select-none
+                        disabled:opacity-38 disabled:cursor-not-allowed
+                        ${!canContinueToShipping ? "opacity-38 cursor-not-allowed pointer-events-none" : ""}
+                      `}
+                      style={{
+                        fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
+                      }}
+                      disabled={!canContinueToShipping}
+                    >
+                      <span className="relative z-10 flex items-center transition-all duration-300 ease-in-out group-hover:text-white">
+                        Continue to Shipping
+                        <span className="ml-2 opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300 ease-in-out">
+                          <svg width="18" height="18" fill="none" className="inline" viewBox="0 0 24 24">
+                            <path d="M12 5l7 7-7 7M19 12H5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </span>
+                      </span>
+                      {/* Premium dark glass hover overlay */}
+                      <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out">
+                        {/* Dark gradient background (charcoal → black) */}
+                        <span className="absolute inset-0 bg-gradient-to-b from-[#2a2a2a] via-[#1a1a1a] to-[#0a0a0a] rounded-full"></span>
+                        {/* Inner highlight (top) */}
+                        <span className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-transparent rounded-full"></span>
+                        {/* Outer glow */}
+                        <span className="absolute inset-0 rounded-full" style={{
+                          boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.15), 0 0 20px rgba(0,0,0,0.6), 0 0 40px rgba(0,0,0,0.4)'
+                        }}></span>
+                      </span>
+                    </button>
+                  </div>
                 </div>
               )}
               {/* --- STEP 2 (Shipping) --- */}
               {step === 2 && (
-                <div className="premium-step-animate animate-reveal">
+                <div className="premium-step-animate animate-reveal pt-16 md:pt-0">
                   <h2 className="mb-5 text-xl font-bold uppercase tracking-wide text-white/93">
                     Shipping
                   </h2>
@@ -1672,9 +1737,22 @@ export default function CheckoutPage() {
                         <button
                           type="button"
                           onClick={() => setShowAddAddress((v) => !v)}
-                          className="px-4 py-2 rounded-full bg-white text-black font-extrabold text-xs tracking-widest"
+                          className="group relative px-4 py-2 rounded-full bg-white text-black font-extrabold text-xs tracking-widest overflow-hidden transition-all duration-300 ease-in-out cursor-pointer"
                         >
-                          {showAddAddress ? "Cancel" : "Add New Address"}
+                          <span className="relative z-10 transition-colors duration-300 ease-in-out group-hover:text-white">
+                            {showAddAddress ? "Cancel" : "Add New Address"}
+                          </span>
+                          {/* Premium dark glass hover overlay */}
+                          <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out">
+                            {/* Dark gradient background (charcoal → black) */}
+                            <span className="absolute inset-0 bg-gradient-to-b from-[#2a2a2a] via-[#1a1a1a] to-[#0a0a0a] rounded-full"></span>
+                            {/* Inner highlight (top) */}
+                            <span className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-transparent rounded-full"></span>
+                            {/* Outer glow */}
+                            <span className="absolute inset-0 rounded-full" style={{
+                              boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.15), 0 0 20px rgba(0,0,0,0.6), 0 0 40px rgba(0,0,0,0.4)'
+                            }}></span>
+                          </span>
                         </button>
                       </div>
 
@@ -1793,9 +1871,22 @@ export default function CheckoutPage() {
                           <button
                             type="button"
                             onClick={saveNewAddressToUser}
-                            className="px-5 py-2 rounded-full bg-white text-black font-extrabold tracking-widest text-xs"
+                            className="group relative px-5 py-2 rounded-full bg-white text-black font-extrabold tracking-widest text-xs overflow-hidden transition-all duration-300 ease-in-out cursor-pointer"
                           >
-                            Save Address
+                            <span className="relative z-10 transition-colors duration-300 ease-in-out group-hover:text-white">
+                              Save Address
+                            </span>
+                            {/* Premium dark glass hover overlay */}
+                            <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out">
+                              {/* Dark gradient background (charcoal → black) */}
+                              <span className="absolute inset-0 bg-gradient-to-b from-[#2a2a2a] via-[#1a1a1a] to-[#0a0a0a] rounded-full"></span>
+                              {/* Inner highlight (top) */}
+                              <span className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-transparent rounded-full"></span>
+                              {/* Outer glow */}
+                              <span className="absolute inset-0 rounded-full" style={{
+                                boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.15), 0 0 20px rgba(0,0,0,0.6), 0 0 40px rgba(0,0,0,0.4)'
+                              }}></span>
+                            </span>
                           </button>
                         </div>
                       )}
@@ -1866,70 +1957,100 @@ export default function CheckoutPage() {
                       </>
                     )}
                   </div>
-                  <button
-                    type="button"
-                    className={`
-                      relative py-3.5 px-8 rounded-full font-black text-black bg-gradient-to-r from-white to-zinc-200
-                      shadow-[0_10px_32px_rgba(255,255,255,0.13)]
-                      overflow-hidden group transition-all duration-600 ease-out
-                      tracking-widest text-[1.15rem] select-none
-                      disabled:opacity-34 disabled:cursor-not-allowed
-                      ${itemsWithFinalPrice.length === 0 ? "opacity-34 cursor-not-allowed pointer-events-none" : ""}
-                    `}
-                    onClick={async () => {
-                      if (itemsWithFinalPrice.length === 0) return;
-                      // Build shipping snapshot: logged-in uses selected saved address; guest uses form.
-                      let snapshot = null;
-                      if (authUser) {
-                        const sel = savedAddresses.find((a) => a._id === selectedAddressId) || savedAddresses[0];
-                        if (sel) {
+                  <div className="flex items-center gap-4 mt-8 md:mt-8">
+                    {/* Desktop: Back button */}
+                    <button
+                      type="button"
+                      onClick={() => setStep(1)}
+                      className="hidden md:flex group relative px-6 py-3 rounded-full bg-gradient-to-b from-[#1a1a1a] to-[#0a0a0a] border border-white/15 text-white/90 font-semibold tracking-wide overflow-hidden transition-all duration-300 ease-in-out cursor-pointer hover:border-white/30 hover:text-white active:scale-[0.97]"
+                      style={{
+                        fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.1)'
+                      }}
+                    >
+                      <span className="relative z-10 flex items-center transition-all duration-300 ease-in-out">
+                        <svg width="16" height="16" fill="none" className="mr-2" viewBox="0 0 24 24">
+                          <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                        Back
+                      </span>
+                      <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out">
+                        <span className="absolute inset-0 bg-gradient-to-b from-white/5 via-transparent to-transparent rounded-full"></span>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`
+                        flex-1 relative py-3.5 px-8 rounded-full font-black text-black bg-gradient-to-r from-white to-zinc-200
+                        shadow-[0_10px_32px_rgba(255,255,255,0.13)]
+                        overflow-hidden group transition-all duration-300 ease-in-out cursor-pointer
+                        tracking-widest text-[1.15rem] select-none
+                        disabled:opacity-34 disabled:cursor-not-allowed
+                        ${itemsWithFinalPrice.length === 0 ? "opacity-34 cursor-not-allowed pointer-events-none" : ""}
+                      `}
+                      onClick={async () => {
+                        if (itemsWithFinalPrice.length === 0) return;
+                        // Build shipping snapshot: logged-in uses selected saved address; guest uses form.
+                        let snapshot = null;
+                        if (authUser) {
+                          const sel = savedAddresses.find((a) => a._id === selectedAddressId) || savedAddresses[0];
+                          if (sel) {
+                            snapshot = {
+                              fullName: sel.fullName,
+                              phone: sel.phone,
+                              addressLine1: sel.addressLine1,
+                              addressLine2: sel.addressLine2 || "",
+                              city: sel.city,
+                              state: sel.state,
+                              pincode: sel.pincode,
+                              country: sel.country || "India",
+                            };
+                          }
+                        } else {
                           snapshot = {
-                            fullName: sel.fullName,
-                            phone: sel.phone,
-                            addressLine1: sel.addressLine1,
-                            addressLine2: sel.addressLine2 || "",
-                            city: sel.city,
-                            state: sel.state,
-                            pincode: sel.pincode,
-                            country: sel.country || "India",
+                            fullName: [form.firstName, form.lastName].filter(Boolean).join(" "),
+                            phone: form.phone,
+                            addressLine1: form.address,
+                            addressLine2: form.apt,
+                            city: form.city,
+                            state: form.state,
+                            pincode: form.pin,
+                            country: form.country,
                           };
                         }
-                      } else {
-                        snapshot = {
-                          fullName: [form.firstName, form.lastName].filter(Boolean).join(" "),
-                          phone: form.phone,
-                          addressLine1: form.address,
-                          addressLine2: form.apt,
-                          city: form.city,
-                          state: form.state,
-                          pincode: form.pin,
-                          country: form.country,
-                        };
+                        if (snapshot) {
+                          await upsertGuestUser(snapshot);
+                        }
+                        setStep(3);
+                      }}
+                      style={{
+                        fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
+                      }}
+                      disabled={
+                        itemsWithFinalPrice.length === 0
                       }
-                      if (snapshot) {
-                        await upsertGuestUser(snapshot);
-                      }
-                      setStep(3);
-                    }}
-                    style={{
-                      fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
-                    }}
-                    disabled={
-                      itemsWithFinalPrice.length === 0
-                    }
-                  >
-                    <span className="relative z-10 flex items-center transition-all duration-600 ease-out group-hover:text-white">
-                      Continue to Payment
-                      <span className="ml-2 opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-600 ease-out">
-                        <svg width="18" height="18" fill="none" className="inline" viewBox="0 0 24 24">
-                          <path d="M12 5l7 7-7 7M19 12H5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
+                    >
+                      <span className="relative z-10 flex items-center transition-all duration-300 ease-in-out group-hover:text-white">
+                        Continue to Payment
+                        <span className="ml-2 opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300 ease-in-out">
+                          <svg width="18" height="18" fill="none" className="inline" viewBox="0 0 24 24">
+                            <path d="M12 5l7 7-7 7M19 12H5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </span>
                       </span>
-                    </span>
-                    <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-600 ease-out">
-                      <span className="absolute bottom-0 left-0 w-full h-full bg-black/90 transition-all duration-600 ease-out" style={{transform: 'translateY(100%)'}}></span>
-                    </span>
-                  </button>
+                      {/* Premium dark glass hover overlay */}
+                      <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out">
+                        {/* Dark gradient background (charcoal → black) */}
+                        <span className="absolute inset-0 bg-gradient-to-b from-[#2a2a2a] via-[#1a1a1a] to-[#0a0a0a] rounded-full"></span>
+                        {/* Inner highlight (top) */}
+                        <span className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-transparent rounded-full"></span>
+                        {/* Outer glow */}
+                        <span className="absolute inset-0 rounded-full" style={{
+                          boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.15), 0 0 20px rgba(0,0,0,0.6), 0 0 40px rgba(0,0,0,0.4)'
+                        }}></span>
+                      </span>
+                    </button>
+                  </div>
                   {deliveryCreationError && (
                     <div className="mt-5 text-rose-400/90 font-bold bg-rose-900/10 rounded-lg py-2 px-4 border border-rose-400/45">{deliveryCreationError}</div>
                   )}
@@ -1937,7 +2058,7 @@ export default function CheckoutPage() {
               )}
               {/* --- STEP 3 (Payment) --- */}
               {step === 3 && (
-                <div className="premium-step-animate animate-reveal">
+                <div className="premium-step-animate animate-reveal pt-16 md:pt-0">
                   <h2 className="mb-7 text-xl font-bold uppercase tracking-wide text-white/93">
                     Payment
                   </h2>
@@ -1968,14 +2089,36 @@ export default function CheckoutPage() {
                       />
                     </div>
                   </div>
-                  <div className="flex flex-col gap-7 sm:gap-6">
+                  {/* Desktop: Back button */}
+                  <div className="hidden md:block mb-6">
+                    <button
+                      type="button"
+                      onClick={() => setStep(2)}
+                      className="group relative px-6 py-3 rounded-full bg-gradient-to-b from-[#1a1a1a] to-[#0a0a0a] border border-white/15 text-white/90 font-semibold tracking-wide overflow-hidden transition-all duration-300 ease-in-out cursor-pointer hover:border-white/30 hover:text-white active:scale-[0.97]"
+                      style={{
+                        fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.1)'
+                      }}
+                    >
+                      <span className="relative z-10 flex items-center transition-all duration-300 ease-in-out">
+                        <svg width="16" height="16" fill="none" className="mr-2" viewBox="0 0 24 24">
+                          <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                        Back
+                      </span>
+                      <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out">
+                        <span className="absolute inset-0 bg-gradient-to-b from-white/5 via-transparent to-transparent rounded-full"></span>
+                      </span>
+                    </button>
+                  </div>
+                  <div className="flex flex-col gap-7 sm:gap-6 md:gap-6">
                     <button
                       ref={paymentButtonRef}
                       type="button"
                       className={`
                         relative py-4 px-8 mt-2 rounded-full font-extrabold text-black bg-gradient-to-r from-white to-zinc-200
                         shadow-[0_10px_32px_rgba(255,255,255,0.13)]
-                        overflow-hidden group transition-all duration-600 ease-out
+                        overflow-hidden group transition-all duration-300 ease-in-out cursor-pointer
                         tracking-wider text-[1.35rem] select-none
                         ${paymentMethod !== "online" || razorpayLoading || itemsWithFinalPrice.length === 0 ? "opacity-36 pointer-events-none cursor-not-allowed" : ""}
                       `}
@@ -1987,22 +2130,30 @@ export default function CheckoutPage() {
                       onClick={handlePayment}
                       disabled={paymentMethod !== "online" || razorpayLoading || itemsWithFinalPrice.length === 0}
                     >
-                      <span className="relative z-10 flex items-center transition-all duration-600 ease-out group-hover:text-white">
-                        Pay&nbsp;
-                        <span className="font-extrabold underline underline-offset-4 bg-gradient-to-r from-white/97 via-white to-zinc-300 bg-clip-text text-transparent text-[1.33em] drop-shadow-[0_0_11px_rgba(255,255,255,0.20)] select-none">
+                      <span className="relative z-10 flex items-center transition-all duration-300 ease-in-out group-hover:text-white">
+                        <span className="text-black group-hover:text-white transition-colors duration-300 ease-in-out">Pay&nbsp;</span>
+                        <span className="font-extrabold underline underline-offset-4 text-black group-hover:text-white text-[1.33em] select-none transition-colors duration-300 ease-in-out">
                           ₹{total.toLocaleString()}
                         </span>
-                        <span className="ml-2 opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-600 ease-out">
+                        <span className="ml-2 opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300 ease-in-out relative z-10">
                           <svg width="18" height="18" fill="none" className="inline" viewBox="0 0 24 24">
                             <path d="M12 5l7 7-7 7M19 12H5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                           </svg>
                         </span>
                         {razorpayLoading &&
-                          <span className="ml-3 text-xs font-normal text-white/60 animate-premiumPulse align-super select-none font-semibold">(processing…)</span>
+                          <span className="ml-3 text-xs font-normal text-white/60 animate-premiumPulse align-super select-none font-semibold relative z-10">(processing…)</span>
                         }
                       </span>
-                      <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-600 ease-out">
-                        <span className="absolute bottom-0 left-0 w-full h-full bg-black/90 transition-all duration-600 ease-out" style={{transform: 'translateY(100%)'}}></span>
+                      {/* Premium dark glass hover overlay */}
+                      <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out">
+                        {/* Dark gradient background (charcoal → black) */}
+                        <span className="absolute inset-0 bg-gradient-to-b from-[#2a2a2a] via-[#1a1a1a] to-[#0a0a0a] rounded-full"></span>
+                        {/* Inner highlight (top) */}
+                        <span className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-transparent rounded-full"></span>
+                        {/* Outer glow */}
+                        <span className="absolute inset-0 rounded-full" style={{
+                          boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.15), 0 0 20px rgba(0,0,0,0.6), 0 0 40px rgba(0,0,0,0.4)'
+                        }}></span>
                       </span>
                     </button>
                     <button
@@ -2010,8 +2161,8 @@ export default function CheckoutPage() {
                       className={`
                         relative py-4 px-8 mt-2 rounded-full font-extrabold text-black bg-gradient-to-r from-white to-zinc-200
                         shadow-[0_12px_32px_rgba(255,255,255,0.13)]
-                        overflow-hidden group transition-all duration-600 ease-out
-                        tracking-wider text-[1.17rem] select-none
+                        overflow-hidden group transition-all duration-300 ease-in-out
+                        tracking-wider text-[1.17rem] select-none cursor-pointer
                         ${paymentMethod !== "cod" || itemsWithFinalPrice.length === 0 ? "opacity-36 pointer-events-none cursor-not-allowed" : ""}
                       `}
                       style={{
@@ -2021,16 +2172,24 @@ export default function CheckoutPage() {
                       onClick={handleCOD}
                       disabled={paymentMethod !== "cod" || itemsWithFinalPrice.length === 0}
                     >
-                      <span className="relative z-10 flex items-center transition-all duration-600 ease-out group-hover:text-white">
+                      <span className="relative z-10 flex items-center transition-all duration-300 ease-in-out group-hover:text-white">
                         Place Order&nbsp;(Cash on Delivery)
-                        <span className="ml-2 opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-600 ease-out">
+                        <span className="ml-2 opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300 ease-in-out relative z-10">
                           <svg width="18" height="18" fill="none" className="inline" viewBox="0 0 24 24">
                             <path d="M12 5l7 7-7 7M19 12H5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                           </svg>
                         </span>
                       </span>
-                      <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-600 ease-out">
-                        <span className="absolute bottom-0 left-0 w-full h-full bg-black/90 transition-all duration-600 ease-out" style={{transform: 'translateY(100%)'}}></span>
+                      {/* Premium dark glass hover overlay */}
+                      <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out">
+                        {/* Dark gradient background (charcoal → black) */}
+                        <span className="absolute inset-0 bg-gradient-to-b from-[#2a2a2a] via-[#1a1a1a] to-[#0a0a0a] rounded-full"></span>
+                        {/* Inner highlight (top) */}
+                        <span className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-transparent rounded-full"></span>
+                        {/* Outer glow */}
+                        <span className="absolute inset-0 rounded-full" style={{
+                          boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.15), 0 0 20px rgba(0,0,0,0.6), 0 0 40px rgba(0,0,0,0.4)'
+                        }}></span>
                       </span>
                     </button>
                   </div>
