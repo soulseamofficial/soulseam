@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/app/lib/db";
 import Coupon from "@/app/models/coupon";
+import { getAuthUserFromCookies } from "@/app/lib/auth";
+import User from "@/app/models/User";
 
 export async function POST(req) {
   try {
@@ -71,6 +73,44 @@ export async function POST(req) {
         },
         { status: 400 }
       );
+    }
+
+    // 5. Special handling for first-order coupon
+    if (coupon.isFirstOrderCoupon === true) {
+      // Check authentication
+      const authed = await getAuthUserFromCookies();
+      if (!authed) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: "Please login to use this first-order coupon" 
+          },
+          { status: 401 }
+        );
+      }
+
+      // Check if user is eligible (first order and coupon not used)
+      const user = await User.findById(authed._id);
+      if (!user) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: "User not found" 
+          },
+          { status: 404 }
+        );
+      }
+
+      // Check orderCount === 0 and firstOrderCouponUsed === false
+      if (user.orderCount !== 0 || user.firstOrderCouponUsed === true) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: "This coupon is only valid for first order" 
+          },
+          { status: 400 }
+        );
+      }
     }
 
     // Calculate discount

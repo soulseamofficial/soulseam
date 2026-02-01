@@ -184,87 +184,106 @@ function CheckoutProductCard({ item }) {
   );
 }
 
-// --- Coupon Input ---
-const couponInputFormClass = `flex items-center gap-2 mt-4 relative group`;
-
-function CouponInput({
-  couponCode,
-  setCouponCode,
-  applyCoupon,
+// --- Coupon Dropdown ---
+function CouponDropdown({
+  activeCoupons,
   appliedCoupon,
-  showCouponSuccess,
+  appliedCouponCode,
+  couponDiscount,
   couponError,
-  onCouponCodeChange
+  onCouponSelect,
+  onRemoveCoupon,
+  loading
 }) {
+  const formatCouponOption = (coupon) => {
+    const benefit = coupon.discountType === "flat"
+      ? `Save ₹${coupon.discountValue}`
+      : `Get ${coupon.discountValue}% off`;
+    return `${coupon.code} — ${benefit}`;
+  };
+
+  if (activeCoupons.length === 0 && !appliedCoupon) {
+    return (
+      <div className="mt-4">
+        <p className="text-white/60 text-sm font-medium">
+          No offers available right now
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="mt-4">
-      <form
-        onSubmit={applyCoupon}
-        autoComplete="off"
-        className={couponInputFormClass}
-      >
-        <input
-          type="text"
-          name="coupon"
-          value={couponCode}
-          disabled={appliedCoupon}
-          onChange={e => {
-            setCouponCode(e.target.value);
-            if (onCouponCodeChange) {
-              onCouponCodeChange();
-            }
-          }}
-          className={`
-            flex-1 rounded-2xl px-4 py-2 bg-black/85 border border-white/15 text-white
-            font-semibold placeholder:text-white/35 outline-none ring-0
-            transition-all duration-600 ease-out
-            focus:ring-2 focus:ring-white/20 focus:border-white/40 focus:bg-black/80
-            hover:border-white/25
-            ${appliedCoupon ? "opacity-60 cursor-not-allowed" : ""}
-            ${couponError ? "border-red-400/50 focus:border-red-400/70" : ""}
-          `}
-          placeholder="Gift card or discount code"
-          autoComplete="off"
-          style={{
-            fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
-          }}
-        />
-        <button
-          type="submit"
-          disabled={appliedCoupon}
-          className={`
-            relative px-5 py-2 rounded-full font-black text-black bg-gradient-to-r from-white to-zinc-200
-            shadow-[0_10px_32px_rgba(255,255,255,0.12)]
-            overflow-hidden group transition-all duration-600 ease-out
-            focus:ring-2 focus:ring-white/30 focus:scale-98
-            disabled:opacity-40 disabled:cursor-not-allowed
-            flex-shrink-0 self-center
-          `}
-          style={{
-            height: 'fit-content',
-            minHeight: '42px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-        >
-          <span className="relative z-20 transition-all duration-600 ease-out group-hover:text-white">
-            Apply
-          </span>
-          <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-600 ease-out z-10">
-            <span className="absolute inset-0 w-full h-full bg-black/85 transition-all duration-600 ease-out"></span>
-          </span>
-        </button>
-        {showCouponSuccess && (
-          <span className="ml-3 text-[1rem] font-bold text-green-300 animate-premiumPulse select-none">
-            Coupon applied!
-          </span>
-        )}
-      </form>
-      {couponError && !showCouponSuccess && (
-        <span className="mt-2 block text-sm font-semibold text-red-400 animate-premiumPulse">
-          {couponError}
-        </span>
+      {appliedCoupon && appliedCouponCode && (
+        <div className="mb-3 space-y-2">
+          <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-green-500/10 border border-green-400/30">
+            <div className="flex items-center gap-2">
+              <span className="text-green-300/90 text-sm font-bold">✔</span>
+              <span className="text-green-300/90 text-sm font-semibold">
+                Coupon Applied: <span className="font-bold">{appliedCouponCode}</span>
+              </span>
+            </div>
+            {onRemoveCoupon && (
+              <button
+                type="button"
+                onClick={onRemoveCoupon}
+                className="px-3 py-1.5 text-xs font-bold text-blue-300 hover:text-blue-200 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-400/30 hover:border-blue-400/50 rounded-lg transition-all duration-300"
+              >
+                Change Coupon
+              </button>
+            )}
+          </div>
+          {couponDiscount > 0 && (
+            <div className="p-3 rounded-xl bg-green-500/5 border border-green-400/20">
+              <p className="text-green-300/95 text-sm font-bold">
+                You saved ₹{couponDiscount.toLocaleString()} 🎉
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {!appliedCoupon && (
+        <div className="relative">
+          <label className="block text-sm font-semibold text-white/90 mb-2">
+            Apply Coupon
+          </label>
+          <select
+            value=""
+            onChange={(e) => {
+              if (e.target.value && onCouponSelect) {
+                onCouponSelect(e.target.value);
+              }
+            }}
+            disabled={appliedCoupon || loading}
+            className={`
+              w-full rounded-2xl px-4 py-2.5 bg-black/85 border border-white/15 text-white
+              font-semibold outline-none ring-0
+              transition-all duration-600 ease-out
+              focus:ring-2 focus:ring-white/20 focus:border-white/40 focus:bg-black/80
+              hover:border-white/25
+              ${appliedCoupon || loading ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}
+              ${couponError ? "border-red-400/50 focus:border-red-400/70" : ""}
+            `}
+            style={{
+              fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
+            }}
+          >
+            <option value="" disabled>
+              Select an available offer
+            </option>
+            {activeCoupons.map((coupon) => (
+              <option key={coupon.code} value={coupon.code}>
+                {formatCouponOption(coupon)}
+              </option>
+            ))}
+          </select>
+          {couponError && (
+            <span className="mt-2 block text-sm font-semibold text-red-400 animate-premiumPulse">
+              {couponError}
+            </span>
+          )}
+        </div>
       )}
     </div>
   );
@@ -659,6 +678,9 @@ export default function CheckoutPage() {
   const [couponError, setCouponError] = useState("");
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [appliedCouponCode, setAppliedCouponCode] = useState("");
+  const [firstOrderCoupon, setFirstOrderCoupon] = useState(null);
+  const [activeCoupons, setActiveCoupons] = useState([]);
+  const [couponLoading, setCouponLoading] = useState(false);
   // State for order totals (trust backend finalTotal)
   // These will be initialized in useEffect when cart is loaded
   const [orderSubtotal, setOrderSubtotal] = useState(0);
@@ -673,6 +695,14 @@ export default function CheckoutPage() {
   const [deliveryCreationError, setDeliveryCreationError] = useState(null);
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
+  
+  // COD Advance Payment State
+  const [codSettings, setCodSettings] = useState({ codAdvanceEnabled: false, codAdvanceAmount: 100 });
+  const [codAdvancePaid, setCodAdvancePaid] = useState(false);
+  const [codAdvanceLoading, setCodAdvanceLoading] = useState(false);
+  const [codAdvancePaymentId, setCodAdvancePaymentId] = useState(null);
+  const [codAdvanceOrderId, setCodAdvanceOrderId] = useState(null);
+  const [codAdvanceSignature, setCodAdvanceSignature] = useState(null);
 
   // Auth + guest session bootstrap (checkout must never block)
   useEffect(() => {
@@ -704,6 +734,49 @@ export default function CheckoutPage() {
       })
       .catch(() => {});
   }, []);
+
+  // Fetch active coupons
+  useEffect(() => {
+    async function fetchActiveCoupons() {
+      try {
+        setCouponLoading(true);
+        const res = await fetch("/api/coupons/active");
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setActiveCoupons(data);
+          console.log("[Checkout] Active coupons fetched:", data.length);
+        } else {
+          console.error("[Checkout] Invalid response from active coupons API");
+          setActiveCoupons([]);
+        }
+      } catch (err) {
+        console.error("[Checkout] Failed to fetch active coupons:", err);
+        setActiveCoupons([]);
+      } finally {
+        setCouponLoading(false);
+      }
+    }
+    fetchActiveCoupons();
+  }, [authUser]); // Re-fetch when auth state changes (for first-order eligibility)
+
+  // Fetch COD settings
+  useEffect(() => {
+    async function fetchCodSettings() {
+      try {
+        const res = await fetch("/api/settings");
+        const data = await res.json();
+        if (data.success && data.settings) {
+          setCodSettings(data.settings);
+        }
+      } catch (err) {
+        console.error("[Checkout] Failed to fetch COD settings:", err);
+      }
+    }
+    fetchCodSettings();
+  }, []);
+
+  // Note: First-order coupon eligibility is now handled by the backend API
+  // The dropdown will only show coupons the user is eligible for
 
   async function refreshSavedAddresses() {
     try {
@@ -877,19 +950,28 @@ export default function CheckoutPage() {
   // Total = backend finalTotal + shipping (or calculated if no coupon applied)
   const total = orderTotal > 0 ? orderTotal + shipping : (calculatedSubtotal + shipping - discount);
 
-  async function handleApplyCoupon(e) {
-    e.preventDefault();
+  async function handleApplyCoupon(code) {
+    // Support both event (legacy) and direct code parameter
+    if (code && typeof code.preventDefault === 'function') {
+      code.preventDefault();
+      code = couponCode.trim();
+    } else if (typeof code === 'string') {
+      code = code.trim();
+    } else {
+      code = couponCode.trim();
+    }
+
     if (appliedCoupon) return;
 
-    const code = couponCode.trim();
     if (!code) {
-      setCouponError("Please enter a coupon code");
+      setCouponError("Please select a coupon");
       setShowCouponSuccess(false);
       return;
     }
 
     setCouponError("");
     setShowCouponSuccess(false);
+    setCouponLoading(true);
 
     try {
       const res = await fetch("/api/coupons/apply", {
@@ -930,9 +1012,40 @@ export default function CheckoutPage() {
       setAppliedCoupon(false);
       setCouponDiscount(0);
       setOrderDiscount(0);
-      setOrderTotal(subtotal); // Reset to original subtotal
+      setOrderTotal(orderSubtotal || calculatedSubtotal); // Reset to original subtotal
       setAppliedCouponCode("");
+    } finally {
+      setCouponLoading(false);
     }
+  }
+
+  // Handle coupon selection from dropdown (auto-apply)
+  function handleCouponSelect(code) {
+    if (!code || appliedCoupon) return;
+    handleApplyCoupon(code);
+  }
+
+  function handleRemoveCoupon() {
+    // Reset discount to 0
+    setCouponDiscount(0);
+    setOrderDiscount(0);
+    // Reset total to subtotal
+    setOrderTotal(orderSubtotal || calculatedSubtotal);
+    // Reset coupon state
+    setAppliedCoupon(false);
+    setCouponCode("");
+    setAppliedCouponCode("");
+    setCouponError("");
+    setShowCouponSuccess(false);
+    // Re-fetch active coupons to refresh the dropdown
+    fetch("/api/coupons/active")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setActiveCoupons(data);
+        }
+      })
+      .catch((err) => console.error("Failed to refresh coupons:", err));
   }
 
   async function upsertGuestUser(shippingAddressSnapshot) {
@@ -1131,8 +1244,107 @@ export default function CheckoutPage() {
     return Object.keys(errors).length === 0;
   }
 
+  // Handle COD advance payment
+  async function handleCODAdvancePayment() {
+    if (!codSettings.codAdvanceEnabled) {
+      return; // Advance not required
+    }
+
+    setCodAdvanceLoading(true);
+    setDeliveryCreationError(null);
+
+    try {
+      // Create Razorpay order for advance payment
+      const res = await fetch("/api/payments/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: codSettings.codAdvanceAmount,
+          orderType: "cod_advance",
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.orderId) {
+        window?.alert?.(data?.error || "Failed to initialize advance payment. Please try again.");
+        setCodAdvanceLoading(false);
+        return;
+      }
+
+      if (typeof window === "undefined") {
+        setCodAdvanceLoading(false);
+        return;
+      }
+
+      // Open Razorpay popup
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: data.amount,
+        currency: "INR",
+        name: "SOULSEAM",
+        description: `COD Advance Payment - ₹${codSettings.codAdvanceAmount}`,
+        order_id: data.orderId,
+        handler: async function (response) {
+          // Store payment details
+          setCodAdvancePaymentId(response.razorpay_payment_id);
+          setCodAdvanceOrderId(response.razorpay_order_id);
+          setCodAdvanceSignature(response.razorpay_signature);
+          setCodAdvancePaid(true);
+          setCodAdvanceLoading(false);
+        },
+        prefill: {
+          name: [form.firstName, form.lastName].filter(Boolean).join(" ") || "Customer",
+          email: form.email || authUser?.email || "",
+          contact: form.phone || authUser?.phone || "",
+        },
+        theme: {
+          color: "#000000",
+        },
+        modal: {
+          ondismiss: function() {
+            setCodAdvanceLoading(false);
+          },
+        },
+      };
+
+      // Ensure Razorpay is loaded
+      if (!window.Razorpay) {
+        const script = document.createElement("script");
+        script.src = "https://checkout.razorpay.com/v1/checkout.js";
+        script.async = true;
+        script.onload = () => {
+          if (window.Razorpay) {
+            new window.Razorpay(options).open();
+          } else {
+            window?.alert?.("Failed to load payment gateway. Please try again.");
+            setCodAdvanceLoading(false);
+          }
+        };
+        script.onerror = () => {
+          window?.alert?.("Failed to load payment gateway. Please try again.");
+          setCodAdvanceLoading(false);
+        };
+        document.body.appendChild(script);
+      } else {
+        const razorpay = new window.Razorpay(options);
+        razorpay.open();
+      }
+    } catch (err) {
+      console.error("COD advance payment error:", err);
+      window?.alert?.("Failed to initialize advance payment. Please try again.");
+      setCodAdvanceLoading(false);
+    }
+  }
+
   async function handleCOD() {
     setDeliveryCreationError(null);
+
+    // Check if advance payment is required and not paid
+    if (codSettings.codAdvanceEnabled && !codAdvancePaid) {
+      window?.alert?.(`To confirm your Cash On Delivery order, please pay ₹${codSettings.codAdvanceAmount} as advance.`);
+      return;
+    }
+
     try {
       const shippingAddressSnapshot = {
         fullName: [form.firstName, form.lastName].filter(Boolean).join(" "),
@@ -1179,20 +1391,30 @@ export default function CheckoutPage() {
         return;
       }
 
+      // Prepare checkout body with advance payment details if applicable
+      const checkoutBody = {
+        guestUserId: gId || undefined,
+        shippingAddress: shippingAddressSnapshot,
+        items: itemsToSend,
+        coupon: appliedCoupon && appliedCouponCode ? { code: appliedCouponCode, discount } : null,
+        subtotal,
+        discount,
+        total,
+        paymentMethod: "COD",
+      };
+
+      // Add advance payment details if paid
+      if (codSettings.codAdvanceEnabled && codAdvancePaid) {
+        checkoutBody.razorpay_order_id = codAdvanceOrderId;
+        checkoutBody.razorpay_payment_id = codAdvancePaymentId;
+        checkoutBody.razorpay_signature = codAdvanceSignature;
+      }
+
       // Create order directly via checkout API
       const checkoutRes = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          guestUserId: gId || undefined,
-          shippingAddress: shippingAddressSnapshot,
-          items: itemsToSend,
-          coupon: appliedCoupon && appliedCouponCode ? { code: appliedCouponCode, discount } : null,
-          subtotal,
-          discount,
-          total,
-          paymentMethod: "COD",
-        }),
+        body: JSON.stringify(checkoutBody),
       });
 
       const checkoutData = await checkoutRes.json().catch(() => ({}));
@@ -1214,6 +1436,11 @@ export default function CheckoutPage() {
       setAppliedCouponCode("");
       setCouponError("");
       setShowCouponSuccess(false);
+      // Reset COD advance state
+      setCodAdvancePaid(false);
+      setCodAdvancePaymentId(null);
+      setCodAdvanceOrderId(null);
+      setCodAdvanceSignature(null);
     } catch (err) {
       setDeliveryCreationError(
         err && err.message
@@ -2216,6 +2443,46 @@ export default function CheckoutPage() {
                       </span>
                     </button>
                   </div>
+                  
+                  {/* COD Advance Payment Notice */}
+                  {paymentMethod === "cod" && codSettings.codAdvanceEnabled && (
+                    <div className="mb-6 p-5 rounded-2xl bg-gradient-to-b from-amber-900/20 to-amber-800/10 border border-amber-500/30">
+                      {!codAdvancePaid ? (
+                        <div>
+                          <p className="text-white/90 font-semibold mb-2">
+                            To confirm your Cash On Delivery order, please pay ₹{codSettings.codAdvanceAmount} as COD advance.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={handleCODAdvancePayment}
+                            disabled={codAdvanceLoading || itemsWithFinalPrice.length === 0}
+                            className={`
+                              relative py-3 px-6 rounded-full font-bold text-white bg-gradient-to-r from-amber-600 to-amber-700
+                              shadow-[0_8px_24px_rgba(245,158,11,0.3)]
+                              overflow-hidden group transition-all duration-300 ease-in-out
+                              tracking-wide select-none cursor-pointer
+                              ${codAdvanceLoading || itemsWithFinalPrice.length === 0 ? "opacity-50 cursor-not-allowed" : "hover:from-amber-700 hover:to-amber-800"}
+                            `}
+                            style={{
+                              fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
+                            }}
+                          >
+                            {codAdvanceLoading ? "Processing..." : `Pay ₹${codSettings.codAdvanceAmount} COD Advance`}
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <svg className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          <p className="text-green-400 font-semibold">
+                            COD advance of ₹{codSettings.codAdvanceAmount} completed. You can now place your order.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="flex flex-col gap-7 sm:gap-6 md:gap-6">
                     <button
                       ref={paymentButtonRef}
@@ -2268,14 +2535,14 @@ export default function CheckoutPage() {
                         shadow-[0_12px_32px_rgba(255,255,255,0.13)]
                         overflow-hidden group transition-all duration-300 ease-in-out
                         tracking-wider text-[1.17rem] select-none cursor-pointer
-                        ${paymentMethod !== "cod" || itemsWithFinalPrice.length === 0 ? "opacity-36 pointer-events-none cursor-not-allowed" : ""}
+                        ${paymentMethod !== "cod" || itemsWithFinalPrice.length === 0 || (codSettings.codAdvanceEnabled && !codAdvancePaid) ? "opacity-36 pointer-events-none cursor-not-allowed" : ""}
                       `}
                       style={{
                         fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
                         display: paymentMethod === "cod" ? undefined : "none",
                       }}
                       onClick={handleCOD}
-                      disabled={paymentMethod !== "cod" || itemsWithFinalPrice.length === 0}
+                      disabled={paymentMethod !== "cod" || itemsWithFinalPrice.length === 0 || (codSettings.codAdvanceEnabled && !codAdvancePaid)}
                     >
                       <span className="relative z-10 flex items-center transition-all duration-300 ease-in-out group-hover:text-white">
                         Place Order&nbsp;(Cash on Delivery)
@@ -2331,18 +2598,62 @@ export default function CheckoutPage() {
                   ))
                 )}
               </div>
-              <CouponInput
-                couponCode={couponCode}
-                setCouponCode={setCouponCode}
-                applyCoupon={handleApplyCoupon}
-                appliedCoupon={appliedCoupon}
-                showCouponSuccess={showCouponSuccess}
-                couponError={couponError}
-                onCouponCodeChange={() => {
-                  if (couponError) {
-                    setCouponError("");
+              {/* First Order Coupon Banner */}
+              {(() => {
+                const isLoggedIn = !!authUser;
+                const isFirstOrderEligible = isLoggedIn && 
+                  (authUser.orderCount ?? 0) === 0 && 
+                  (authUser.firstOrderCouponUsed ?? false) === false;
+                
+                // Show banner for logged-out users (even if no coupon set)
+                if (!isLoggedIn) {
+                  if (firstOrderCoupon) {
+                    const discountText = firstOrderCoupon.discountType === "percentage"
+                      ? `${firstOrderCoupon.discountValue}% off`
+                      : `₹${firstOrderCoupon.discountValue} off`;
+                    return (
+                      <div className="mb-4 p-4 rounded-xl bg-gradient-to-r from-yellow-500/10 via-yellow-500/8 to-yellow-500/10 border border-yellow-400/30">
+                        <p className="text-yellow-300/90 text-sm font-semibold text-center">
+                          Login to get {discountText} on your first order
+                        </p>
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <div className="mb-4 p-4 rounded-xl bg-gradient-to-r from-yellow-500/10 via-yellow-500/8 to-yellow-500/10 border border-yellow-400/30">
+                        <p className="text-yellow-300/90 text-sm font-semibold text-center">
+                          Login to get special offers on your first order
+                        </p>
+                      </div>
+                    );
                   }
-                }}
+                }
+                
+                // Show banner for logged-in eligible users
+                if (isFirstOrderEligible && firstOrderCoupon) {
+                  const discountText = firstOrderCoupon.discountType === "percentage"
+                    ? `${firstOrderCoupon.discountValue}% off`
+                    : `₹${firstOrderCoupon.discountValue} off`;
+                  return (
+                    <div className="mb-4 p-4 rounded-xl bg-gradient-to-r from-green-500/10 via-green-500/8 to-green-500/10 border border-green-400/30">
+                      <p className="text-green-300/90 text-sm font-semibold text-center">
+                        🎉 First order offer: Use {firstOrderCoupon.code} & get {discountText}
+                      </p>
+                    </div>
+                  );
+                }
+                
+                return null;
+              })()}
+              <CouponDropdown
+                activeCoupons={activeCoupons}
+                appliedCoupon={appliedCoupon}
+                appliedCouponCode={appliedCouponCode}
+                couponDiscount={couponDiscount}
+                couponError={couponError}
+                onCouponSelect={handleCouponSelect}
+                onRemoveCoupon={handleRemoveCoupon}
+                loading={couponLoading}
               />
               <div className={`my-8 border-t border-white/12 pt-6 space-y-4 text-[1.07rem] font-semibold leading-tight`}>
                 <div className="flex justify-between items-center">

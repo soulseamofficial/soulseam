@@ -13,6 +13,7 @@ export default function CouponsPage() {
     maxDiscount: "",
     expiryDate: "",
     isActive: true,
+    isFirstOrderCoupon: false,
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -92,6 +93,7 @@ export default function CouponsPage() {
         maxDiscount: "",
         expiryDate: "",
         isActive: true,
+        isFirstOrderCoupon: false,
       });
       fetchCoupons();
       
@@ -317,7 +319,7 @@ export default function CouponsPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
             <label className="flex items-center gap-2 text-white/70">
               <input
                 type="checkbox"
@@ -328,6 +330,18 @@ export default function CouponsPage() {
                 className="w-4 h-4 rounded"
               />
               <span>Active</span>
+            </label>
+
+            <label className="flex items-center gap-2 text-white/70">
+              <input
+                type="checkbox"
+                checked={form.isFirstOrderCoupon}
+                onChange={(e) =>
+                  setForm({ ...form, isFirstOrderCoupon: e.target.checked })
+                }
+                className="w-4 h-4 rounded"
+              />
+              <span>First Order Coupon</span>
             </label>
 
             <button
@@ -392,6 +406,12 @@ export default function CouponsPage() {
               {c.discountType === "percentage" && c.maxDiscount && (
                 <span className="px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-xs">
                   Max: ₹{c.maxDiscount}
+                </span>
+              )}
+
+              {c.isFirstOrderCoupon && (
+                <span className="px-2 py-1 rounded-lg bg-purple-500/20 border border-purple-500/50 text-purple-300 text-xs font-semibold">
+                  First Order
                 </span>
               )}
 

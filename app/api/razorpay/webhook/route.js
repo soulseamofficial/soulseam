@@ -13,6 +13,8 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { connectDB } from "@/app/lib/db";
 import Order from "@/app/models/Order";
+import User from "@/app/models/User";
+import Coupon from "@/app/models/coupon";
 import { sendOrderToDelhivery, isOrderSentToDelhivery, logVerificationInstructions } from "@/app/lib/delhivery";
 
 /**
@@ -126,6 +128,27 @@ export async function POST(req) {
       });
 
       console.log("✅ Order updated to CONFIRMED:", order._id);
+
+      // Update user orderCount and firstOrderCouponUsed when order is confirmed (logged-in users only)
+      if (order.userId) {
+        try {
+          const userUpdate = { $inc: { orderCount: 1 } };
+          
+          // If first-order coupon was used, mark it as used
+          if (order.coupon?.code) {
+            const couponDoc = await Coupon.findOne({ code: order.coupon.code.toUpperCase().trim() });
+            if (couponDoc && couponDoc.isFirstOrderCoupon === true) {
+              userUpdate.$set = { firstOrderCouponUsed: true };
+            }
+          }
+          
+          await User.findByIdAndUpdate(order.userId, userUpdate);
+          console.log("✅ Updated user orderCount and firstOrderCouponUsed via webhook:", order.userId);
+        } catch (userUpdateError) {
+          // Log error but don't fail the webhook processing
+          console.error("❌ Failed to update user orderCount via webhook (non-blocking):", userUpdateError);
+        }
+      }
 
       // Send order to Delhivery if not already sent
       const updatedOrder = await Order.findById(order._id);
