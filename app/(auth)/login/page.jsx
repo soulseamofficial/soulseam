@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { showToast } from "../../components/Toast";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -43,30 +44,36 @@ export default function LoginPage() {
 
   async function handleLogin() {
     if (!identifier) {
-      alert("Enter Email or Phone number");
+      showToast("Enter Email or Phone number", "error");
       return;
     }
 
     if (!password) {
-      alert("Password required");
+      showToast("Password required", "error");
       return;
     }
 
     setLoading(true);
 
-    const res = await fetch("/api/auth/user/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ identifier, password }),
-    });
+    try {
+      const res = await fetch("/api/auth/user/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier, password }),
+      });
 
-    const data = await res.json();
-    setLoading(false);
+      const data = await res.json();
+      setLoading(false);
 
-    if (res.ok) {
-      router.push("/profile");
-    } else {
-      alert(data.message);
+      if (res.ok) {
+        showToast("Login successful", "success");
+        router.push("/profile");
+      } else {
+        showToast(data.message || "Login failed", "error");
+      }
+    } catch (err) {
+      setLoading(false);
+      showToast("Network error. Please try again.", "error");
     }
   }
 

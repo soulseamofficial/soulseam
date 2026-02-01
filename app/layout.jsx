@@ -1,6 +1,7 @@
 import "./globals.css";
 import { CartProvider } from "./CartContext";
 import Script from "next/script";
+import ToastContainer from "./components/Toast";
 
 export const metadata = {
   title: "SoulSeam Ecommerce",
@@ -20,6 +21,7 @@ export default function RootLayout({ children }) {
 
         <CartProvider>
           {children}
+          <ToastContainer />
         </CartProvider>
 
       </body>

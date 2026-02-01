@@ -41,8 +41,18 @@ export async function POST(req) {
       user = await User.create({
         phone,
         provider: "phone",
+        loginMethod: "phone",
+        isPhoneVerified: true,
         role: "user",
       });
+    } else {
+      // Update existing user to mark phone as verified
+      if (!user.isPhoneVerified) {
+        await User.updateOne(
+          { _id: user._id },
+          { $set: { isPhoneVerified: true, loginMethod: "phone" } }
+        );
+      }
     }
 
     return NextResponse.json({
