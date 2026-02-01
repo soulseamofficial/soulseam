@@ -69,19 +69,19 @@ function formatPrice(price) {
 }
 
 
-// Glassmorphism + luxury inspired classes
-const glassCard = "backdrop-blur-md bg-gradient-to-br from-white/5 via-white/3 to-white/0 border border-white/10 rounded-3xl shadow-[0_6px_60px_0_rgba(29,29,36,0.35)]";
-const hoverGlow = "hover:shadow-[0_0_32px_7px_rgba(255,255,255,0.13)] transition-shadow duration-400 ease-[cubic-bezier(.68,.01,.49,.97)]";
+// Glassmorphism + luxury inspired classes - MATCHING CART PAGE DARK THEME
+const glassCard = "bg-gradient-to-br from-[#191919] to-[#0b0b0b] border border-white/15 rounded-3xl shadow-[0_15px_46px_rgba(255,255,255,0.10)]";
+const hoverGlow = "hover:shadow-[0_25px_80px_rgba(255,255,255,0.18)] transition-shadow duration-400 ease-[cubic-bezier(.68,.01,.49,.97)]";
 const focusRing = "focus:outline-none focus:ring-2 focus:ring-white/30";
 const mainSpotGradient = "before:content-[''] before:absolute before:inset-0 before:bg-gradient-radial before:from-white/5 before:to-transparent before:z-10";
 const shimmer = "animate-pulse bg-gradient-to-br from-[#191921] to-black/80";
 const fadeAnim = "transition-all duration-500 ease-[cubic-bezier(.68,.01,.49,.97)]";
-const pillBtn = "min-w-14 px-7 py-3 rounded-2xl text-lg font-semibold border border-white/25 bg-gradient-to-br from-white/5 via-black/40 to-black/15 text-white/90 transition-all duration-300 ease-in-out shadow-lg hover:scale-105 hover:shadow-[0_0_14px_3px_rgba(255,255,255,0.16)] focus:outline-none";
-const pillBtnSelected = "border-white/70 bg-white/10 text-white shadow-[0_0_26px_2px_rgba(255,255,255,0.18)] scale-105";
-const pillBtnDisabled = "opacity-30 bg-gradient-to-br from-black/20 via-black/30 to-black/10 border-white/10 text-white/50 cursor-not-allowed pointer-events-none";
-const qtyBtn = "rounded-full flex items-center justify-center w-11 h-11 bg-black/70 text-white text-xl font-bold border border-white/20 hover:bg-white/5 hover:scale-[1.09] hover:shadow-[0_0_12px_1.7px_rgba(255,255,255,0.15)] transition-all duration-200 focus:outline-none disabled:opacity-30 disabled:pointer-events-none";
-const badge = "inline-flex items-center px-3 py-1 border border-white/25 rounded-full font-semibold text-xs bg-gradient-to-r from-white/10 to-black/20 text-white/80";
-const glassAccordion = "rounded-2xl overflow-hidden border border-white/10 bg-gradient-to-br from-white/8 via-white/2 to-white/0 backdrop-blur-md mb-2";
+const pillBtn = "min-w-14 px-7 py-3 rounded-2xl text-lg font-semibold border border-white/15 bg-gradient-to-br from-[#191919] to-[#0b0b0b] text-white/90 transition-all duration-300 ease-in-out shadow-[0_15px_46px_rgba(255,255,255,0.10)] hover:scale-105 hover:border-white/30 hover:shadow-[0_25px_80px_rgba(255,255,255,0.18)] focus:outline-none";
+const pillBtnSelected = "border-white/30 bg-gradient-to-br from-[#1a1a1a] to-[#0c0c0c] text-white shadow-[0_25px_80px_rgba(255,255,255,0.18)] scale-105";
+const pillBtnDisabled = "opacity-30 bg-gradient-to-br from-[#0b0b0b] to-[#050505] border-white/10 text-white/50 cursor-not-allowed pointer-events-none";
+const qtyBtn = "rounded-full flex items-center justify-center w-11 h-11 bg-gradient-to-br from-[#191919] to-[#0b0b0b] text-white text-xl font-bold border border-white/15 hover:bg-gradient-to-br hover:from-[#1a1a1a] hover:to-[#0c0c0c] hover:scale-[1.09] hover:border-white/30 hover:shadow-[0_10px_35px_rgba(255,255,255,0.15)] transition-all duration-200 focus:outline-none disabled:opacity-30 disabled:pointer-events-none";
+const badge = "inline-flex items-center px-3 py-1 border border-white/15 rounded-full font-semibold text-xs bg-gradient-to-br from-[#191919] to-[#0b0b0b] text-white/90";
+const glassAccordion = "rounded-2xl overflow-hidden border border-white/10 bg-gradient-to-br from-[#191919] to-[#0b0b0b] mb-2 shadow-[0_10px_32px_rgba(255,255,255,0.08)]";
 
 // --- Luxury Button --- //
 function LuxuryActionButton({ children, onClick, disabled, ariaLabel, tabIndex, ...props }) {
@@ -91,57 +91,37 @@ function LuxuryActionButton({ children, onClick, disabled, ariaLabel, tabIndex, 
       disabled={disabled}
       aria-label={ariaLabel}
       tabIndex={tabIndex}
-      className={[
-        "group w-full rounded-full px-8 py-4 mt-0 mb-0 select-none",
-        "border border-[rgba(242,242,242,0.23)]",
-        "bg-gradient-to-br from-[#26272B] via-[#131416] to-[#18191B]",
-        "relative overflow-hidden",
-        "uppercase font-extrabold tracking-[0.18em] text-[1.14rem] leading-none",
-        "text-[#F2F2F2] flex items-center justify-center",
-        "shadow-[0_0_32px_0_rgba(242,242,242,0.10),0_2px_20px_0_rgba(255,255,255,0.09)]",
-        "transition-all duration-400 ease-[cubic-bezier(.60,.01,.37,1)]",
-        "will-change-transform will-change-shadow will-change-bg",
-        "backdrop-blur-sm border-[1.5px]",
-        focusRing,
-        disabled
-          ? "opacity-45 cursor-not-allowed"
-          : "hover:scale-[1.035] hover:shadow-[0_0_64px_4px_rgba(242,242,242,0.14),0_2px_28px_0_rgba(255,255,255,0.14)] hover:bg-gradient-to-br hover:from-[#35363c] hover:to-[#212226] active:scale-100"
-      ].join(" ")}
-      style={{
-        letterSpacing: "0.16em",
-        fontWeight: 770,
-        borderWidth: "1.5px",
-        borderColor: "rgba(242,242,242,0.23)",
-        color: "#F2F2F2",
-        boxShadow: disabled
-          ? "0 2px 12px 0 rgba(242,242,242,0.02)"
-          : "0 0 30px 0 rgba(242,242,242,0.09), 0 2px 24px 0 rgba(255,255,255,0.09)",
-        background: "linear-gradient(111deg, #26272B 6%, #131416 120%)",
-        // Glass/metal sheen overlay
-        position: "relative",
-        pointerEvents: disabled ? "none" : "auto",
-        transition: "box-shadow 0.65s cubic-bezier(.68,0,.41,1), background 0.65s cubic-bezier(.68,0,.41,1), transform 0.39s cubic-bezier(.73,.01,.37,1), color 0.38s cubic-bezier(.64,0,.36,1)"
-      }}
+        className={[
+          "group w-full rounded-full px-8 py-4 mt-0 mb-0 select-none",
+          "border border-white/15",
+          "bg-gradient-to-br from-[#191919] to-[#0b0b0b]",
+          "relative overflow-hidden",
+          "uppercase font-extrabold tracking-[0.18em] text-[1.14rem] leading-none",
+          "text-white flex items-center justify-center",
+          "shadow-[0_15px_46px_rgba(255,255,255,0.10)]",
+          "transition-all duration-400 ease-[cubic-bezier(.60,.01,.37,1)]",
+          "will-change-transform will-change-shadow will-change-bg",
+          focusRing,
+          disabled
+            ? "opacity-45 cursor-not-allowed"
+            : "hover:scale-[1.035] hover:shadow-[0_25px_80px_rgba(255,255,255,0.18)] hover:border-white/30 hover:bg-gradient-to-br hover:from-[#1a1a1a] hover:to-[#0c0c0c] active:scale-100"
+        ].join(" ")}
+        style={{
+          letterSpacing: "0.16em",
+          fontWeight: 770,
+          borderWidth: "1px",
+          borderColor: "rgba(255,255,255,0.15)",
+          color: "#ffffff",
+          boxShadow: disabled
+            ? "0_15px_46px_rgba(255,255,255,0.05)"
+            : "0_15px_46px_rgba(255,255,255,0.10)",
+          background: "linear-gradient(to bottom right, #191919, #0b0b0b)",
+          position: "relative",
+          pointerEvents: disabled ? "none" : "auto",
+          transition: "box-shadow 0.65s cubic-bezier(.68,0,.41,1), background 0.65s cubic-bezier(.68,0,.41,1), transform 0.39s cubic-bezier(.73,.01,.37,1), color 0.38s cubic-bezier(.64,0,.36,1)"
+        }}
       {...props}
     >
-      {/* Silver sheen overlay (top left sweep) */}
-      <span
-        className="pointer-events-none absolute left-0 top-0 w-full h-full rounded-full opacity-60"
-        aria-hidden="true"
-        style={{
-          background:
-            "linear-gradient(55deg, rgba(255,255,255,0.11) 8%, rgba(232,232,232,0.10) 28%,rgba(180,180,203,0.07) 44%, rgba(255,255,255,0.00) 77%)",
-          mixBlendMode: "screen"
-        }}
-      />
-      {/* faint glass reflection highlight: gentle oval sweep */}
-      <span
-        className="pointer-events-none absolute left-0 top-0 w-full h-full rounded-full opacity-20"
-        aria-hidden="true"
-        style={{
-          background: "radial-gradient(ellipse at 50% 7%, rgba(242,242,255,0.42) 3%, rgba(242,242,242,0.05) 60%, rgba(180,180,203,0.01) 100%)"
-        }}
-      />
       {/* Button text */}
       <span className="relative z-10">{children}</span>
     </button>
@@ -195,7 +175,7 @@ function LuxuryAccordion({ title, children, defaultOpen, accordionKey }) {
     <div className={glassAccordion}>
       <button
         onClick={handleToggle}
-        className="w-full flex items-center justify-between px-6 py-5 text-left text-lg font-semibold tracking-wide text-white/90 hover:bg-white/5 transition-colors duration-200"
+        className="w-full flex items-center justify-between px-6 py-5 text-left text-lg font-semibold tracking-wide text-white/90 hover:bg-gradient-to-br hover:from-[#1a1a1a] hover:to-[#0c0c0c] transition-colors duration-200"
         aria-expanded={open}
         type="button"
         tabIndex={0}
@@ -339,18 +319,15 @@ export default function ProductPage() {
             : "left-3 top-4 md:left-10 md:top-7",
           "flex items-center gap-2",
           "px-4 py-2 rounded-full font-medium text-base",
-          "text-white/85 bg-gradient-to-br from-white/10 via-black/40 to-black/10",
+          "text-white/90 bg-gradient-to-br from-[#191919] to-[#0b0b0b]",
           "border border-white/15",
-          "shadow-[0_4px_32px_0_rgba(255,255,255,0.07)]",
-          "backdrop-blur-md",
+          "shadow-[0_15px_46px_rgba(255,255,255,0.10)]",
           "transition-all duration-200",
-          "hover:bg-white/7 hover:shadow-[0_0_16px_3px_rgba(255,255,255,0.14)]",
+          "hover:bg-gradient-to-br hover:from-[#1a1a1a] hover:to-[#0c0c0c] hover:border-white/30 hover:shadow-[0_25px_80px_rgba(255,255,255,0.18)]",
           focusRing,
         ].join(" ")}
         style={{
-          WebkitBackdropFilter: 'blur(15px)',
-          backdropFilter: 'blur(15px)',
-          boxShadow: "0 2px 24px 0 rgba(255,255,255,0.07), 0 0 0 3px rgba(255,255,255,0.10)"
+          boxShadow: "0_15px_46px_rgba(255,255,255,0.10)"
         }}
       >
         <IconArrowLeft className="text-white/75 w-5 h-5 mr-0.5" />
@@ -362,7 +339,7 @@ export default function ProductPage() {
   // Skeleton Loader (Mobile-first image)
   if (loading) {
     return (
-      <div className="relative w-full min-h-screen bg-gradient-to-b from-black via-[#18181c] to-[#151214]">
+      <div className="relative w-full min-h-screen bg-black">
         {/* Top image loader */}
         <div className="relative w-full h-[75vh] md:hidden">
           <div className={"absolute inset-0 rounded-b-3xl " + shimmer}></div>
@@ -389,7 +366,7 @@ export default function ProductPage() {
   // 404 Not found
   if (notFound) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] bg-gradient-to-br from-black via-zinc-900 to-black text-center">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] bg-black text-center">
         <LuxuryBackButton />
         <h1 className="text-5xl font-extrabold tracking-tight text-white drop-shadow-[0_2px_30px_rgba(255,255,255,0.18)] mb-5">Product not found</h1>
         <p className="text-white/40 text-lg max-w-lg">
@@ -418,7 +395,7 @@ export default function ProductPage() {
   // --- MOBILE-IMAGE-FIRST, LUXURY SCROLL-TO-DETAILS LAYOUT ---
   return (
     // eslint-disable-next-line
-    <main className="relative w-full min-h-screen bg-gradient-to-b from-black via-[#18181c] to-[#151214]">
+    <main className="relative w-full min-h-screen bg-black">
       {/* --- MOBILE PRODUCT IMAGE SECTION IN FLOW, 75vh, NOT FIXED, Back Btn overlays image --- */}
       <div className="md:hidden w-full relative" style={{ minHeight: "75vh" }}>
         <div className="w-full h-[75vh] relative rounded-b-3xl overflow-hidden">
@@ -434,10 +411,10 @@ export default function ProductPage() {
             }}
             draggable={false}
           />
-          {/* Subtle bottom fade for premium transition */}
+          {/* Subtle bottom fade for premium transition - DARKER */}
           <div className="absolute bottom-0 left-0 right-0 h-32 z-10"
             style={{
-              background: "linear-gradient(180deg,rgba(0,0,0,0.0) 40%,rgba(18,15,20,0.46) 90%,rgba(17,13,21,0.98) 100%)"
+              background: "linear-gradient(180deg,rgba(0,0,0,0.0) 40%,rgba(11,11,11,0.60) 90%,rgba(0,0,0,0.98) 100%)"
             }}
           />
           {/* Mobile Back Button (absolute, overlays image) */}
@@ -470,16 +447,15 @@ export default function ProductPage() {
           "relative z-40",
           "w-full",
           "pt-7 pb-16 px-3",
-          "bg-gradient-to-b from-black/83 via-[#221f24]/88 to-[#19161a]/90",
-          "rounded-t-3xl ",
-          "backdrop-blur-[8px]",
-          "shadow-[0_-4px_28px_0_rgba(20,17,24,0.16)]",
+          "bg-gradient-to-br from-[#191919] to-[#0b0b0b]",
+          "rounded-t-3xl",
+          "border border-white/15",
+          "shadow-[0_15px_46px_rgba(255,255,255,0.10)]",
           "transition-all duration-700",
-          glassCard,
         ].join(" ")}
         style={{
           minHeight: "100vh",
-          boxShadow: "0 -5px 27px 0 rgba(40,30,54,0.22)",
+          boxShadow: "0 -5px 27px 0 rgba(255,255,255,0.10), 0_15px_46px_rgba(255,255,255,0.10)",
           marginTop: "-24px"
         }}
       >
@@ -611,7 +587,7 @@ export default function ProductPage() {
             </LuxuryActionButton>
             {/* Trust markers */}
             <div className="mt-4 flex flex-wrap gap-2 items-center justify-center text-white/75 text-[1rem]">
-              <span className={badge + " bg-white/10"}><IconLock/> Secure Checkout</span>
+              <span className={badge}><IconLock/> Secure Checkout</span>
             </div>
           </div>
           {/* Product Description - moved after CTAs and badges for mobile */}
@@ -686,31 +662,25 @@ export default function ProductPage() {
 
       {/* DESKTOP-only Original Layout (unchanged, md:) */}
       <div className="hidden md:flex min-h-[calc(100vh-80px)] w-full md:py-12 md:flex-row md:items-stretch md:px-0">
-        {/* BG luxury vizual */}
+        {/* BG luxury vizual - REMOVED LIGHT GRADIENTS */}
         <LuxuryBackButton />
-        <div className="absolute inset-0 z-0 pointer-events-none hidden md:block">
-          <div className="absolute left-28 top-20 w-2/5 h-[64vh] rounded-full bg-gradient-radial from-[#74759d2b] via-[#29293536] to-transparent blur-[88px]" />
-          <div className="absolute right-10 bottom-0 w-1/5 h-[38vh] rounded-full bg-gradient-radial from-[#d8d8ee18] via-[#f4e8f813] to-transparent blur-[54px]" />
-        </div>
         {/* PRODUCT IMAGE (LEFT) */}
         <section className="relative z-10 flex-1 flex justify-end items-stretch max-w-[56vw]">
           <div className={"relative h-full w-full flex flex-col justify-center items-center"} style={{minWidth: 0}}>
             <div className={
               [
                 "relative aspect-[4/5] w-full max-w-[540px] rounded-3xl mb-6 " + glassCard,
-                mainSpotGradient,
                 fadeAnim,
                 imgTransitioning ? "opacity-70 scale-98" : "opacity-100 scale-100"
               ].join(" ")
             }
               style={{
                 boxShadow: imgTransitioning
-                  ? "0 5px 36px 0 rgba(255,255,255,0.07)"
-                  : "0 12px 72px 1px rgba(255,255,255,0.19)",
+                  ? "0_15px_46px_rgba(255,255,255,0.10)"
+                  : "0_15px_46px_rgba(255,255,255,0.10), 0_25px_80px_rgba(255,255,255,0.18)",
                 transition: "box-shadow 530ms cubic-bezier(.65,.01,.54,.95), opacity 470ms, transform 530ms"
               }}
             >
-              <div className="absolute inset-0 z-20 pointer-events-none bg-gradient-to-t from-black/40 via-transparent to-white/0" />
               <img
                 src={product.images[mainImgIdx] || "/placeholder.png"}
                 alt={product.name}
@@ -739,12 +709,7 @@ export default function ProductPage() {
                   e.currentTarget.style.filter = "brightness(1.05) drop-shadow(0_0_32px_rgba(255,255,255,0.17))";
                 }}
               />
-              <div className="absolute inset-0 pointer-events-none z-30"
-                style={{
-                  background: "radial-gradient(ellipse farthest-side at 60% 32%, rgba(255,255,255,0.10) 20%,rgba(0,0,0,0) 75%)"
-                }}
-              />
-              <div className="absolute inset-0 rounded-3xl pointer-events-none z-20 border border-white/10"></div>
+              <div className="absolute inset-0 rounded-3xl pointer-events-none z-20 border border-white/15"></div>
             </div>
             {/* Thumbnails */}
             <div className="flex gap-4 mt-1 z-20">
@@ -758,10 +723,10 @@ export default function ProductPage() {
                       "rounded-2xl w-16 h-16 flex items-center justify-center ring-0 border-2 transition-[box-shadow,scale]",
                       idx === mainImgIdx
                         ? "border-white/80 scale-110 shadow-[0_0_16px_4px_rgba(255,255,255,0.19)]"
-                        : "border-white/10 scale-95"
+                        : "border-white/15 scale-95"
                     ].join(" ")
                   }
-                  style={{background: "rgba(24,24,28,0.18)"}}
+                  style={{background: "rgba(11,11,11,0.60)"}}
                   aria-label={`Show product image ${idx + 1}`}
                 >
                   <img
@@ -785,7 +750,7 @@ export default function ProductPage() {
 
         {/* PRODUCT INFO (RIGHT) */}
         <section className="relative flex-[1.15] flex flex-col px-4 md:px-12 pt-7 md:pt-12 justify-between z-10 min-w-[340px]">
-          <div className={"w-full max-w-2xl mx-auto rounded-3xl px-6 py-8 mb-5 shadow-[0_6px_54px_0_rgba(25,27,32,0.32)] " + glassCard}>
+          <div className={"w-full max-w-2xl mx-auto rounded-3xl px-6 py-8 mb-5 " + glassCard}>
             <div className="text-center mb-6">
               <h1 className="font-extrabold text-[2.7rem] leading-[1.1] md:text-[3.2rem] text-white mb-4 tracking-tight drop-shadow-[0_1px_36px_rgba(255,255,255,0.15)]" style={{fontFamily: "'Neue Haas Grotesk Display', 'Inter', 'system-ui', serif"}}>
                 {product.name}
@@ -934,7 +899,7 @@ export default function ProductPage() {
               </div>
               <div className="mt-6 flex flex-col gap-2">
                 <div className="flex flex-wrap gap-3 items-center justify-center text-white/75 text-[1rem]">
-                  <span className={badge + " bg-white/10"}><IconLock/> Secure Checkout</span>
+                  <span className={badge}><IconLock/> Secure Checkout</span>
                 </div>
               </div>
             </div>

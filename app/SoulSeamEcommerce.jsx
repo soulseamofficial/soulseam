@@ -227,8 +227,8 @@ const SoulSeamEcommerce = () => {
         logo,
         {
           opacity: 0,
-          scale: 0.8,
-          y: 40,
+          scale: 1,
+          y: 0,
           filter: "blur(10px)",
         },
         {
@@ -584,14 +584,14 @@ const SoulSeamEcommerce = () => {
               pointerEvents: "none",
             }}
           ></div>
-          <div ref={logoRef} className="relative mb-8 sm:mb-8 lg:mb-12 px-4">
-            <div className="relative w-[70vw] h-[70vw] max-w-[280px] max-h-[280px] sm:w-64 sm:h-64 md:w-80 md:h-80 lg:w-96 lg:h-96 mx-auto mb-10 sm:mb-12 md:mb-16 lg:mb-20">
+          <div ref={logoRef} className="relative mb-8 sm:mb-8 lg:mb-12">
+            <div className="relative w-[85vw] h-[85vw] max-w-[450px] max-h-[450px] sm:w-96 sm:h-96 md:w-[520px] md:h-[520px] lg:w-[620px] lg:h-[620px] xl:w-[720px] xl:h-[720px] 2xl:w-[800px] 2xl:h-[800px] mx-auto">
               <div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm border-2 border-white/10"></div>
-              <div className="absolute inset-4 sm:inset-6 md:inset-8 lg:inset-10 rounded-full bg-gradient-to-br from-black to-gray-900 flex items-center justify-center p-4 sm:p-6 md:p-8">
+              <div className="absolute inset-1.5 sm:inset-2 md:inset-2.5 lg:inset-3 xl:inset-3.5 rounded-full bg-gradient-to-br from-black to-gray-900 flex items-center justify-center overflow-hidden">
                 <img
-                  src="logo2.jpg"
+                  src="/logo2.jpg"
                   alt="SOUL SEAM Symbol"
-                  className="w-full h-full object-contain"
+                  className="w-[99%] h-[99%] object-contain"
                 />
               </div>
               <div className="absolute inset-0 rounded-full blur-3xl bg-white/10 opacity-0 animate-pulse"></div>

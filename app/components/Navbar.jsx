@@ -17,13 +17,13 @@ export default function Navbar({ className = "" }) {
     <nav className={`flex items-center justify-between w-full ${className}`}>
       
       {/* 🔥 LOGO (GLOBAL HOME NAVIGATION) */}
-      <Link href="/" className="flex items-center gap-2 cursor-pointer">
+      <Link href="/" className="flex items-center gap-3 cursor-pointer">
         <Image
           src="/logo2.jpg"
           alt="SoulSeam Logo"
-          className="h-9 w-9 rounded-full"
-          width={36}
-          height={36}
+          className="h-14 w-14 sm:h-16 sm:w-16 md:h-20 md:w-20 rounded-full object-contain"
+          width={80}
+          height={80}
           priority
         />
         <span className="text-xl font-semibold tracking-wide text-white">
