@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 // ============================================================================
 // FEATURE FLAG: Set to true to re-enable OTP verification
 // ============================================================================
-const OTP_ENABLED = false;
+const OTP_ENABLED = true;
 
 // ...constants unchanged...
 
@@ -69,9 +69,12 @@ function VerificationCard({
   disableInput,
   disableOtpSend,
   disableOtpVerify,
+  devOtp,
+  devMessage,
 }) {
   const label = mode === "phone" ? "WhatsApp" : "Email";
   const desc = mode === "phone" ? "Contact via WhatsApp" : "Contact via Email";
+  const placeholder = mode === "phone" ? "Enter phone number" : "Enter email id";
   const icon =
     mode === "phone" ? (
       <svg width="25" height="25" fill="none" viewBox="0 0 24 24" className="text-green-500">
@@ -94,29 +97,145 @@ function VerificationCard({
       </svg>
     );
 
-  // Visual-only card - no inputs, no OTP, no interactions
+  if (!active) {
+    // Visual-only card when not active
+    return (
+      <div
+        className={`flex flex-col items-center gap-2 p-4 bg-gradient-to-tr rounded-2xl border shadow-[0_6px_26px_rgba(255,255,255,0.06)] backdrop-blur-sm select-none transition-all duration-300 ease-out min-h-[112px] cursor-pointer hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(255,255,255,0.12)] hover:border-white/25 from-white/9 via-black/17 to-black/92 border-white/12 opacity-70 hover:opacity-100`}
+        style={{ marginBottom: 2 }}
+      >
+        <div className="flex items-center gap-2 w-full">
+          <div className="flex-shrink-0">{icon}</div>
+          <div className="flex flex-col flex-1 ml-2">
+            <div className="font-semibold text-base text-white/60 mb-0.5">
+              {label}
+            </div>
+            <div className="text-xs text-white/40">{desc}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Active card with input and OTP fields
   return (
     <div
-      className={`flex flex-col items-center gap-2 p-4 bg-gradient-to-tr rounded-2xl border shadow-[0_6px_26px_rgba(255,255,255,0.06)] backdrop-blur-sm select-none transition-all duration-300 ease-out min-h-[112px] cursor-pointer hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(255,255,255,0.12)] hover:border-white/25 ${
-        active
-          ? "from-white/12 via-black/20 to-black/95 border-white/35 ring-2 ring-blue-500/60 shadow-lg z-10 scale-[1.02]"
-          : "from-white/9 via-black/17 to-black/92 border-white/12 opacity-70 hover:opacity-100"
-      }`}
+      className={`flex flex-col gap-3 p-4 bg-gradient-to-tr rounded-2xl border shadow-[0_6px_26px_rgba(255,255,255,0.06)] backdrop-blur-sm transition-all duration-300 ease-out from-white/12 via-black/20 to-black/95 border-white/35 ring-2 ring-blue-500/60 shadow-lg z-10`}
       style={{ marginBottom: 2 }}
     >
-      <div className="flex items-center gap-2 w-full">
+      <div className="flex items-center gap-2 w-full mb-2">
         <div className="flex-shrink-0">{icon}</div>
         <div className="flex flex-col flex-1 ml-2">
-          <div
-            className={`font-semibold text-base ${
-              active ? "text-white/90" : "text-white/60"
-            } mb-0.5`}
-          >
+          <div className="font-semibold text-base text-white/90 mb-0.5">
             {label}
           </div>
           <div className="text-xs text-white/40">{desc}</div>
         </div>
+        {verified && (
+          <div className="flex-shrink-0">
+            <CheckIcon />
+          </div>
+        )}
       </div>
+
+      {step === "input" && !verified && (
+        <>
+          <input
+            type={mode === "phone" ? "tel" : "email"}
+            placeholder={placeholder}
+            value={inputValue}
+            onChange={(e) => {
+              if (mode === "phone") {
+                const phoneValue = e.target.value.replace(/[^\d]/g, "").slice(0, 10);
+                onInputChange(mode, phoneValue);
+              } else {
+                onInputChange(mode, e.target.value);
+              }
+            }}
+            className={`${inputBase} ${inputError ? inputError : inputDefault}`}
+            disabled={disableInput || loading}
+            autoComplete={mode === "phone" ? "tel" : "email"}
+            inputMode={mode === "phone" ? "numeric" : "email"}
+            maxLength={mode === "phone" ? 10 : undefined}
+          />
+          {inputError && (
+            <div className="text-xs font-semibold text-rose-400 px-1">
+              {typeof inputError === "string" ? inputError : `Enter valid ${mode === "phone" ? "phone number" : "email address"}`}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => onRequestOtp(mode)}
+            disabled={disableOtpSend || loading || !inputValue}
+            className="w-full py-2.5 rounded-xl font-semibold text-sm bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? "Sending..." : "Send OTP"}
+          </button>
+        </>
+      )}
+
+      {step === "otp" && !verified && (
+        <>
+          <div className="text-xs text-white/60 mb-1">
+            Enter the 6-digit code sent to {mode === "phone" ? `+91${inputValue}` : inputValue}
+          </div>
+          {/* Development Mode: Show OTP if WhatsApp API not configured */}
+          {devOtp && devMessage && (
+            <div className="mb-3 p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/30">
+              <div className="text-xs font-semibold text-yellow-400/90 mb-1">
+                {devMessage}
+              </div>
+              <div className="text-lg font-bold text-yellow-300 text-center tracking-widest">
+                {devOtp}
+              </div>
+            </div>
+          )}
+          <input
+            type="text"
+            placeholder="Enter 6-digit OTP"
+            value={otpValue}
+            onChange={(e) => {
+              const otpVal = e.target.value.replace(/[^\d]/g, "").slice(0, 6);
+              onOtpChange(mode, otpVal);
+            }}
+            className={`${inputBase} ${otpError ? inputError : inputDefault}`}
+            disabled={disableOtpVerify || loading}
+            autoComplete="one-time-code"
+            inputMode="numeric"
+            maxLength={6}
+          />
+          {otpError && (
+            <div className="text-xs font-semibold text-rose-400 px-1">
+              {typeof otpError === "string" ? otpError : "Invalid OTP"}
+            </div>
+          )}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => onVerifyOtp(mode)}
+              disabled={disableOtpVerify || loading || otpValue.length !== 6}
+              className="flex-1 py-2.5 rounded-xl font-semibold text-sm bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? "Verifying..." : "Verify OTP"}
+            </button>
+            <button
+              type="button"
+              onClick={() => onRequestOtp(mode)}
+              disabled={loading}
+              className="px-4 py-2.5 rounded-xl font-semibold text-sm bg-white/10 text-white hover:bg-white/20 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Resend
+            </button>
+          </div>
+        </>
+      )}
+
+      {verified && (
+        <div className="flex items-center gap-2 text-green-400 text-sm font-semibold">
+          <CheckIcon />
+          <span>Verified</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -139,28 +258,6 @@ export default function RegisterPage() {
     country: "India"
   });
 
-  // Auto-verify email when valid (no OTP required)
-  useEffect(() => {
-    if (form.email && /^[\w-.]+@[\w-]+\.[\w-.]+$/.test(form.email)) {
-      setVerif(prev => ({
-        ...prev,
-        email: {
-          ...prev.email,
-          value: form.email,
-          verified: true,
-          step: "verified",
-          inputError: false,
-          otpError: false,
-        }
-      }));
-    } else if (form.email) {
-      setVerif(prev => ({
-        ...prev,
-        email: { ...prev.email, value: form.email, verified: false, inputError: false }
-      }));
-    }
-  }, [form.email]);
-
   const [verifyMode, setVerifyMode] = useState("email");
 
   const [verif, setVerif] = useState({
@@ -172,6 +269,8 @@ export default function RegisterPage() {
       verified: false,
       inputError: false,
       otpError: false,
+      devOtp: null,
+      devMessage: null,
     },
     email: {
       step: "input",
@@ -181,6 +280,8 @@ export default function RegisterPage() {
       verified: false,
       inputError: false,
       otpError: false,
+      devOtp: null,
+      devMessage: null,
     }
   });
 
@@ -198,28 +299,6 @@ export default function RegisterPage() {
   });
 
   const [submitting, setSubmitting] = useState(false);
-
-  // Auto-verify email when valid (no OTP required)
-  useEffect(() => {
-    if (form.email && /^[\w-.]+@[\w-]+\.[\w-.]+$/.test(form.email)) {
-      setVerif(prev => ({
-        ...prev,
-        email: {
-          ...prev.email,
-          value: form.email,
-          verified: true,
-          step: "verified",
-          inputError: false,
-          otpError: false,
-        }
-      }));
-    } else if (form.email) {
-      setVerif(prev => ({
-        ...prev,
-        email: { ...prev.email, value: form.email, verified: false, inputError: false }
-      }));
-    }
-  }, [form.email]);
 
   function handleNameChange(e) {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }));
@@ -241,50 +320,16 @@ export default function RegisterPage() {
   }
 
   function handleInput(mode, val) {
-    // ============================================================================
-    // AUTO-VERIFY: When OTP is disabled, auto-verify on valid input
-    // ============================================================================
-    if (!OTP_ENABLED) {
-      // Validate input
-      let isValid = false;
-      if (mode === "phone") {
-        const phoneVal = val.replace(/[^\d]/g, "");
-        isValid = /^[6-9]\d{9}$/.test(phoneVal);
-      } else if (mode === "email") {
-        isValid = /^[\w-.]+@[\w-]+\.[\w-.]+$/.test(val);
-      }
-
-      // Auto-verify if valid
-      if (isValid) {
-        setVerif(prev => ({
-          ...prev,
-          [mode]: {
-            ...prev[mode],
-            value: val,
-            verified: true,
-            step: "verified",
-            inputError: false,
-            otpError: false,
-          }
-        }));
-
-        // Set phone in form if phone verification
-        if (mode === "phone") {
-          setForm(f => ({ ...f, phone: val.replace(/[^\d]/g, "") }));
-        }
-      } else {
-        // Reset verification if input becomes invalid
-        setVerif(prev => ({
-          ...prev,
-          [mode]: { ...prev[mode], value: val, verified: false, inputError: false }
-        }));
-      }
-    } else {
-      // Original behavior when OTP is enabled
-      setVerif(prev => ({
-        ...prev,
-        [mode]: { ...prev[mode], value: val, inputError: false }
-      }));
+    setVerif(prev => ({
+      ...prev,
+      [mode]: { ...prev[mode], value: val, inputError: false }
+    }));
+    
+    // Update form state
+    if (mode === "phone") {
+      setForm(f => ({ ...f, phone: val.replace(/[^\d]/g, "") }));
+    } else if (mode === "email") {
+      setForm(f => ({ ...f, email: val.trim() }));
     }
   }
 
@@ -296,14 +341,6 @@ export default function RegisterPage() {
   }
 
   async function handleSendOtp(mode) {
-    // ============================================================================
-    // SKIP OTP: Return early when OTP is disabled
-    // ============================================================================
-    if (!OTP_ENABLED) {
-      return;
-    }
-
-    // Original OTP send logic (only runs when OTP_ENABLED = true)
     setVerif(prev => ({
       ...prev,
       [mode]: { ...prev[mode], loading: true, inputError: false, otpError: false }
@@ -314,7 +351,7 @@ export default function RegisterPage() {
       if (!/^[6-9]\d{9}$/.test(phoneVal)) {
         setVerif(prev => ({
           ...prev,
-          phone: { ...prev.phone, loading: false, inputError: true }
+          phone: { ...prev.phone, loading: false, inputError: "Enter valid 10-digit phone number" }
         }));
         return;
       }
@@ -324,7 +361,7 @@ export default function RegisterPage() {
       if (!/^[\w-.]+@[\w-]+\.[\w-.]+$/.test(verif.email.value)) {
         setVerif(prev => ({
           ...prev,
-          email: { ...prev.email, loading: false, inputError: true }
+          email: { ...prev.email, loading: false, inputError: "Enter valid email address" }
         }));
         return;
       }
@@ -354,6 +391,9 @@ export default function RegisterPage() {
             step: "otp",
             inputError: false,
             otpError: false,
+            // Capture dev OTP if returned (development mode only)
+            devOtp: data.devOtp || null,
+            devMessage: data.devMessage || null,
           }
         }));
       } else {
@@ -375,14 +415,6 @@ export default function RegisterPage() {
   }
 
   async function handleVerifyOtp(mode) {
-    // ============================================================================
-    // SKIP OTP: Return early when OTP is disabled
-    // ============================================================================
-    if (!OTP_ENABLED) {
-      return;
-    }
-
-    // Original OTP verify logic (only runs when OTP_ENABLED = true)
     setVerif(prev => ({
       ...prev,
       [mode]: { ...prev[mode], loading: true, otpError: false }
@@ -486,7 +518,7 @@ export default function RegisterPage() {
     return !errors.street && !errors.city && !errors.state && !errors.pincode;
   }
 
-  const isVerified = verif.email.verified;
+  const isVerified = verif[verifyMode].verified;
   const pwValid = checkPwValid(form.password, form.confirmPassword);
   const addressValid = isVerified && !Object.values(addressError).some(Boolean);
   const canSubmit = !submitting && form.firstName && form.lastName && isVerified && pwValid && addressValid;
@@ -505,8 +537,8 @@ export default function RegisterPage() {
     const name = `${form.firstName} ${form.lastName}`.trim();
     const payload = {
       name,
-      email: form.email.trim(),
-      phone: form.phone || "", // Optional phone number
+      email: verifyMode === "email" ? verif.email.value.trim() : (form.email.trim() || ""),
+      phone: verifyMode === "phone" ? verif.phone.value.replace(/[^\d]/g, "") : (form.phone || ""),
       password: form.password,
       address: {
         addressLine1: form.street,
@@ -670,113 +702,90 @@ export default function RegisterPage() {
             {/* Phone number field removed - no longer required */}
           </div>
 
-          {/* Email input field */}
+          {/* Contact method selection and verification */}
           <div className="mb-6" style={{ animationDelay: "0.2s" }}>
-            <input
-              name="email"
-              type="email"
-              placeholder="Email address*"
-              className={`${inputBase} ${inputDefault}`}
-              autoComplete="email"
-              value={form.email}
-              onChange={e => {
-                setForm(f => ({ ...f, email: e.target.value }));
-              }}
-              required
-              spellCheck={false}
-            />
-          </div>
-
-          {/* Phone number input field */}
-          <div className="mb-6" style={{ animationDelay: "0.2s" }}>
-            <input
-              name="phone"
-              type="tel"
-              placeholder="Phone number"
-              className={`${inputBase} ${addressError.phone ? inputError : inputDefault}`}
-              autoComplete="tel"
-              value={form.phone}
-              onChange={e => {
-                const phoneValue = e.target.value.replace(/[^\d]/g, "").slice(0, 10);
-                setForm(f => ({ ...f, phone: phoneValue }));
-                setAddressError(ae => ({ ...ae, phone: false }));
-              }}
-              inputMode="numeric"
-              maxLength={10}
-              spellCheck={false}
-            />
-          </div>
-
-          {/* Contact method selection */}
-          <div className="flex gap-3 mb-6" style={{ animationDelay: "0.2s" }}>
-            <div
-              className="flex-1 min-w-0 animate-premiumSlideFadeIn"
-              style={{ animationDelay: "0.25s" }}
-              onClick={() => selectMode("phone")}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  selectMode("phone");
-                }
-              }}
-            >
-              <VerificationCard
-                mode="phone"
-                active={verifyMode === "phone"}
-                verified={false}
-                step="idle"
-                inputValue=""
-                otpValue=""
-                onInputChange={() => {}}
-                onRequestOtp={() => {}}
-                onOtpChange={() => {}}
-                onVerifyOtp={() => {}}
-                inputError={false}
-                otpError={false}
-                loading={false}
-                disableInput={true}
-                disableOtpSend={true}
-                disableOtpVerify={true}
-              />
+            <div className="text-sm font-semibold text-white/70 mb-3">
+              Verify your contact information
             </div>
+            <div className="flex gap-3 mb-4">
+              <div
+                className="flex-1 min-w-0 animate-premiumSlideFadeIn"
+                style={{ animationDelay: "0.25s" }}
+                onClick={() => selectMode("phone")}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    selectMode("phone");
+                  }
+                }}
+              >
+                <VerificationCard
+                  mode="phone"
+                  active={verifyMode === "phone"}
+                  verified={verif.phone.verified}
+                  step={verif.phone.step}
+                  inputValue={verif.phone.value}
+                  otpValue={verif.phone.otp}
+                  onInputChange={handleInput}
+                  onRequestOtp={handleSendOtp}
+                  onOtpChange={handleOtp}
+                  onVerifyOtp={handleVerifyOtp}
+                  inputError={verif.phone.inputError}
+                  otpError={verif.phone.otpError}
+                  loading={verif.phone.loading}
+                  disableInput={false}
+                  disableOtpSend={false}
+                  disableOtpVerify={false}
+                  devOtp={verif.phone.devOtp}
+                  devMessage={verif.phone.devMessage}
+                />
+              </div>
 
-            <div
-              className="flex-1 min-w-0 animate-premiumSlideFadeIn"
-              style={{ animationDelay: "0.3s" }}
-              onClick={() => selectMode("email")}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  selectMode("email");
-                }
-              }}
-            >
-              <VerificationCard
-                mode="email"
-                active={verifyMode === "email"}
-                verified={verif.email.verified}
-                step={verif.email.step}
-                inputValue=""
-                otpValue=""
-                onInputChange={() => {}}
-                onRequestOtp={() => {}}
-                onOtpChange={() => {}}
-                onVerifyOtp={() => {}}
-                inputError={false}
-                otpError={false}
-                loading={false}
-                disableInput={true}
-                disableOtpSend={true}
-                disableOtpVerify={true}
-              />
+              <div
+                className="flex-1 min-w-0 animate-premiumSlideFadeIn"
+                style={{ animationDelay: "0.3s" }}
+                onClick={() => selectMode("email")}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    selectMode("email");
+                  }
+                }}
+              >
+                <VerificationCard
+                  mode="email"
+                  active={verifyMode === "email"}
+                  verified={verif.email.verified}
+                  step={verif.email.step}
+                  inputValue={verif.email.value}
+                  otpValue={verif.email.otp}
+                  onInputChange={handleInput}
+                  onRequestOtp={handleSendOtp}
+                  onOtpChange={handleOtp}
+                  onVerifyOtp={handleVerifyOtp}
+                  inputError={verif.email.inputError}
+                  otpError={verif.email.otpError}
+                  loading={verif.email.loading}
+                  disableInput={false}
+                  disableOtpSend={false}
+                  disableOtpVerify={false}
+                  devOtp={verif.email.devOtp}
+                  devMessage={verif.email.devMessage}
+                />
+              </div>
             </div>
+            {!isVerified && (
+              <div className="text-xs text-yellow-400/70 text-center mt-2">
+                {verifyMode === "phone" ? "• Enter phone number" : "• Enter email id"}
+              </div>
+            )}
           </div>
 
-          {verif.email.verified && (
+          {isVerified && (
             <div className={sectionCard} style={{ animationDelay: "0.35s" }}>
               <div className={sectionHead}>Create Password</div>
 
@@ -841,12 +850,12 @@ export default function RegisterPage() {
             {submitting ? "Creating..." : "Create Account"}
           </button>
 
-          {/* Development Debug Helper - Remove in production */}
-          {!OTP_ENABLED && !canSubmit && (
+          {/* Development Debug Helper */}
+          {!canSubmit && (
             <div className="mt-3 text-xs text-yellow-400/70 text-center">
               {!form.firstName && "• Enter first name"}
               {!form.lastName && "• Enter last name"}
-              {!isVerified && "• Enter valid email address"}
+              {!isVerified && (verifyMode === "phone" ? "• Verify phone number with OTP" : "• Verify email address with OTP")}
               {!pwValid && form.password && "• Passwords must match (min. 6 chars)"}
               {!addressValid && isVerified && "• Complete address fields"}
             </div>

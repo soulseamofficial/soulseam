@@ -34,3 +34,42 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## WhatsApp OTP Configuration
+
+To enable WhatsApp OTP verification, you need to set up WhatsApp Business API credentials:
+
+### Setup Steps:
+
+1. **Create a Meta Business Account** (if you don't have one)
+   - Go to [Meta Business](https://business.facebook.com/)
+   - Create or select a Business Account
+
+2. **Set up WhatsApp Business API**
+   - Go to [Meta for Developers](https://developers.facebook.com/)
+   - Create a new app or use an existing one
+   - Add "WhatsApp" product to your app
+   - Follow the setup wizard to get your credentials
+
+3. **Get Your Credentials**
+   - **Phone Number ID**: Found in your WhatsApp Business Account settings
+   - **Access Token**: Generate a temporary or permanent access token from Meta App Dashboard
+
+4. **Add Environment Variables**
+   Create a `.env.local` file in the root directory and add:
+   ```env
+   WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id_here
+   WHATSAPP_ACCESS_TOKEN=your_access_token_here
+   ```
+
+### Development Mode
+
+In development mode, if WhatsApp credentials are not configured, the OTP will be:
+- Logged to the console
+- Displayed in the UI for testing purposes
+
+This allows you to test the OTP flow without setting up the WhatsApp API immediately.
+
+### Production Mode
+
+In production, WhatsApp credentials are **required**. If they're missing, the API will return an error and the OTP won't be sent.
