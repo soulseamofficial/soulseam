@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { showToast } from "../../components/Toast";
 
 // ============================================================================
 // FEATURE FLAG: Set to true to re-enable OTP verification
@@ -163,21 +164,32 @@ function VerificationCard({
               {typeof inputError === "string" ? inputError : `Enter valid ${mode === "phone" ? "phone number" : "email address"}`}
             </div>
           )}
-          <button
-            type="button"
-            onClick={() => onRequestOtp(mode)}
-            disabled={disableOtpSend || loading || !inputValue}
-            className="w-full py-2.5 rounded-xl font-semibold text-sm bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? "Sending..." : "Send OTP"}
-          </button>
+          {mode === "phone" ? (
+            <button
+              type="button"
+              onClick={() => onRequestOtp(mode)}
+              disabled={disableOtpSend || loading || !inputValue}
+              className="w-full py-2.5 rounded-xl font-semibold text-sm bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? "Sending..." : "Send OTP"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onRequestOtp(mode)}
+              disabled={disableOtpSend || loading || !inputValue}
+              className="w-full py-2.5 rounded-xl font-semibold text-sm bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? "Processing..." : "Continue"}
+            </button>
+          )}
         </>
       )}
 
-      {step === "otp" && !verified && (
+      {step === "otp" && !verified && mode === "phone" && (
         <>
           <div className="text-xs text-white/60 mb-1">
-            Enter the 6-digit code sent to {mode === "phone" ? `+91${inputValue}` : inputValue}
+            Enter the 6-digit code sent to +91{inputValue}
           </div>
           {/* Development Mode: Show OTP if WhatsApp API not configured */}
           {devOtp && devMessage && (
@@ -236,6 +248,11 @@ function VerificationCard({
           <span>Verified</span>
         </div>
       )}
+      {mode === "email" && step === "input" && !verified && (
+        <div className="text-xs text-white/50 mt-2 px-1">
+          Click Continue to proceed with email registration
+        </div>
+      )}
     </div>
   );
 }
@@ -282,6 +299,7 @@ export default function RegisterPage() {
       otpError: false,
       devOtp: null,
       devMessage: null,
+      showPasswordFields: false,
     }
   });
 
@@ -299,6 +317,7 @@ export default function RegisterPage() {
   });
 
   const [submitting, setSubmitting] = useState(false);
+  const [showEmailExistsPopup, setShowEmailExistsPopup] = useState(false);
 
   function handleNameChange(e) {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }));
@@ -355,9 +374,47 @@ export default function RegisterPage() {
         }));
         return;
       }
-    }
 
-    if (mode === "email") {
+      // WhatsApp OTP flow (unchanged)
+      try {
+        const res = await fetch("/api/auth/whatsapp/send-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: phoneVal }),
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          setVerif(prev => ({
+            ...prev,
+            phone: {
+              ...prev.phone,
+              loading: false,
+              step: "otp",
+              inputError: false,
+              otpError: false,
+              devOtp: data.devOtp || null,
+              devMessage: data.devMessage || null,
+            }
+          }));
+        } else {
+          setVerif(prev => ({
+            ...prev,
+            phone: {
+              ...prev.phone,
+              loading: false,
+              inputError: data.message || "Failed to send OTP"
+            }
+          }));
+        }
+      } catch (err) {
+        setVerif(prev => ({
+          ...prev,
+          phone: { ...prev.phone, loading: false, inputError: "Network error" }
+        }));
+      }
+    } else if (mode === "email") {
+      // Email flow: Just validate and show password fields (no OTP)
       if (!/^[\w-.]+@[\w-]+\.[\w-.]+$/.test(verif.email.value)) {
         setVerif(prev => ({
           ...prev,
@@ -365,51 +422,16 @@ export default function RegisterPage() {
         }));
         return;
       }
-    }
 
-    const api =
-      mode === "phone" ? "/api/auth/whatsapp/send-otp" : "/api/auth/email/send-otp";
-    const payload =
-      mode === "phone"
-        ? { phone: verif.phone.value.replace(/[^\d]/g, "") }
-        : { email: verif.email.value.trim() };
-
-    try {
-      const res = await fetch(api, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-
-      if (res.ok) {
-        setVerif(prev => ({
-          ...prev,
-          [mode]: {
-            ...prev[mode],
-            loading: false,
-            step: "otp",
-            inputError: false,
-            otpError: false,
-            // Capture dev OTP if returned (development mode only)
-            devOtp: data.devOtp || null,
-            devMessage: data.devMessage || null,
-          }
-        }));
-      } else {
-        setVerif(prev => ({
-          ...prev,
-          [mode]: {
-            ...prev[mode],
-            loading: false,
-            inputError: data.message || "Failed to send OTP"
-          }
-        }));
-      }
-    } catch (err) {
+      // Show password fields for email
       setVerif(prev => ({
         ...prev,
-        [mode]: { ...prev[mode], loading: false, inputError: "Network error" }
+        email: {
+          ...prev.email,
+          loading: false,
+          showPasswordFields: true,
+          inputError: false,
+        }
       }));
     }
   }
@@ -518,15 +540,21 @@ export default function RegisterPage() {
     return !errors.street && !errors.city && !errors.state && !errors.pincode;
   }
 
-  const isVerified = verif[verifyMode].verified;
-  const pwValid = checkPwValid(form.password, form.confirmPassword);
+  const isVerified = verifyMode === "email" 
+    ? (verif.email.showPasswordFields && verif.email.value) 
+    : verif[verifyMode].verified;
+  // Password validation only required for email registration
+  const pwValid = verifyMode === "email" 
+    ? checkPwValid(form.password, form.confirmPassword)
+    : true;
   const addressValid = isVerified && !Object.values(addressError).some(Boolean);
   const canSubmit = !submitting && form.firstName && form.lastName && isVerified && pwValid && addressValid;
 
   async function handleRegister(e) {
     e.preventDefault();
 
-    if (!validatePw()) return;
+    // Only validate password for email registration
+    if (verifyMode === "email" && !validatePw()) return;
 
     if (!validateAddressAndSetErrors(form, verifyMode)) return;
 
@@ -535,36 +563,98 @@ export default function RegisterPage() {
     setSubmitting(true);
 
     const name = `${form.firstName} ${form.lastName}`.trim();
-    const payload = {
-      name,
-      email: verifyMode === "email" ? verif.email.value.trim() : (form.email.trim() || ""),
-      phone: verifyMode === "phone" ? verif.phone.value.replace(/[^\d]/g, "") : (form.phone || ""),
-      password: form.password,
-      address: {
-        addressLine1: form.street,
-        addressLine2: form.apartment,
-        city: form.city,
-        state: form.state,
-        country: "India",
-        pincode: form.pincode
-      }
-    };
+    const email = verifyMode === "email" ? verif.email.value.trim().toLowerCase() : (form.email.trim().toLowerCase() || "");
+    const phone = verifyMode === "phone" ? verif.phone.value.replace(/[^\d]/g, "") : (form.phone || "");
 
     try {
-      const res = await fetch("/api/auth/user/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
+      if (verifyMode === "email") {
+        // Firebase email/password registration
+        const firebaseRes = await fetch("/api/auth/email/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email,
+            password: form.password,
+          }),
+        });
 
-      if (res.ok) {
-        router.push("/profile");
+        const firebaseData = await firebaseRes.json();
+
+        if (!firebaseRes.ok) {
+          // Handle email already exists error with popup
+          if (firebaseRes.status === 400 && (
+            firebaseData.message?.toLowerCase().includes("already") ||
+            firebaseData.message?.toLowerCase().includes("login")
+          )) {
+            setShowEmailExistsPopup(true);
+          } else {
+            showToast(firebaseData.message || "Registration failed", "error");
+          }
+          setSubmitting(false);
+          return;
+        }
+
+        // Create user in MongoDB - only include email (no phone for email registration)
+        const payload = {
+          name,
+          email,
+          password: form.password,
+          firebaseUid: firebaseData.uid,
+          address: {
+            addressLine1: form.street,
+            addressLine2: form.apartment,
+            city: form.city,
+            state: form.state,
+            country: "India",
+            pincode: form.pincode
+          }
+        };
+
+        const res = await fetch("/api/auth/user/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          showToast("Verification email sent. Please verify your email before logging in.", "success");
+          setTimeout(() => {
+            router.push("/login");
+          }, 2000);
+        } else {
+          showToast(data?.message || "Registration failed", "error");
+        }
       } else {
-        alert(data?.message || "Registration failed");
+        // Phone/WhatsApp registration - only include phone (no email, no password for phone registration)
+        const payload = {
+          name,
+          phone,
+          address: {
+            addressLine1: form.street,
+            addressLine2: form.apartment,
+            city: form.city,
+            state: form.state,
+            country: "India",
+            pincode: form.pincode
+          }
+        };
+
+        const res = await fetch("/api/auth/user/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          router.push("/profile");
+        } else {
+          showToast(data?.message || "Registration failed", "error");
+        }
       }
-    } catch {
-      alert("Failed to register.");
+    } catch (err) {
+      showToast("Failed to register. Please try again.", "error");
     }
 
     setSubmitting(false);
@@ -780,12 +870,12 @@ export default function RegisterPage() {
             </div>
             {!isVerified && (
               <div className="text-xs text-yellow-400/70 text-center mt-2">
-                {verifyMode === "phone" ? "• Enter phone number" : "• Enter email id"}
+                {verifyMode === "phone" ? "• Enter phone number" : "• Enter email id and click Continue"}
               </div>
             )}
           </div>
 
-          {isVerified && (
+          {verifyMode === "email" && (isVerified || verif.email.showPasswordFields) && (
             <div className={sectionCard} style={{ animationDelay: "0.35s" }}>
               <div className={sectionHead}>Create Password</div>
 
@@ -855,8 +945,8 @@ export default function RegisterPage() {
             <div className="mt-3 text-xs text-yellow-400/70 text-center">
               {!form.firstName && "• Enter first name"}
               {!form.lastName && "• Enter last name"}
-              {!isVerified && (verifyMode === "phone" ? "• Verify phone number with OTP" : "• Verify email address with OTP")}
-              {!pwValid && form.password && "• Passwords must match (min. 6 chars)"}
+              {!isVerified && (verifyMode === "phone" ? "• Verify phone number with OTP" : "• Enter email and click Continue")}
+              {verifyMode === "email" && !pwValid && form.password && "• Passwords must match (min. 6 chars)"}
               {!addressValid && isVerified && "• Complete address fields"}
             </div>
           )}
@@ -874,6 +964,58 @@ export default function RegisterPage() {
           </span>
         </div>
       </div>
+
+      {/* Email Already Exists Popup */}
+      {showEmailExistsPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
+          <div className="relative w-full max-w-md bg-gradient-to-b from-white/10 via-black/30 to-black/95 border border-white/20 rounded-3xl shadow-[0_25px_90px_rgba(255,255,255,0.25)] backdrop-blur-xl p-8 animate-premiumSlideFadeIn">
+            <button
+              onClick={() => setShowEmailExistsPopup(false)}
+              className="absolute top-4 right-4 text-white/60 hover:text-white/90 transition-colors"
+              aria-label="Close"
+            >
+              <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-yellow-500/20 border border-yellow-500/30 mb-4">
+                <svg width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="text-yellow-400">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-extrabold mb-3 bg-gradient-to-r from-white to-zinc-200 bg-clip-text text-transparent">
+                Account Already Exists
+              </h2>
+              <p className="text-white/70 text-sm leading-relaxed">
+                Looks like you already have an account with this email.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  setShowEmailExistsPopup(false);
+                  router.push("/login");
+                }}
+                className="w-full py-3 rounded-full font-extrabold tracking-widest text-black bg-gradient-to-r from-white to-zinc-200 shadow-[0_12px_36px_rgba(255,255,255,0.15)] hover:scale-[1.04] hover:shadow-[0_18px_48px_rgba(255,255,255,0.22)] transition-all duration-300"
+              >
+                Login
+              </button>
+              <button
+                onClick={() => {
+                  setShowEmailExistsPopup(false);
+                  router.push("/login?forgot=true");
+                }}
+                className="w-full py-3 rounded-full font-semibold text-white/90 bg-white/10 border border-white/20 hover:bg-white/15 transition-all duration-300"
+              >
+                Forgot Password
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style jsx global>{`
         @keyframes premiumSlideFadeIn {

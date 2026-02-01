@@ -194,7 +194,8 @@ function CouponDropdown({
   couponError,
   onCouponSelect,
   onRemoveCoupon,
-  loading
+  loading,
+  authUser
 }) {
   const formatCouponOption = (coupon) => {
     const benefit = coupon.discountType === "flat"
@@ -203,6 +204,124 @@ function CouponDropdown({
     return `${coupon.code} — ${benefit}`;
   };
 
+  const isLoggedIn = !!authUser;
+  const orderCount = authUser?.orderCount ?? 0;
+  const isFirstOrder = isLoggedIn && orderCount === 0;
+
+  // CASE 1: Guest user - show login message only
+  if (!isLoggedIn) {
+    return (
+      <div className="mt-4">
+        <div className="p-4 rounded-xl bg-gradient-to-r from-yellow-500/10 via-yellow-500/8 to-yellow-500/10 border border-yellow-400/30">
+          <div className="flex items-center gap-2">
+            <span className="text-yellow-300/90 text-lg">🏷️</span>
+            <p className="text-yellow-300/90 text-sm font-semibold">
+              Login to unlock special offers and coupons
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // CASE 2: First order user - show only first-order coupon
+  if (isFirstOrder) {
+    if (activeCoupons.length === 0 && !appliedCoupon) {
+      return (
+        <div className="mt-4">
+          <p className="text-white/60 text-sm font-medium">
+            No first-order offers available right now
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="mt-4">
+        {appliedCoupon && appliedCouponCode && (
+          <div className="mb-3 space-y-2">
+            <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-green-500/10 border border-green-400/30">
+              <div className="flex items-center gap-2">
+                <span className="text-green-300/90 text-sm font-bold">✔</span>
+                <span className="text-green-300/90 text-sm font-semibold">
+                  Coupon Applied: <span className="font-bold">{appliedCouponCode}</span>
+                </span>
+              </div>
+              {onRemoveCoupon && (
+                <button
+                  type="button"
+                  onClick={onRemoveCoupon}
+                  className="px-3 py-1.5 text-xs font-bold text-blue-300 hover:text-blue-200 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-400/30 hover:border-blue-400/50 rounded-lg transition-all duration-300"
+                >
+                  Change Coupon
+                </button>
+              )}
+            </div>
+            {couponDiscount > 0 && (
+              <div className="p-3 rounded-xl bg-green-500/5 border border-green-400/20">
+                <p className="text-green-300/95 text-sm font-bold">
+                  You saved ₹{couponDiscount.toLocaleString()} 🎉
+                </p>
+              </div>
+            )}
+            {/* Disclaimer when coupon is applied */}
+            <div className="mt-3 p-3 rounded-lg bg-amber-500/5 border border-amber-400/20">
+              <p className="text-amber-300/90 text-xs font-medium leading-relaxed">
+                <span className="font-semibold">Note:</span><br />
+                Orders placed using coupons are NOT eligible for returns.
+                Exchanges are allowed only with a valid reason and mandatory unboxing video proof.
+              </p>
+            </div>
+          </div>
+        )}
+        
+        {!appliedCoupon && (
+          <div className="relative">
+            <label className="block text-sm font-semibold text-white/90 mb-2">
+              🎉 First Order Offer
+            </label>
+            <select
+              value=""
+              onChange={(e) => {
+                if (e.target.value && onCouponSelect) {
+                  onCouponSelect(e.target.value);
+                }
+              }}
+              disabled={appliedCoupon || loading}
+              className={`
+                w-full rounded-2xl px-4 py-2.5 bg-black/85 border-2 border-yellow-400/40 text-white
+                font-semibold outline-none ring-0
+                transition-all duration-600 ease-out
+                focus:ring-2 focus:ring-yellow-400/30 focus:border-yellow-400/60 focus:bg-black/80
+                hover:border-yellow-400/50
+                ${appliedCoupon || loading ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}
+                ${couponError ? "border-red-400/50 focus:border-red-400/70" : ""}
+              `}
+              style={{
+                fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
+              }}
+            >
+              <option value="" disabled>
+                Select your first order offer
+              </option>
+              {activeCoupons.map((coupon) => (
+                <option key={coupon.code} value={coupon.code}>
+                  {formatCouponOption(coupon)}
+                </option>
+              ))}
+            </select>
+            {couponError && (
+              <span className="mt-2 block text-sm font-semibold text-red-400 animate-premiumPulse">
+                {couponError}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // CASE 3: Returning user - show all coupons
   if (activeCoupons.length === 0 && !appliedCoupon) {
     return (
       <div className="mt-4">
@@ -241,6 +360,14 @@ function CouponDropdown({
               </p>
             </div>
           )}
+          {/* Disclaimer when coupon is applied */}
+          <div className="mt-3 p-3 rounded-lg bg-amber-500/5 border border-amber-400/20">
+            <p className="text-amber-300/90 text-xs font-medium leading-relaxed">
+              <span className="font-semibold">Note:</span><br />
+              Orders placed using coupons are NOT eligible for returns.
+              Exchanges are allowed only with a valid reason and mandatory unboxing video proof.
+            </p>
+          </div>
         </div>
       )}
       
@@ -679,7 +806,6 @@ export default function CheckoutPage() {
   const [couponError, setCouponError] = useState("");
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [appliedCouponCode, setAppliedCouponCode] = useState("");
-  const [firstOrderCoupon, setFirstOrderCoupon] = useState(null);
   const [activeCoupons, setActiveCoupons] = useState([]);
   const [couponLoading, setCouponLoading] = useState(false);
   // State for order totals (trust backend finalTotal)
@@ -704,6 +830,7 @@ export default function CheckoutPage() {
   const [codAdvancePaymentId, setCodAdvancePaymentId] = useState(null);
   const [codAdvanceOrderId, setCodAdvanceOrderId] = useState(null);
   const [codAdvanceSignature, setCodAdvanceSignature] = useState(null);
+  const [showEmailExistsPopup, setShowEmailExistsPopup] = useState(false);
 
   // Order Success Modal State
   const [orderSuccess, setOrderSuccess] = useState(false);
@@ -741,28 +868,28 @@ export default function CheckoutPage() {
       .catch(() => {});
   }, []);
 
-  // Fetch active coupons
+  // Fetch eligible coupons (filtered by backend based on login status and order history)
   useEffect(() => {
-    async function fetchActiveCoupons() {
+    async function fetchEligibleCoupons() {
       try {
         setCouponLoading(true);
-        const res = await fetch("/api/coupons/active");
+        const res = await fetch("/api/coupons/eligible", { credentials: "include" });
         const data = await res.json();
         if (Array.isArray(data)) {
           setActiveCoupons(data);
-          console.log("[Checkout] Active coupons fetched:", data.length);
+          console.log("[Checkout] Eligible coupons fetched:", data.length);
         } else {
-          console.error("[Checkout] Invalid response from active coupons API");
+          console.error("[Checkout] Invalid response from eligible coupons API");
           setActiveCoupons([]);
         }
       } catch (err) {
-        console.error("[Checkout] Failed to fetch active coupons:", err);
+        console.error("[Checkout] Failed to fetch eligible coupons:", err);
         setActiveCoupons([]);
       } finally {
         setCouponLoading(false);
       }
     }
-    fetchActiveCoupons();
+    fetchEligibleCoupons();
   }, [authUser]); // Re-fetch when auth state changes (for first-order eligibility)
 
   // Fetch COD settings
@@ -1052,15 +1179,15 @@ export default function CheckoutPage() {
     setAppliedCouponCode("");
     setCouponError("");
     setShowCouponSuccess(false);
-    // Re-fetch active coupons to refresh the dropdown
-    fetch("/api/coupons/active")
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setActiveCoupons(data);
-        }
-      })
-      .catch((err) => console.error("Failed to refresh coupons:", err));
+        // Re-fetch eligible coupons to refresh the dropdown
+        fetch("/api/coupons/eligible", { credentials: "include" })
+          .then((res) => res.json())
+          .then((data) => {
+            if (Array.isArray(data)) {
+              setActiveCoupons(data);
+            }
+          })
+          .catch((err) => console.error("Failed to refresh coupons:", err));
   }
 
   async function upsertGuestUser(shippingAddressSnapshot) {
@@ -1230,17 +1357,22 @@ export default function CheckoutPage() {
   // Auto-trigger OTP when Continue/Place Order is clicked
   async function triggerOTPVerification() {
     const channels = [];
+    
+    // If creating account with email, skip email OTP (will use password instead)
+    const skipEmailOTP = form.createAccount && (selectedContactMethod === "email" || (!selectedContactMethod && form.email));
+    
     if (selectedContactMethod === "whatsapp" && form.phone) {
       channels.push({ channel: "whatsapp", identifier: form.phone.replace(/\D/g, "").slice(0, 10) });
     }
-    if (selectedContactMethod === "email" && form.email) {
+    if (selectedContactMethod === "email" && form.email && !skipEmailOTP) {
       channels.push({ channel: "email", identifier: form.email.trim().toLowerCase() });
     }
-    // If both selected, send to both
+    // If both selected, send to both (unless creating account with email)
     if (selectedContactMethod === null && form.phone && form.email) {
-      // Default: send to both if no selection
       channels.push({ channel: "whatsapp", identifier: form.phone.replace(/\D/g, "").slice(0, 10) });
-      channels.push({ channel: "email", identifier: form.email.trim().toLowerCase() });
+      if (!skipEmailOTP) {
+        channels.push({ channel: "email", identifier: form.email.trim().toLowerCase() });
+      }
     }
 
     if (channels.length === 0) {
@@ -1266,12 +1398,14 @@ export default function CheckoutPage() {
   const isOTPVerificationRequired = form.createAccount && (form.phone || form.email);
   // If both channels selected, at least one must be verified
   // If single channel selected, that channel must be verified
+  // For email account creation, check password fields instead of email OTP
+  const emailAccountCreated = skipEmailOTP && passwordFields.password && passwordFields.password.length >= 6 && passwordFields.password === passwordFields.confirm;
   const isOTPVerified = 
     selectedContactMethod === "whatsapp" ? whatsappVerified :
-    selectedContactMethod === "email" ? emailVerified :
-    selectedContactMethod === null && form.phone && form.email ? (whatsappVerified || emailVerified) :
+    selectedContactMethod === "email" ? (skipEmailOTP ? emailAccountCreated : emailVerified) :
+    selectedContactMethod === null && form.phone && form.email ? (whatsappVerified || (skipEmailOTP ? emailAccountCreated : emailVerified)) :
     form.phone ? whatsappVerified :
-    form.email ? emailVerified :
+    form.email ? (skipEmailOTP ? emailAccountCreated : emailVerified) :
     true; // No OTP required if no phone/email
 
   // Allow continue if items exist and either:
@@ -2033,9 +2167,64 @@ export default function CheckoutPage() {
                     {/* Account Creation - Contact Method Selection */}
                     {form.createAccount && (
                       <div
-                        className="w-full mt-6 flex flex-col sm:flex-row gap-4 border-t border-white/12 pt-7 transition-all duration-500 ease-out"
-                        style={{ minHeight: 120 }}
+                        className="w-full mt-6 flex flex-col gap-4 border-t border-white/12 pt-7 transition-all duration-500 ease-out"
                       >
+                        {/* Password Fields for Email Account Creation - Show immediately when email is selected */}
+                        {(selectedContactMethod === "email" || (!selectedContactMethod && form.email)) && form.email && (
+                          <div className="space-y-3 mb-4">
+                            <label className="block text-sm font-semibold text-white/90 mb-2">
+                              Create Password for Account
+                            </label>
+                            <input
+                              type="password"
+                              placeholder="Password (min. 6 characters)"
+                              value={passwordFields.password}
+                              onChange={(e) => {
+                                setPasswordFields(f => ({ ...f, password: e.target.value }));
+                                setPasswordError("");
+                              }}
+                              className={`
+                                w-full rounded-2xl px-4 py-3 bg-black/85 border border-white/18 text-white/93 font-semibold
+                                placeholder:text-white/38 outline-none ring-0
+                                focus:ring-2 focus:ring-white/20 focus:border-white/46
+                                hover:border-white/25
+                                transition-all duration-600 ease-out
+                                ${passwordError ? "border-rose-400/90" : ""}
+                              `}
+                              minLength={6}
+                            />
+                            <input
+                              type="password"
+                              placeholder="Confirm Password"
+                              value={passwordFields.confirm}
+                              onChange={(e) => {
+                                setPasswordFields(f => ({ ...f, confirm: e.target.value }));
+                                setPasswordError("");
+                              }}
+                              className={`
+                                w-full rounded-2xl px-4 py-3 bg-black/85 border border-white/18 text-white/93 font-semibold
+                                placeholder:text-white/38 outline-none ring-0
+                                focus:ring-2 focus:ring-white/20 focus:border-white/46
+                                hover:border-white/25
+                                transition-all duration-600 ease-out
+                                ${passwordError ? "border-rose-400/90" : ""}
+                              `}
+                              minLength={6}
+                            />
+                            {passwordError && (
+                              <div className="px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/30">
+                                <p className="text-sm text-rose-400/90 font-semibold">{passwordError}</p>
+                              </div>
+                            )}
+                            {passwordFields.password && passwordFields.confirm && passwordFields.password === passwordFields.confirm && passwordFields.password.length >= 6 && (
+                              <div className="px-4 py-2 rounded-xl bg-green-500/10 border border-green-500/30">
+                                <p className="text-sm text-green-400/90 font-semibold">✓ Passwords match</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        
+                        <div className="flex flex-col sm:flex-row gap-4" style={{ minHeight: 120 }}>
                         {/* WhatsApp Icon - Visual Only */}
                         <div 
                           className={`
@@ -2146,6 +2335,7 @@ export default function CheckoutPage() {
                             </span>
                           </div>
                         </div>
+                        </div>
                       </div>
                     )}
 
@@ -2223,8 +2413,8 @@ export default function CheckoutPage() {
                             </div>
                           ) : null}
 
-                          {/* Email OTP */}
-                          {(selectedContactMethod === "email" || (!selectedContactMethod && form.email)) && !emailVerified ? (
+                          {/* Email OTP - Only show if NOT creating account (account creation uses password) */}
+                          {(selectedContactMethod === "email" || (!selectedContactMethod && form.email)) && !emailVerified && !(form.createAccount && (selectedContactMethod === "email" || (!selectedContactMethod && form.email))) ? (
                             <div>
                               <label className="block text-sm font-semibold text-white/90 mb-2">
                                 Enter Email Verification Code
@@ -2281,6 +2471,61 @@ export default function CheckoutPage() {
                               </div>
                             </div>
                           ) : null}
+
+                          {/* Password Fields for Email Account Creation */}
+                          {form.createAccount && (selectedContactMethod === "email" || (!selectedContactMethod && form.email)) && form.email && (
+                            <div className="space-y-3">
+                              <label className="block text-sm font-semibold text-white/90 mb-2">
+                                Create Password for Account
+                              </label>
+                              <input
+                                type="password"
+                                placeholder="Password (min. 6 characters)"
+                                value={passwordFields.password}
+                                onChange={(e) => {
+                                  setPasswordFields(f => ({ ...f, password: e.target.value }));
+                                  setPasswordError("");
+                                }}
+                                className={`
+                                  w-full rounded-2xl px-4 py-3 bg-black/85 border border-white/18 text-white/93 font-semibold
+                                  placeholder:text-white/38 outline-none ring-0
+                                  focus:ring-2 focus:ring-white/20 focus:border-white/46
+                                  hover:border-white/25
+                                  transition-all duration-600 ease-out
+                                  ${passwordError ? "border-rose-400/90" : ""}
+                                `}
+                                minLength={6}
+                              />
+                              <input
+                                type="password"
+                                placeholder="Confirm Password"
+                                value={passwordFields.confirm}
+                                onChange={(e) => {
+                                  setPasswordFields(f => ({ ...f, confirm: e.target.value }));
+                                  setPasswordError("");
+                                }}
+                                className={`
+                                  w-full rounded-2xl px-4 py-3 bg-black/85 border border-white/18 text-white/93 font-semibold
+                                  placeholder:text-white/38 outline-none ring-0
+                                  focus:ring-2 focus:ring-white/20 focus:border-white/46
+                                  hover:border-white/25
+                                  transition-all duration-600 ease-out
+                                  ${passwordError ? "border-rose-400/90" : ""}
+                                `}
+                                minLength={6}
+                              />
+                              {passwordError && (
+                                <div className="px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/30">
+                                  <p className="text-sm text-rose-400/90 font-semibold">{passwordError}</p>
+                                </div>
+                              )}
+                              {passwordFields.password && passwordFields.confirm && passwordFields.password === passwordFields.confirm && passwordFields.password.length >= 6 && (
+                                <div className="px-4 py-2 rounded-xl bg-green-500/10 border border-green-500/30">
+                                  <p className="text-sm text-green-400/90 font-semibold">✓ Passwords match</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
 
                           {/* Error Message */}
                           {otpError && (
@@ -2919,53 +3164,6 @@ export default function CheckoutPage() {
                   ))
                 )}
               </div>
-              {/* First Order Coupon Banner */}
-              {(() => {
-                const isLoggedIn = !!authUser;
-                const isFirstOrderEligible = isLoggedIn && 
-                  (authUser.orderCount ?? 0) === 0 && 
-                  (authUser.firstOrderCouponUsed ?? false) === false;
-                
-                // Show banner for logged-out users (even if no coupon set)
-                if (!isLoggedIn) {
-                  if (firstOrderCoupon) {
-                    const discountText = firstOrderCoupon.discountType === "percentage"
-                      ? `${firstOrderCoupon.discountValue}% off`
-                      : `₹${firstOrderCoupon.discountValue} off`;
-                    return (
-                      <div className="mb-4 p-4 rounded-xl bg-gradient-to-r from-yellow-500/10 via-yellow-500/8 to-yellow-500/10 border border-yellow-400/30">
-                        <p className="text-yellow-300/90 text-sm font-semibold text-center">
-                          Login to get {discountText} on your first order
-                        </p>
-                      </div>
-                    );
-                  } else {
-                    return (
-                      <div className="mb-4 p-4 rounded-xl bg-gradient-to-r from-yellow-500/10 via-yellow-500/8 to-yellow-500/10 border border-yellow-400/30">
-                        <p className="text-yellow-300/90 text-sm font-semibold text-center">
-                          Login to get special offers on your first order
-                        </p>
-                      </div>
-                    );
-                  }
-                }
-                
-                // Show banner for logged-in eligible users
-                if (isFirstOrderEligible && firstOrderCoupon) {
-                  const discountText = firstOrderCoupon.discountType === "percentage"
-                    ? `${firstOrderCoupon.discountValue}% off`
-                    : `₹${firstOrderCoupon.discountValue} off`;
-                  return (
-                    <div className="mb-4 p-4 rounded-xl bg-gradient-to-r from-green-500/10 via-green-500/8 to-green-500/10 border border-green-400/30">
-                      <p className="text-green-300/90 text-sm font-semibold text-center">
-                        🎉 First order offer: Use {firstOrderCoupon.code} & get {discountText}
-                      </p>
-                    </div>
-                  );
-                }
-                
-                return null;
-              })()}
               <CouponDropdown
                 activeCoupons={activeCoupons}
                 appliedCoupon={appliedCoupon}
@@ -2975,6 +3173,7 @@ export default function CheckoutPage() {
                 onCouponSelect={handleCouponSelect}
                 onRemoveCoupon={handleRemoveCoupon}
                 loading={couponLoading}
+                authUser={authUser}
               />
               <div className={`my-8 border-t border-white/12 pt-6 space-y-4 text-[1.07rem] font-semibold leading-tight`}>
                 <div className="flex justify-between items-center">
@@ -3020,6 +3219,59 @@ export default function CheckoutPage() {
           </aside>
         </div>
       </div>
+
+      {/* Email Already Exists Popup */}
+      {showEmailExistsPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
+          <div className="relative w-full max-w-md bg-gradient-to-b from-white/10 via-black/30 to-black/95 border border-white/20 rounded-3xl shadow-[0_25px_90px_rgba(255,255,255,0.25)] backdrop-blur-xl p-8 animate-premiumSlideFadeIn">
+            <button
+              onClick={() => setShowEmailExistsPopup(false)}
+              className="absolute top-4 right-4 text-white/60 hover:text-white/90 transition-colors"
+              aria-label="Close"
+            >
+              <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-yellow-500/20 border border-yellow-500/30 mb-4">
+                <svg width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="text-yellow-400">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-extrabold mb-3 bg-gradient-to-r from-white to-zinc-200 bg-clip-text text-transparent">
+                Account Already Exists
+              </h2>
+              <p className="text-white/70 text-sm leading-relaxed">
+                Looks like you already have an account with this email.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  setShowEmailExistsPopup(false);
+                  router.push("/login");
+                }}
+                className="w-full py-3 rounded-full font-extrabold tracking-widest text-black bg-gradient-to-r from-white to-zinc-200 shadow-[0_12px_36px_rgba(255,255,255,0.15)] hover:scale-[1.04] hover:shadow-[0_18px_48px_rgba(255,255,255,0.22)] transition-all duration-300"
+              >
+                Login
+              </button>
+              <button
+                onClick={() => {
+                  setShowEmailExistsPopup(false);
+                  router.push("/login?forgot=true");
+                }}
+                className="w-full py-3 rounded-full font-semibold text-white/90 bg-white/10 border border-white/20 hover:bg-white/15 transition-all duration-300"
+              >
+                Forgot Password
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <RootCheckoutPageGlobalStyles />
       <style jsx global>{`
         .premium-order-summary-card {
