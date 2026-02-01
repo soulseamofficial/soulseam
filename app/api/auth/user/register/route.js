@@ -20,23 +20,71 @@ export async function POST(req) {
     const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
     const phone = typeof body?.phone === "string" ? body.phone.trim() : "";
     const password = typeof body?.password === "string" ? body.password : "";
+    const firebaseUid = typeof body?.firebaseUid === "string" ? body.firebaseUid.trim() : null;
 
-    if (!name) return NextResponse.json({ message: "Name required" }, { status: 400 });
-    if (!isValidEmail(email)) return NextResponse.json({ message: "Valid email required" }, { status: 400 });
-    // Phone is optional - only validate if provided
-    if (phone && !isValidPhone(phone)) return NextResponse.json({ message: "Valid phone required" }, { status: 400 });
-    if (!password || password.length < 6)
-      return NextResponse.json({ message: "Password must be at least 6 characters" }, { status: 400 });
-
-    // Uniqueness (blocking) only for users collection
-    // Only check phone uniqueness if phone is provided
-    const existingQuery = phone ? { $or: [{ email }, { phone }] } : { email };
-    const existing = await User.findOne(existingQuery).lean();
-    if (existing) {
-      return NextResponse.json({ message: "Email or phone already registered" }, { status: 409 });
+    if (!name) {
+      return NextResponse.json(
+        { error: "Name required" },
+        { status: 400 }
+      );
+    }
+    
+    // Require at least one: phone OR email
+    if (!phone && !email) {
+      return NextResponse.json(
+        { error: "Email or Phone is required" },
+        { status: 400 }
+      );
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    // Validate email only if provided
+    if (email && !isValidEmail(email)) {
+      return NextResponse.json(
+        { error: "Valid email required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate phone only if provided
+    if (phone && !isValidPhone(phone)) {
+      return NextResponse.json(
+        { error: "Valid phone required" },
+        { status: 400 }
+      );
+    }
+
+    // Password is required for email registration, optional for phone-only registration
+    // For phone-only registration, password can be empty or not provided
+    if (email && (!password || password.length < 6)) {
+      return NextResponse.json(
+        { error: "Password must be at least 6 characters" },
+        { status: 400 }
+      );
+    }
+    
+    // For phone-only registration, password is not required
+    // If password is provided for phone registration, validate it
+    if (phone && !email && password && password.length < 6) {
+      return NextResponse.json(
+        { error: "Password must be at least 6 characters" },
+        { status: 400 }
+      );
+    }
+
+    // Uniqueness check: Check for existing user with same email or phone
+    const existingQuery = email && phone 
+      ? { $or: [{ email }, { phone }] }
+      : email 
+      ? { email }
+      : { phone };
+    
+    const existing = await User.findOne(existingQuery).lean();
+    if (existing) {
+      return NextResponse.json(
+        { error: "Email or phone already registered" },
+        { status: 409 }
+      );
+    }
 
     // Optional initial address
     let addresses = [];
@@ -53,7 +101,7 @@ export async function POST(req) {
         addresses = [
           {
             fullName,
-            phone,
+            phone: phone || "", // Phone is optional in address
             addressLine1: addressLine1.trim(),
             addressLine2: addressLine2.trim(),
             city: city.trim(),
@@ -66,21 +114,83 @@ export async function POST(req) {
       }
     }
 
-    const user = await User.create({
+    // Build user object - only include fields that are provided
+    const userData = {
       name,
-      email,
-      phone,
-      passwordHash,
       provider: "local",
       addresses,
-    });
+    };
 
-    const token = signUserToken({ userId: user._id.toString() });
-    const res = NextResponse.json({ success: true });
-    setUserAuthCookie(res, token);
-    return res;
+    // Determine loginMethod based on what's provided
+    if (email && phone) {
+      // Both provided - use email as primary login method
+      userData.loginMethod = "email";
+      userData.email = email;
+      userData.phone = phone;
+      userData.emailVerified = false; // Will be verified via Firebase
+      userData.isPhoneVerified = false;
+    } else if (email) {
+      // Email only
+      userData.loginMethod = "email";
+      userData.email = email;
+      userData.emailVerified = false; // Will be verified via Firebase
+    } else if (phone) {
+      // Phone only
+      userData.loginMethod = "phone";
+      userData.phone = phone;
+      userData.isPhoneVerified = true; // Phone verified via OTP
+    }
+
+    // Only include passwordHash if password is provided (email registration)
+    if (password && password.length >= 6) {
+      userData.passwordHash = await bcrypt.hash(password, 10);
+    }
+
+    // Include firebaseUid if provided (from Firebase email registration)
+    if (firebaseUid) {
+      userData.firebaseUid = firebaseUid;
+      userData.provider = "email"; // Firebase email/password provider
+    }
+
+    try {
+      const user = await User.create(userData);
+
+      const token = signUserToken({ userId: user._id.toString() });
+      const res = NextResponse.json({ success: true });
+      setUserAuthCookie(res, token);
+      return res;
+    } catch (createError) {
+      // Handle Mongoose validation errors
+      if (createError.name === 'ValidationError') {
+        const errorMessage = createError.message || 'Validation failed';
+        return NextResponse.json(
+          { error: errorMessage },
+          { status: 400 }
+        );
+      }
+      
+      // Handle duplicate key errors (email or phone already exists)
+      if (createError.code === 11000) {
+        const field = createError.keyPattern?.email ? 'email' : 'phone';
+        return NextResponse.json(
+          { error: `${field === 'email' ? 'Email' : 'Phone'} already registered` },
+          { status: 409 }
+        );
+      }
+      
+      // Re-throw to outer catch
+      throw createError;
+    }
   } catch (error) {
-    return NextResponse.json({ message: error.message }, { status: 500 });
+    console.error("Registration error:", error);
+    
+    // Always return a proper response, never throw
+    return NextResponse.json(
+      { 
+        error: error.message || "Registration failed. Please try again." 
+      },
+      { status: 500 }
+    );
   }
 }
 
