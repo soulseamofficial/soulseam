@@ -820,6 +820,10 @@ export default function CheckoutPage() {
   const [verificationOtp, setVerificationOtp] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpError, setOtpError] = useState("");
+  const [otpSentMessage, setOtpSentMessage] = useState(""); // Inline message after OTP sent
+  const [resendCooldown, setResendCooldown] = useState(0); // Resend cooldown timer
+  const [whatsappVerified, setWhatsappVerified] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
   // --- Visual selection for contact method (UI only, no functionality) ---
   const [selectedContactMethod, setSelectedContactMethod] = useState(null); // "whatsapp" | "email" | null
   // --- Password fields for account create after OTP verified
@@ -1116,94 +1120,152 @@ export default function CheckoutPage() {
     }));
   }
 
-  // --- OTP Card Handlers ---
-  const handleVerificationSelect = method => {
-    if (verificationStep === "verified" || otpLoading) return;
-    setVerificationMethod(method);
-    setOtpError("");
-  };
-  async function handleSendOtp() {
+  // --- OTP Handlers ---
+  async function sendOTP(channel, identifier) {
     setOtpLoading(true);
     setOtpError("");
     try {
-      let res;
-      if (verificationMethod === "whatsapp") {
-        res = await fetch("/api/auth/send-whatsapp-otp", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phone: verificationInput }),
-        });
-      } else if (verificationMethod === "email") {
-        res = await fetch("/api/auth/send-email-otp", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: verificationInput }),
-        });
-      }
-      if (!res || !res.ok) {
-        const errorBody = await res.json().catch(() => undefined);
-        const errorMessage =
-          errorBody?.message ||
-          (verificationMethod === "whatsapp"
-            ? "Failed to send WhatsApp OTP. Please try again."
-            : "Failed to send Email OTP. Please try again.");
+      const endpoint = channel === "whatsapp" 
+        ? "/api/auth/whatsapp/send-otp" 
+        : "/api/auth/email/send-otp";
+      const payload = channel === "whatsapp" 
+        ? { phone: identifier } 
+        : { email: identifier };
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        const errorMessage = data.message || `Failed to send ${channel === "whatsapp" ? "WhatsApp" : "Email"} OTP. Please try again.`;
         setOtpError(errorMessage);
         setOtpLoading(false);
-        return;
+        return false;
       }
+
+      // Set verification state
+      setVerificationMethod(channel);
+      setVerificationInput(identifier);
       setVerificationStep("otp_sent");
+      setOtpSentMessage(`Verification code sent via ${channel === "whatsapp" ? "WhatsApp" : "Email"}`);
+      
+      // Start resend cooldown (30 seconds)
+      setResendCooldown(30);
+      const cooldownInterval = setInterval(() => {
+        setResendCooldown((prev) => {
+          if (prev <= 1) {
+            clearInterval(cooldownInterval);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      setOtpLoading(false);
+      return true;
     } catch (err) {
       setOtpError("Network issue. Please try again.");
-    } finally {
       setOtpLoading(false);
+      return false;
     }
   }
-  async function handleVerifyOtp() {
+
+  async function verifyOTP(channel, identifier, otp) {
     setOtpLoading(true);
     setOtpError("");
     try {
-      let res;
-      if (verificationMethod === "whatsapp") {
-        res = await fetch("/api/auth/verify-otp", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phone: verificationInput, otp: verificationOtp }),
-        });
-      } else if (verificationMethod === "email") {
-        res = await fetch("/api/auth/verify-otp", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: verificationInput, otp: verificationOtp }),
-        });
-      }
-      if (!res || !res.ok) {
-        const errorBody = await res.json().catch(() => undefined);
-        setOtpError(
-          errorBody?.message ||
-            (verificationMethod === "whatsapp"
-              ? "Invalid OTP. Please check and try again."
-              : "Invalid OTP. Please check and try again.")
-        );
+      const endpoint = channel === "whatsapp" 
+        ? "/api/auth/whatsapp/verify-otp" 
+        : "/api/auth/email/verify-otp";
+      const payload = channel === "whatsapp" 
+        ? { phone: identifier, otp } 
+        : { email: identifier, otp };
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.verified) {
+        setOtpError(data.message || "Invalid OTP. Please check and try again.");
         setOtpLoading(false);
-        return;
+        return false;
+      }
+
+      // Mark as verified
+      if (channel === "whatsapp") {
+        setWhatsappVerified(true);
+      } else {
+        setEmailVerified(true);
       }
       setVerificationStep("verified");
       setOtpError("");
+      setOtpLoading(false);
+      return true;
     } catch (err) {
       setOtpError("Verification failed. Please try again.");
-    } finally {
       setOtpLoading(false);
+      return false;
     }
   }
 
-  // --- Account Creation - No verification required ---
-  const isAccountVerificationRequired = form.createAccount;
-  // No OTP verification needed - account creation is seamless
-  const isAccountVerified = true; // Always true - no verification blocking
+  // Auto-trigger OTP when Continue/Place Order is clicked
+  async function triggerOTPVerification() {
+    const channels = [];
+    if (selectedContactMethod === "whatsapp" && form.phone) {
+      channels.push({ channel: "whatsapp", identifier: form.phone.replace(/\D/g, "").slice(0, 10) });
+    }
+    if (selectedContactMethod === "email" && form.email) {
+      channels.push({ channel: "email", identifier: form.email.trim().toLowerCase() });
+    }
+    // If both selected, send to both
+    if (selectedContactMethod === null && form.phone && form.email) {
+      // Default: send to both if no selection
+      channels.push({ channel: "whatsapp", identifier: form.phone.replace(/\D/g, "").slice(0, 10) });
+      channels.push({ channel: "email", identifier: form.email.trim().toLowerCase() });
+    }
 
-  // Allow continue - no OTP verification required
+    if (channels.length === 0) {
+      return true; // No OTP required
+    }
+
+    // Send OTPs to all selected channels
+    const results = await Promise.all(
+      channels.map(({ channel, identifier }) => sendOTP(channel, identifier))
+    );
+
+    // Update message if multiple channels
+    if (channels.length > 1) {
+      setOtpSentMessage("Verification code sent via WhatsApp and Email");
+    }
+
+    return results.some(r => r); // Return true if at least one succeeded
+  }
+
+  // --- OTP Verification Status ---
+  // Check if OTP verification is required and completed
+  const isOTPVerificationRequired = form.phone || form.email;
+  // If both channels selected, at least one must be verified
+  // If single channel selected, that channel must be verified
+  const isOTPVerified = 
+    selectedContactMethod === "whatsapp" ? whatsappVerified :
+    selectedContactMethod === "email" ? emailVerified :
+    selectedContactMethod === null && form.phone && form.email ? (whatsappVerified || emailVerified) :
+    form.phone ? whatsappVerified :
+    form.email ? emailVerified :
+    true; // No OTP required if no phone/email
+
+  // Allow continue only if OTP is verified (if required)
   const canContinueToShipping =
-    itemsWithFinalPrice.length > 0;
+    itemsWithFinalPrice.length > 0 && 
+    (!isOTPVerificationRequired || isOTPVerified || verificationStep === "verified");
 
   async function handleContinue(e) {
     e.preventDefault();
@@ -1224,6 +1286,23 @@ export default function CheckoutPage() {
     });
     setFormErrors(errors);
     if (Object.keys(errors).length > 0) return;
+
+    // Auto-trigger OTP verification if not already verified
+    if (isOTPVerificationRequired && !isOTPVerified && verificationStep !== "otp_sent") {
+      const otpSent = await triggerOTPVerification();
+      if (!otpSent) {
+        setOtpError("Failed to send verification code. Please try again.");
+        return;
+      }
+      // Don't proceed - wait for user to verify OTP
+      return;
+    }
+
+    // If OTP is sent but not verified, don't proceed
+    if (verificationStep === "otp_sent" && !isOTPVerified) {
+      setOtpError("Please verify the OTP before continuing.");
+      return;
+    }
 
     // Per spec: draft is created/updated on Shipping -> Continue (not here).
     setStep(2);
@@ -1339,6 +1418,22 @@ export default function CheckoutPage() {
   async function handleCOD() {
     setDeliveryCreationError(null);
 
+    // Check OTP verification before placing order
+    if (isOTPVerificationRequired && !isOTPVerified && verificationStep !== "otp_sent") {
+      const otpSent = await triggerOTPVerification();
+      if (!otpSent) {
+        setOtpError("Failed to send verification code. Please try again.");
+        return;
+      }
+      window?.alert?.("Please verify the OTP before placing your order.");
+      return;
+    }
+
+    if (verificationStep === "otp_sent" && !isOTPVerified) {
+      window?.alert?.("Please verify the OTP before placing your order.");
+      return;
+    }
+
     // Check if advance payment is required and not paid
     if (codSettings.codAdvanceEnabled && !codAdvancePaid) {
       window?.alert?.(`To confirm your Cash On Delivery order, please pay ₹${codSettings.codAdvanceAmount} as advance.`);
@@ -1453,6 +1548,22 @@ export default function CheckoutPage() {
 
   async function handlePayment() {
     setDeliveryCreationError(null);
+
+    // Check OTP verification before placing order
+    if (isOTPVerificationRequired && !isOTPVerified && verificationStep !== "otp_sent") {
+      const otpSent = await triggerOTPVerification();
+      if (!otpSent) {
+        setOtpError("Failed to send verification code. Please try again.");
+        return;
+      }
+      window?.alert?.("Please verify the OTP before placing your order.");
+      return;
+    }
+
+    if (verificationStep === "otp_sent" && !isOTPVerified) {
+      window?.alert?.("Please verify the OTP before placing your order.");
+      return;
+    }
 
     if (
       !mounted ||
@@ -1873,7 +1984,7 @@ export default function CheckoutPage() {
                       />
                       <label htmlFor="create-account" className="text-sm select-none text-white/90 font-semibold">Create an account?</label>
                     </div>
-                    {/* Account Creation - Visual icons only, no OTP verification */}
+                    {/* Account Creation - Contact Method Selection */}
                     {form.createAccount && (
                       <div
                         className="w-full mt-6 flex flex-col sm:flex-row gap-4 border-t border-white/12 pt-7 transition-all duration-500 ease-out"
@@ -1987,6 +2098,169 @@ export default function CheckoutPage() {
                             }`}>
                               Email
                             </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* OTP Verification Section - Dynamic */}
+                    {verificationStep === "otp_sent" && (
+                      <div className="w-full mt-6 border-t border-white/12 pt-6 transition-all duration-500 ease-out">
+                        {/* Inline success message */}
+                        {otpSentMessage && (
+                          <div className="mb-4 px-4 py-3 rounded-xl bg-green-500/10 border border-green-500/30">
+                            <p className="text-sm text-green-400/90 font-semibold">
+                              {otpSentMessage}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* OTP Input Fields */}
+                        <div className="space-y-4">
+                          {/* WhatsApp OTP */}
+                          {(selectedContactMethod === "whatsapp" || (!selectedContactMethod && form.phone)) && !whatsappVerified ? (
+                            <div>
+                              <label className="block text-sm font-semibold text-white/90 mb-2">
+                                Enter WhatsApp Verification Code
+                              </label>
+                              <div className="flex gap-3">
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
+                                  maxLength={6}
+                                  placeholder="000000"
+                                  value={verificationOtp}
+                                  onChange={(e) => {
+                                    const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                                    setVerificationOtp(val);
+                                    setOtpError("");
+                                  }}
+                                  className={`
+                                    flex-1 rounded-2xl px-4 py-3 bg-black/85 border border-white/18 text-white/93 font-semibold text-center text-2xl tracking-widest
+                                    placeholder:text-white/38 outline-none ring-0
+                                    focus:ring-2 focus:ring-white/20 focus:border-white/46
+                                    hover:border-white/25
+                                    transition-all duration-600 ease-out
+                                    ${otpLoading ? "opacity-60 cursor-not-allowed" : ""}
+                                    ${otpError ? "border-rose-400/90" : ""}
+                                  `}
+                                  style={{
+                                    fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
+                                  }}
+                                  disabled={otpLoading || whatsappVerified}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    const success = await verifyOTP(
+                                      "whatsapp",
+                                      form.phone.replace(/\D/g, "").slice(0, 10),
+                                      verificationOtp
+                                    );
+                                    if (success) {
+                                      setVerificationOtp("");
+                                    }
+                                  }}
+                                  disabled={otpLoading || verificationOtp.length !== 6 || whatsappVerified}
+                                  className={`
+                                    px-6 py-3 rounded-2xl font-bold text-white bg-gradient-to-r from-white/20 to-white/10
+                                    border border-white/30 hover:border-white/50
+                                    transition-all duration-300 ease-out
+                                    disabled:opacity-40 disabled:cursor-not-allowed
+                                  `}
+                                >
+                                  {whatsappVerified ? "✓ Verified" : "Verify"}
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {/* Email OTP */}
+                          {(selectedContactMethod === "email" || (!selectedContactMethod && form.email)) && !emailVerified ? (
+                            <div>
+                              <label className="block text-sm font-semibold text-white/90 mb-2">
+                                Enter Email Verification Code
+                              </label>
+                              <div className="flex gap-3">
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
+                                  maxLength={6}
+                                  placeholder="000000"
+                                  value={verificationOtp}
+                                  onChange={(e) => {
+                                    const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                                    setVerificationOtp(val);
+                                    setOtpError("");
+                                  }}
+                                  className={`
+                                    flex-1 rounded-2xl px-4 py-3 bg-black/85 border border-white/18 text-white/93 font-semibold text-center text-2xl tracking-widest
+                                    placeholder:text-white/38 outline-none ring-0
+                                    focus:ring-2 focus:ring-white/20 focus:border-white/46
+                                    hover:border-white/25
+                                    transition-all duration-600 ease-out
+                                    ${otpLoading ? "opacity-60 cursor-not-allowed" : ""}
+                                    ${otpError ? "border-rose-400/90" : ""}
+                                  `}
+                                  style={{
+                                    fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
+                                  }}
+                                  disabled={otpLoading || emailVerified}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    const success = await verifyOTP(
+                                      "email",
+                                      form.email.trim().toLowerCase(),
+                                      verificationOtp
+                                    );
+                                    if (success) {
+                                      setVerificationOtp("");
+                                    }
+                                  }}
+                                  disabled={otpLoading || verificationOtp.length !== 6 || emailVerified}
+                                  className={`
+                                    px-6 py-3 rounded-2xl font-bold text-white bg-gradient-to-r from-white/20 to-white/10
+                                    border border-white/30 hover:border-white/50
+                                    transition-all duration-300 ease-out
+                                    disabled:opacity-40 disabled:cursor-not-allowed
+                                  `}
+                                >
+                                  {emailVerified ? "✓ Verified" : "Verify"}
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {/* Error Message */}
+                          {otpError && (
+                            <div className="px-4 py-2 rounded-xl bg-rose-500/10 border border-rose-500/30">
+                              <p className="text-sm text-rose-400/90 font-semibold">{otpError}</p>
+                            </div>
+                          )}
+
+                          {/* Resend OTP Button */}
+                          <div className="flex items-center justify-between">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (resendCooldown > 0) return;
+                                await triggerOTPVerification();
+                              }}
+                              disabled={resendCooldown > 0 || otpLoading}
+                              className={`
+                                text-sm font-semibold text-white/70 hover:text-white/90
+                                transition-all duration-300 ease-out
+                                disabled:opacity-40 disabled:cursor-not-allowed
+                              `}
+                            >
+                              {resendCooldown > 0 
+                                ? `Resend code in ${resendCooldown}s` 
+                                : "Resend verification code"}
+                            </button>
                           </div>
                         </div>
                       </div>

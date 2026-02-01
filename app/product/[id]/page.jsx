@@ -69,21 +69,22 @@ function formatPrice(price) {
 }
 
 
-// Glassmorphism + luxury inspired classes - MATCHING CART PAGE DARK THEME
-const glassCard = "bg-gradient-to-br from-[#191919] to-[#0b0b0b] border border-white/15 rounded-3xl shadow-[0_15px_46px_rgba(255,255,255,0.10)]";
-const hoverGlow = "hover:shadow-[0_25px_80px_rgba(255,255,255,0.18)] transition-shadow duration-400 ease-[cubic-bezier(.68,.01,.49,.97)]";
-const focusRing = "focus:outline-none focus:ring-2 focus:ring-white/30";
-const mainSpotGradient = "before:content-[''] before:absolute before:inset-0 before:bg-gradient-radial before:from-white/5 before:to-transparent before:z-10";
+// Glassmorphism + luxury inspired classes - MATCHING CHECKOUT PAGE HOVER EFFECTS
+const glassCard = "relative overflow-hidden bg-gradient-to-b from-white/8 via-black/25 to-black backdrop-blur-2xl border border-white/12 rounded-3xl shadow-[0_18px_70px_rgba(255,255,255,0.14)] transition-all duration-600 ease-out will-change-transform premium-summary-hover";
+const glassCardInner = "absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_rgba(255,255,255,0.14)_0%,_rgba(0,0,0,0.92)_55%)]";
+const hoverGlow = "hover:-translate-y-2.5 hover:shadow-[0_32px_100px_rgba(255,255,255,0.19)] hover:border-white/25 transition-all duration-600 ease-out will-change-transform";
+const focusRing = "focus:outline-none focus:border-white/30";
 const shimmer = "animate-pulse bg-gradient-to-br from-[#191921] to-black/80";
-const fadeAnim = "transition-all duration-500 ease-[cubic-bezier(.68,.01,.49,.97)]";
-const pillBtn = "min-w-14 px-7 py-3 rounded-2xl text-lg font-semibold border border-white/15 bg-gradient-to-br from-[#191919] to-[#0b0b0b] text-white/90 transition-all duration-300 ease-in-out shadow-[0_15px_46px_rgba(255,255,255,0.10)] hover:scale-105 hover:border-white/30 hover:shadow-[0_25px_80px_rgba(255,255,255,0.18)] focus:outline-none";
-const pillBtnSelected = "border-white/30 bg-gradient-to-br from-[#1a1a1a] to-[#0c0c0c] text-white shadow-[0_25px_80px_rgba(255,255,255,0.18)] scale-105";
-const pillBtnDisabled = "opacity-30 bg-gradient-to-br from-[#0b0b0b] to-[#050505] border-white/10 text-white/50 cursor-not-allowed pointer-events-none";
-const qtyBtn = "rounded-full flex items-center justify-center w-11 h-11 bg-gradient-to-br from-[#191919] to-[#0b0b0b] text-white text-xl font-bold border border-white/15 hover:bg-gradient-to-br hover:from-[#1a1a1a] hover:to-[#0c0c0c] hover:scale-[1.09] hover:border-white/30 hover:shadow-[0_10px_35px_rgba(255,255,255,0.15)] transition-all duration-200 focus:outline-none disabled:opacity-30 disabled:pointer-events-none";
-const badge = "inline-flex items-center px-3 py-1 border border-white/15 rounded-full font-semibold text-xs bg-gradient-to-br from-[#191919] to-[#0b0b0b] text-white/90";
-const glassAccordion = "rounded-2xl overflow-hidden border border-white/10 bg-gradient-to-br from-[#191919] to-[#0b0b0b] mb-2 shadow-[0_10px_32px_rgba(255,255,255,0.08)]";
+const fadeAnim = "transition-all duration-600 ease-out";
+const pillBtn = "min-w-14 px-7 py-3 rounded-2xl text-lg font-semibold border border-white/15 bg-black/40 text-white/90 transition-all duration-500 ease-out shadow-[0_10px_45px_rgba(255,255,255,0.12)] hover:bg-black/50 hover:border-white/30 focus:outline-none focus:bg-black/75 focus:border-white/40 focus:ring-2 focus:ring-white/20";
+const pillBtnSelected = "border-white/30 bg-black/60 text-white shadow-[0_15px_60px_rgba(255,255,255,0.18)] scale-[1.02] ring-2 ring-white/20";
+const pillBtnDisabled = "opacity-30 bg-black/20 border-white/10 text-white/50 cursor-not-allowed pointer-events-none";
+const qtyBtn = "rounded-full flex items-center justify-center w-11 h-11 bg-black/40 text-white text-xl font-bold border border-white/15 transition-all duration-500 ease-out hover:bg-black/50 hover:border-white/30 focus:outline-none focus:bg-black/75 focus:border-white/40 focus:ring-2 focus:ring-white/20 disabled:opacity-30 disabled:pointer-events-none";
+const badge = "inline-flex items-center px-3 py-1 border border-white/15 rounded-full font-semibold text-xs bg-black/40 text-white/90 backdrop-blur-sm";
+const glassAccordion = "relative overflow-hidden rounded-2xl border border-white/12 bg-gradient-to-b from-white/8 via-black/25 to-black backdrop-blur-xl mb-2 shadow-[0_10px_45px_rgba(255,255,255,0.12)] transition-all duration-600 ease-out";
+const glassAccordionInner = "absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_rgba(255,255,255,0.12)_0%,_rgba(0,0,0,0.9)_55%)]";
 
-// --- Luxury Button --- //
+// --- Luxury Button --- // (Matching Checkout Page Button Style with Shine Effect)
 function LuxuryActionButton({ children, onClick, disabled, ariaLabel, tabIndex, ...props }) {
   return (
     <button
@@ -92,38 +93,47 @@ function LuxuryActionButton({ children, onClick, disabled, ariaLabel, tabIndex, 
       aria-label={ariaLabel}
       tabIndex={tabIndex}
         className={[
-          "group w-full rounded-full px-8 py-4 mt-0 mb-0 select-none",
-          "border border-white/15",
-          "bg-gradient-to-br from-[#191919] to-[#0b0b0b]",
+          "group w-full rounded-xl px-8 py-3 mt-0 mb-0 select-none",
+          "border border-white/20",
+          "bg-white/10 backdrop-blur-sm",
           "relative overflow-hidden",
-          "uppercase font-extrabold tracking-[0.18em] text-[1.14rem] leading-none",
+          "uppercase font-semibold tracking-wide text-base leading-none",
           "text-white flex items-center justify-center",
-          "shadow-[0_15px_46px_rgba(255,255,255,0.10)]",
-          "transition-all duration-400 ease-[cubic-bezier(.60,.01,.37,1)]",
-          "will-change-transform will-change-shadow will-change-bg",
+          "shadow-[0_10px_45px_rgba(255,255,255,0.12)]",
+          "transition-all duration-300 ease-in-out",
+          "will-change-transform",
           focusRing,
           disabled
             ? "opacity-45 cursor-not-allowed"
-            : "hover:scale-[1.035] hover:shadow-[0_25px_80px_rgba(255,255,255,0.18)] hover:border-white/30 hover:bg-gradient-to-br hover:from-[#1a1a1a] hover:to-[#0c0c0c] active:scale-100"
+            : "hover:bg-white/15 hover:border-white/30 hover:scale-[1.02] hover:shadow-[0_15px_60px_rgba(255,255,255,0.16)] hover:-translate-y-[2px] active:scale-100 active:translate-y-0"
         ].join(" ")}
         style={{
-          letterSpacing: "0.16em",
-          fontWeight: 770,
+          letterSpacing: "0.05em",
+          fontWeight: 600,
           borderWidth: "1px",
-          borderColor: "rgba(255,255,255,0.15)",
           color: "#ffffff",
           boxShadow: disabled
-            ? "0_15px_46px_rgba(255,255,255,0.05)"
-            : "0_15px_46px_rgba(255,255,255,0.10)",
-          background: "linear-gradient(to bottom right, #191919, #0b0b0b)",
+            ? "0_10px_45px_rgba(255,255,255,0.06)"
+            : "0_10px_45px_rgba(255,255,255,0.12)",
           position: "relative",
           pointerEvents: disabled ? "none" : "auto",
-          transition: "box-shadow 0.65s cubic-bezier(.68,0,.41,1), background 0.65s cubic-bezier(.68,0,.41,1), transform 0.39s cubic-bezier(.73,.01,.37,1), color 0.38s cubic-bezier(.64,0,.36,1)"
+          transition: "all 0.3s ease-in-out"
         }}
       {...props}
     >
       {/* Button text */}
-      <span className="relative z-10">{children}</span>
+      <span className="relative z-10 transition-all duration-300 ease-in-out">{children}</span>
+      {/* Premium dark glass hover overlay - matching checkout button shine */}
+      <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out">
+        {/* Dark gradient background (charcoal → black) */}
+        <span className="absolute inset-0 bg-gradient-to-b from-[#2a2a2a] via-[#1a1a1a] to-[#0a0a0a] rounded-xl"></span>
+        {/* Inner highlight (top) */}
+        <span className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-transparent rounded-xl"></span>
+        {/* Outer glow */}
+        <span className="absolute inset-0 rounded-xl" style={{
+          boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.15), 0 0 20px rgba(0,0,0,0.6), 0 0 40px rgba(0,0,0,0.4)'
+        }}></span>
+      </span>
     </button>
   );
 }
@@ -172,16 +182,18 @@ function LuxuryAccordion({ title, children, defaultOpen, accordionKey }) {
   }, []);
 
   return (
-    <div className={glassAccordion}>
+    <div className={glassAccordion + " group"}>
+      {/* Inner glow overlay */}
+      <div className={glassAccordionInner}></div>
       <button
         onClick={handleToggle}
-        className="w-full flex items-center justify-between px-6 py-5 text-left text-lg font-semibold tracking-wide text-white/90 hover:bg-gradient-to-br hover:from-[#1a1a1a] hover:to-[#0c0c0c] transition-colors duration-200"
+        className="relative z-10 w-full flex items-center justify-between px-6 py-5 text-left text-lg font-semibold tracking-wide text-white/90 hover:bg-black/20 hover:border-white/30 transition-all duration-600 ease-out rounded-2xl"
         aria-expanded={open}
         type="button"
         tabIndex={0}
       >
         <span>{title}</span>
-        <svg width={22} height={22} className={"transition-transform duration-300 " + (open ? "rotate-90" : "rotate-0")} viewBox="0 0 22 22" fill="none"><path d="M7 8l4 4 4-4" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        <svg width={22} height={22} className={"transition-transform duration-600 ease-out " + (open ? "rotate-90" : "rotate-0")} viewBox="0 0 22 22" fill="none"><path d="M7 8l4 4 4-4" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
       </button>
       <div
         ref={contentRef}
@@ -194,7 +206,7 @@ function LuxuryAccordion({ title, children, defaultOpen, accordionKey }) {
         }}
         aria-hidden={!open}
       >
-        <div className="px-6 pb-6 pt-2 text-white/75 text-base leading-relaxed">{children}</div>
+        <div className="relative z-10 px-6 pb-6 pt-2 text-white/75 text-base leading-relaxed">{children}</div>
       </div>
     </div>
   );
@@ -303,7 +315,7 @@ export default function ProductPage() {
     router.push("/cart");
   }
 
-  // Back Button: Minimal mobile, richer on desktop
+  // Back Button: Matching Coupons Page Style
   function LuxuryBackButton({fixed}) {
     // Always visible, z-50, never pointer-events-none
     return (
@@ -318,17 +330,14 @@ export default function ProductPage() {
             ? "left-0 top-0 m-3 md:left-10 md:top-7"
             : "left-3 top-4 md:left-10 md:top-7",
           "flex items-center gap-2",
-          "px-4 py-2 rounded-full font-medium text-base",
-          "text-white/90 bg-gradient-to-br from-[#191919] to-[#0b0b0b]",
+          "px-4 py-2 rounded-xl font-medium text-base",
+          "text-white/90 bg-black/40 backdrop-blur-sm",
           "border border-white/15",
-          "shadow-[0_15px_46px_rgba(255,255,255,0.10)]",
-          "transition-all duration-200",
-          "hover:bg-gradient-to-br hover:from-[#1a1a1a] hover:to-[#0c0c0c] hover:border-white/30 hover:shadow-[0_25px_80px_rgba(255,255,255,0.18)]",
+          "shadow-[0_10px_45px_rgba(255,255,255,0.12)]",
+          "transition-all duration-300",
+          "hover:bg-black/50 hover:border-white/25 hover:scale-[1.02] hover:shadow-[0_15px_60px_rgba(255,255,255,0.16)]",
           focusRing,
         ].join(" ")}
-        style={{
-          boxShadow: "0_15px_46px_rgba(255,255,255,0.10)"
-        }}
       >
         <IconArrowLeft className="text-white/75 w-5 h-5 mr-0.5" />
         <span className="block pr-1 !text-base font-medium" style={{fontWeight: 500, letterSpacing: 0.01}}>Back</span>
@@ -395,19 +404,21 @@ export default function ProductPage() {
   // --- MOBILE-IMAGE-FIRST, LUXURY SCROLL-TO-DETAILS LAYOUT ---
   return (
     // eslint-disable-next-line
-    <main className="relative w-full min-h-screen bg-black">
+    <main className="relative w-full min-h-screen bg-gradient-to-b from-black via-[#0a0a0a] to-black">
       {/* --- MOBILE PRODUCT IMAGE SECTION IN FLOW, 75vh, NOT FIXED, Back Btn overlays image --- */}
       <div className="md:hidden w-full relative" style={{ minHeight: "75vh" }}>
-        <div className="w-full h-[75vh] relative rounded-b-3xl overflow-hidden">
+        <div className="w-full h-[75vh] relative rounded-b-3xl overflow-hidden bg-gradient-to-b from-white/8 via-black/25 to-black border-b border-white/12 transition-all duration-600 ease-out will-change-transform premium-summary-hover">
+          {/* Ambient glow overlay */}
+          <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_rgba(255,255,255,0.12)_0%,_rgba(0,0,0,0.9)_55%)] rounded-b-3xl z-10"></div>
           <img
             src={product.images[mainImgIdx] || "/placeholder.png"}
             alt={product.name}
             key={product.images[mainImgIdx] || "/placeholder.png"}
-            className="absolute inset-0 w-full h-full object-cover rounded-b-3xl select-none transition-transform duration-700"
+            className="absolute inset-0 w-full h-full object-cover rounded-b-3xl select-none transition-all duration-600 ease-out"
             style={{
               opacity: imgTransitioning ? 0.88 : 1,
-              filter: "brightness(1.09) saturate(1.02)",
-              transition: "opacity 610ms cubic-bezier(.68,.01,.49,.95), filter 500ms, transform 550ms"
+              filter: "brightness(1.05)",
+              transition: "opacity 0.6s cubic-bezier(.4,0,.2,1), filter 0.6s cubic-bezier(.4,0,.2,1)"
             }}
             draggable={false}
           />
@@ -447,19 +458,22 @@ export default function ProductPage() {
           "relative z-40",
           "w-full",
           "pt-7 pb-16 px-3",
-          "bg-gradient-to-br from-[#191919] to-[#0b0b0b]",
+          "bg-gradient-to-b from-white/8 via-black/25 to-black",
+          "backdrop-blur-2xl",
           "rounded-t-3xl",
-          "border border-white/15",
-          "shadow-[0_15px_46px_rgba(255,255,255,0.10)]",
-          "transition-all duration-700",
+          "border border-white/12",
+          "shadow-[0_18px_70px_rgba(255,255,255,0.14)]",
+          "transition-all duration-600 ease-out",
+          "premium-summary-hover",
         ].join(" ")}
         style={{
           minHeight: "100vh",
-          boxShadow: "0 -5px 27px 0 rgba(255,255,255,0.10), 0_15px_46px_rgba(255,255,255,0.10)",
           marginTop: "-24px"
         }}
       >
-        <div className="w-full max-w-lg mx-auto">
+        {/* Ambient glow overlay */}
+        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_rgba(255,255,255,0.14)_0%,_rgba(0,0,0,0.92)_55%)] rounded-t-3xl"></div>
+        <div className="relative z-10 w-full max-w-lg mx-auto">
           {/* Headline + Price */}
           <div className="text-center mb-4">
             <h1 className="font-extrabold text-[2.2rem] leading-tight text-white mb-3 tracking-tight mt-3 drop-shadow-[0_1px_16px_rgba(255,255,255,0.09)]" style={{fontFamily: "'Neue Haas Grotesk Display', 'Inter', 'system-ui', serif"}}>
@@ -508,9 +522,6 @@ export default function ProductPage() {
                     }}
                     aria-pressed={isSelected}
                     style={{
-                      boxShadow: isSelected
-                          ? "0 0 0 3px rgba(255,255,255,0.22),0 0 22px 2px rgba(255,255,255,0.18)"
-                          : undefined,
                       cursor: isDisabled ? "not-allowed" : "pointer"
                     }}
                   >
@@ -669,47 +680,35 @@ export default function ProductPage() {
           <div className={"relative h-full w-full flex flex-col justify-center items-center"} style={{minWidth: 0}}>
             <div className={
               [
-                "relative aspect-[4/5] w-full max-w-[540px] rounded-3xl mb-6 " + glassCard,
-                fadeAnim,
+                "group relative aspect-[4/5] w-full max-w-[540px] rounded-3xl mb-6 " + glassCard,
+                hoverGlow,
                 imgTransitioning ? "opacity-70 scale-98" : "opacity-100 scale-100"
               ].join(" ")
             }
-              style={{
-                boxShadow: imgTransitioning
-                  ? "0_15px_46px_rgba(255,255,255,0.10)"
-                  : "0_15px_46px_rgba(255,255,255,0.10), 0_25px_80px_rgba(255,255,255,0.18)",
-                transition: "box-shadow 530ms cubic-bezier(.65,.01,.54,.95), opacity 470ms, transform 530ms"
-              }}
             >
+              {/* Inner glow overlay */}
+              <div className={glassCardInner}></div>
               <img
                 src={product.images[mainImgIdx] || "/placeholder.png"}
                 alt={product.name}
                 key={product.images[mainImgIdx] || "/placeholder.png"}
                 className={
-                  "object-cover w-full h-full select-none rounded-3xl shadow-[0_8px_42px_3px_rgba(0,0,0,0.51)] " +
-                  "transition-transform duration-600 ease-in-out will-change-transform group"
+                  "relative z-10 object-cover w-full h-full select-none rounded-3xl " +
+                  "transition-all duration-600 ease-out will-change-transform border border-white/15 " +
+                  "group-hover:scale-105 group-hover:brightness-110 group-hover:shadow-[0_6px_24px_rgba(255,255,255,0.18)]"
                 }
                 style={{
                   opacity: imgTransitioning ? 0.88 : 1,
-                  filter: "brightness(1.05) drop-shadow(0_0_32px_rgba(255,255,255,0.17))",
-                  transform: imgTransitioning ? "scale(1.032)" : "scale(1.008)",
+                  filter: "brightness(1.05)",
+                  transform: "scale(1)",
                   pointerEvents: "none",
                   borderRadius: "1.5rem",
-                  transition: "opacity 610ms cubic-bezier(.68,.01,.49,.95), filter 500ms, transform 550ms"
+                  transition: "transform .62s cubic-bezier(.42,0,.28,1), box-shadow .59s cubic-bezier(.42,0,.28,1)"
                 }}
                 draggable={false}
-                onMouseOver={e => {
-                  e.currentTarget.style.transform = "scale(1.045)";
-                  e.currentTarget.style.transition = "transform 270ms cubic-bezier(.74,.01,.53,.97)";
-                  e.currentTarget.style.filter = "brightness(1.09) saturate(1.05) drop-shadow(0_0_58px_rgba(255,255,255,0.15))";
-                }}
-                onMouseOut={e => {
-                  e.currentTarget.style.transform = imgTransitioning ? "scale(1.032)" : "scale(1.008)";
-                  e.currentTarget.style.transition = "transform 370ms cubic-bezier(.62,.01,.53,.97)";
-                  e.currentTarget.style.filter = "brightness(1.05) drop-shadow(0_0_32px_rgba(255,255,255,0.17))";
-                }}
               />
-              <div className="absolute inset-0 rounded-3xl pointer-events-none z-20 border border-white/15"></div>
+              {/* Subtle light sweep reflection on hover */}
+              <div className="absolute inset-0 rounded-3xl pointer-events-none z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-transparent via-white/5 to-transparent"></div>
             </div>
             {/* Thumbnails */}
             <div className="flex gap-4 mt-1 z-20">
@@ -719,14 +718,14 @@ export default function ProductPage() {
                   onClick={() => setMainImgIdx(idx)}
                   className={
                     [
-                      "overflow-hidden", hoverGlow, focusRing,
-                      "rounded-2xl w-16 h-16 flex items-center justify-center ring-0 border-2 transition-[box-shadow,scale]",
+                      "overflow-hidden group", focusRing,
+                      "rounded-2xl w-16 h-16 flex items-center justify-center ring-0 border-2 transition-all duration-600 ease-out",
+                      "bg-black/40 backdrop-blur-sm will-change-transform",
                       idx === mainImgIdx
-                        ? "border-white/80 scale-110 shadow-[0_0_16px_4px_rgba(255,255,255,0.19)]"
-                        : "border-white/15 scale-95"
+                        ? "border-white/30 scale-110 shadow-[0_0_20px_rgba(255,255,255,0.18)] ring-2 ring-white/20"
+                        : "border-white/15 scale-95 hover:-translate-y-1 hover:border-white/30 hover:shadow-[0_6px_24px_rgba(255,255,255,0.15)] hover:scale-100"
                     ].join(" ")
                   }
-                  style={{background: "rgba(11,11,11,0.60)"}}
                   aria-label={`Show product image ${idx + 1}`}
                 >
                   <img
@@ -750,8 +749,10 @@ export default function ProductPage() {
 
         {/* PRODUCT INFO (RIGHT) */}
         <section className="relative flex-[1.15] flex flex-col px-4 md:px-12 pt-7 md:pt-12 justify-between z-10 min-w-[340px]">
-          <div className={"w-full max-w-2xl mx-auto rounded-3xl px-6 py-8 mb-5 " + glassCard}>
-            <div className="text-center mb-6">
+          <div className={"group w-full max-w-2xl mx-auto rounded-3xl px-6 py-8 mb-5 " + glassCard}>
+            {/* Inner glow overlay */}
+            <div className={glassCardInner}></div>
+            <div className="relative z-10 text-center mb-6">
               <h1 className="font-extrabold text-[2.7rem] leading-[1.1] md:text-[3.2rem] text-white mb-4 tracking-tight drop-shadow-[0_1px_36px_rgba(255,255,255,0.15)]" style={{fontFamily: "'Neue Haas Grotesk Display', 'Inter', 'system-ui', serif"}}>
                 {product.name}
               </h1>
@@ -778,7 +779,7 @@ export default function ProductPage() {
                 <span className="text-white/40 text-sm ml-3">{numReviews} reviews</span>
               </div>
             </div>
-            <div className="my-4 mx-0 max-w-2xl">
+            <div className="relative z-10 my-4 mx-0 max-w-2xl">
               <AccordionGroup openKey={openAccordionKey} setOpenKey={setOpenAccordionKey}>
                 <LuxuryAccordion title="Product Description" accordionKey="philosophy">
                   <div className="text-white/65 text-base leading-loose font-light tracking-normal pt-0">
@@ -820,9 +821,6 @@ export default function ProductPage() {
                         }}
                         aria-pressed={isSelected}
                         style={{
-                          boxShadow: isSelected
-                            ? "0 0 0 3px rgba(255,255,255,0.22),0 0 22px 2px rgba(255,255,255,0.18)"
-                            : undefined,
                           cursor: isDisabled ? "not-allowed" : "pointer"
                         }}
                       >
@@ -954,6 +952,48 @@ export default function ProductPage() {
           </div>
         </section>
       </div>
+      {/* Global CSS for checkout-style hover effects */}
+      <style jsx global>{`
+        /* Premium summary hover effect - matching checkout page */
+        .premium-summary-hover {
+          position: relative;
+          will-change: transform, box-shadow, border-color;
+          transition: box-shadow .44s cubic-bezier(.4,0,.2,1), transform .43s cubic-bezier(.4,0,.2,1), border-color .44s cubic-bezier(.4,0,.2,1);
+        }
+        .premium-summary-hover:hover {
+          border-color: #fff !important;
+          box-shadow: 0 18px 72px 0 rgba(255,255,255,0.18),0 0 0 2.4px rgba(255,255,255,0.11);
+          transform: translateY(-4px) scale(1.018);
+        }
+        .premium-summary-hover:after {
+          content: '';
+          pointer-events: none;
+          position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+          border-radius: 1.35rem;
+          z-index: 2;
+          box-shadow: 0 0 0 2.5px rgba(255,255,255,0.13);
+          opacity: 0;
+          transition: opacity .62s cubic-bezier(.4,0,.2,1);
+        }
+        .premium-summary-hover:hover:after {
+          opacity: 1;
+        }
+        /* Group hover effect for cards */
+        .group:after {
+          content: "";
+          border-radius: 16px;
+          pointer-events: none;
+          position: absolute;
+          z-index: 2;
+          left: 0; top: 0; width: 100%; height: 100%;
+          box-shadow: 0 0 0 2.5px rgba(255,255,255,0.10);
+          opacity: 0;
+          transition: opacity .62s cubic-bezier(.4,0,.2,1);
+        }
+        .group:hover:after {
+          opacity: 1;
+        }
+      `}</style>
     </main>
   );
 }
