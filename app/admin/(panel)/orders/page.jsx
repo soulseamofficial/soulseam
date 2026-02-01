@@ -52,10 +52,12 @@ export default function AdminOrdersPage() {
       "Name",
       "Phone",
       "Email",
-      "Total",
+      "Payment Method",
+      "Advance Paid",
+      "Remaining COD",
+      "Final Total",
       "Order Status",
       "Payment Status",
-      "Payment Method",
       "Date",
     ];
 
@@ -64,10 +66,12 @@ export default function AdminOrdersPage() {
       `${o.customer?.firstName || ""} ${o.customer?.lastName || ""}`,
       o.customer?.phone || "",
       o.customer?.email || "",
-      o.total,
+      o.paymentMethod || o.payment?.method || "N/A",
+      o.paymentMethod === "COD" ? (o.advancePaid || 0) : (o.paymentStatus === "PAID" ? (o.totalAmount || o.total || 0) : 0),
+      o.paymentMethod === "COD" ? (o.remainingCOD || (o.totalAmount || o.total || 0)) : 0,
+      o.totalAmount || o.finalTotal || o.total || 0,
       o.orderStatus,
-      o.payment?.status,
-      o.payment?.method,
+      o.paymentStatus || o.payment?.status || "N/A",
       new Date(o.createdAt).toLocaleString(),
     ]);
 
@@ -153,31 +157,50 @@ export default function AdminOrdersPage() {
                   onClick={() => toggleOrder(order._id)}
                   className="w-full p-5 flex justify-between items-center hover:bg-white/5 transition"
                 >
-<div className="grid grid-cols-2 sm:grid-cols-4 gap-x-16 gap-y-4">
+<div className="grid grid-cols-2 sm:grid-cols-5 gap-x-8 gap-y-4">
 
                     <div>
                       <p className="text-xs text-white/50">Order ID</p>
-                      <p className="font-semibold break-all">{order._id}</p>
+                      <p className="font-semibold break-all text-xs">{order._id.slice(-8)}</p>
                     </div>
 
                     <div>
-                      <p className="text-xs text-white/50">Phone</p>
-                      <p className="font-semibold">
+                      <p className="text-xs text-white/50">Customer</p>
+                      <p className="font-semibold text-sm">
+                        {order.customer?.firstName} {order.customer?.lastName}
+                      </p>
+                      <p className="text-xs text-white/60">
                         {order.customer?.phone || "N/A"}
                       </p>
                     </div>
 
                     <div>
-                      <p className="text-xs text-white/50">Name</p>
-                      <p className="font-semibold">
-                        {order.customer?.firstName}{" "}
-                        {order.customer?.lastName}
+                      <p className="text-xs text-white/50">Payment</p>
+                      <p className="font-semibold capitalize text-sm">
+                        {order.paymentMethod || order.payment?.method || "N/A"}
                       </p>
+                      {order.paymentMethod === "COD" && order.advancePaid > 0 && (
+                        <p className="text-xs text-amber-400">
+                          Advance: ₹{order.advancePaid}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-white/50">Total</p>
+                      <p className="font-semibold">
+                        ₹{order.totalAmount || order.finalTotal || order.total || 0}
+                      </p>
+                      {order.paymentMethod === "COD" && order.remainingCOD > 0 && (
+                        <p className="text-xs text-white/60">
+                          Remaining: ₹{order.remainingCOD}
+                        </p>
+                      )}
                     </div>
 
                     <div>
                       <p className="text-xs text-white/50">Date</p>
-                      <p className="font-semibold">
+                      <p className="font-semibold text-sm">
                         {new Date(order.createdAt).toLocaleDateString()}
                       </p>
                     </div>
@@ -208,16 +231,69 @@ export default function AdminOrdersPage() {
 
                     <div className="grid md:grid-cols-2 gap-4 mb-4">
                       <div>
-                        <p className="text-sm text-white/60">Payment</p>
+                        <p className="text-sm text-white/60">Payment Method</p>
                         <p className="font-semibold capitalize">
-                          {order.payment?.status} (
-                          {order.payment?.method || "N/A"})
+                          {order.paymentMethod || order.payment?.method || "N/A"}
                         </p>
                       </div>
                       <div>
-                        <p className="text-sm text-white/60">Total</p>
+                        <p className="text-sm text-white/60">Payment Status</p>
+                        <p className="font-semibold capitalize">
+                          {order.paymentStatus || order.payment?.status || "N/A"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Payment Details */}
+                    <div className="grid md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <p className="text-sm text-white/60">Subtotal</p>
+                        <p className="font-semibold">
+                          ₹{order.subtotal || order.total || 0}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-white/60">Discount</p>
+                        <p className="font-semibold">
+                          ₹{order.discount || order.discountAmount || 0}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* COD Advance Payment Details */}
+                    {order.paymentMethod === "COD" && (
+                      <div className="mb-4 p-4 rounded-xl bg-amber-900/20 border border-amber-500/30">
+                        <p className="text-sm font-semibold text-amber-400 mb-2">COD Payment Details</p>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-xs text-white/60">Advance Paid</p>
+                            <p className="font-bold text-amber-400">
+                              ₹{order.advancePaid || 0}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-white/60">Remaining COD</p>
+                            <p className="font-bold text-white">
+                              ₹{order.remainingCOD || (order.totalAmount || order.total || 0)}
+                            </p>
+                          </div>
+                        </div>
+                        {order.razorpayPaymentId && (
+                          <div className="mt-2">
+                            <p className="text-xs text-white/60">Razorpay Payment ID</p>
+                            <p className="font-mono text-xs text-white/80 break-all">
+                              {order.razorpayPaymentId}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="grid md:grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <p className="text-sm text-white/60">Final Total</p>
                         <p className="text-xl font-extrabold">
-                          ₹{order.total}
+                          ₹{order.totalAmount || order.finalTotal || order.total || 0}
                         </p>
                       </div>
                     </div>

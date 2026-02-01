@@ -68,6 +68,17 @@ export async function POST(req) {
 
     // Ensure isActive is a boolean
     const isActive = body.isActive !== undefined ? Boolean(body.isActive) : true;
+    
+    // Handle isFirstOrderCoupon
+    const isFirstOrderCoupon = body.isFirstOrderCoupon !== undefined ? Boolean(body.isFirstOrderCoupon) : false;
+    
+    // If this coupon is marked as first-order coupon, unset all other first-order coupons
+    if (isFirstOrderCoupon) {
+      await Coupon.updateMany(
+        { _id: { $ne: null } }, // All coupons (we'll create this one after)
+        { $set: { isFirstOrderCoupon: false } }
+      );
+    }
 
     const coupon = await Coupon.create({
       code: body.code.toUpperCase().trim(),
@@ -76,10 +87,11 @@ export async function POST(req) {
       minOrderAmount: body.minOrderAmount || null,
       maxDiscount: body.maxDiscount || null,
       expiryDate: expiryDate,
-      isActive: isActive
+      isActive: isFirstOrderCoupon ? true : isActive, // Auto-activate if first-order coupon
+      isFirstOrderCoupon: isFirstOrderCoupon
     });
 
-    console.log(`[Admin Coupons] Coupon created: ${coupon.code} (ID: ${coupon._id})`);
+    console.log(`[Admin Coupons] Coupon created: ${coupon.code} (ID: ${coupon._id}, isFirstOrderCoupon: ${isFirstOrderCoupon})`);
     return NextResponse.json({ success: true, coupon });
   } catch (err) {
     console.error("[Admin Coupons] POST error:", err);
@@ -165,18 +177,46 @@ export async function PATCH(req) {
     await connectDB();
 
     const body = await req.json();
-    const { id, isActive } = body;
+    const { id, isActive, isFirstOrderCoupon } = body;
 
-    if (!id || typeof isActive !== "boolean") {
+    if (!id) {
       return NextResponse.json(
-        { message: "id and isActive (boolean) are required" },
+        { message: "id is required" },
+        { status: 400 }
+      );
+    }
+
+    // Build update object
+    const updateData = {};
+    
+    if (typeof isActive === "boolean") {
+      updateData.isActive = isActive;
+    }
+    
+    if (typeof isFirstOrderCoupon === "boolean") {
+      updateData.isFirstOrderCoupon = isFirstOrderCoupon;
+      
+      // If setting this coupon as first-order, unset all others
+      if (isFirstOrderCoupon) {
+        await Coupon.updateMany(
+          { _id: { $ne: id } },
+          { $set: { isFirstOrderCoupon: false } }
+        );
+        // Auto-activate first-order coupon
+        updateData.isActive = true;
+      }
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json(
+        { message: "At least one field (isActive or isFirstOrderCoupon) must be provided" },
         { status: 400 }
       );
     }
 
     const coupon = await Coupon.findByIdAndUpdate(
       id,
-      { isActive },
+      { $set: updateData },
       { new: true }
     );
 

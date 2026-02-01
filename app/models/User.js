@@ -31,6 +31,10 @@ const UserSchema = new mongoose.Schema(
 
     role: { type: String, default: "user" },
 
+    // Order tracking
+    orderCount: { type: Number, default: 0 },
+    firstOrderCouponUsed: { type: Boolean, default: false },
+
     // Address book (unlimited)
     addresses: { type: [AddressSchema], default: [] },
   },

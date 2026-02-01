@@ -16,6 +16,7 @@ export default function AdminLayout({ children }) {
     { name: "Reels", path: "/admin/reels" },
     { name: "Products", path: "/admin/products" },
     { name: "Coupons", path: "/admin/coupons" },
+    { name: "Settings", path: "/admin/settings" },
   ];
 
   useEffect(() => {

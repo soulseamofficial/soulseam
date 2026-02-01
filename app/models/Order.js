@@ -63,10 +63,16 @@ const OrderSchema = new mongoose.Schema(
     coupon: { type: CouponSchema, default: null },
     subtotal: { type: Number, required: true, min: 0 },
     discount: { type: Number, required: true, min: 0, default: 0 },
+    discountAmount: { type: Number, default: 0 }, // Alias for discount, for clarity
     shipping: { type: Number, default: 0 },
     totalAmount: { type: Number, required: true, min: 0 },
+    finalTotal: { type: Number, default: 0 }, // Alias for totalAmount, for clarity
 
-    // Razorpay payment details (for ONLINE payments)
+    // COD Advance Payment fields
+    advancePaid: { type: Number, default: 0, min: 0 },
+    remainingCOD: { type: Number, default: 0, min: 0 },
+
+    // Razorpay payment details (for ONLINE payments and COD advance)
     razorpayOrderId: { type: String, default: null },
     razorpayPaymentId: { type: String, default: null },
     razorpaySignature: { type: String, default: null },

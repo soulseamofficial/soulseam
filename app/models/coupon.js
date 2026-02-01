@@ -36,6 +36,10 @@ const CouponSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  isFirstOrderCoupon: {
+    type: Boolean,
+    default: false
   }
 }, { timestamps: true });
 

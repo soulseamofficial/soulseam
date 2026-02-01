@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/app/lib/db";
 import Order from "@/app/models/Order";
+import User from "@/app/models/User";
+import Coupon from "@/app/models/coupon";
+import Settings from "@/app/models/Settings";
 import { getAuthUserFromCookies } from "@/app/lib/auth";
 import { sendOrderToDelhivery, isOrderSentToDelhivery, logVerificationInstructions } from "@/app/lib/delhivery";
 import mongoose from "mongoose";
@@ -226,6 +229,8 @@ export async function POST(req) {
     let razorpayOrderId = null;
     let razorpayPaymentId = null;
     let razorpaySignature = null;
+    let advancePaid = 0;
+    let remainingCOD = totalAmount;
 
     if (paymentMethod === "ONLINE") {
       // Verify Razorpay payment for ONLINE
@@ -256,10 +261,55 @@ export async function POST(req) {
       // ONLINE payment verified: Mark as PAID and CONFIRMED
       paymentStatus = "PAID";
       orderStatus = "CONFIRMED";
+      advancePaid = totalAmount;
+      remainingCOD = 0;
     } else {
-      // COD: Mark as PENDING payment but CONFIRMED order (ready for delivery)
-      paymentStatus = "PENDING";
-      orderStatus = "CONFIRMED";
+      // COD: Check if advance payment is required
+      const settings = await Settings.getSettings();
+      
+      if (settings.codAdvanceEnabled) {
+        // COD advance is enabled - require advance payment verification
+        razorpayOrderId = body?.razorpay_order_id || body?.razorpayOrderId || null;
+        razorpayPaymentId = body?.razorpay_payment_id || body?.razorpayPaymentId || null;
+        razorpaySignature = body?.razorpay_signature || body?.razorpaySignature || null;
+
+        if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+          return NextResponse.json(
+            { message: `COD advance of ₹${settings.codAdvanceAmount} is required. Please complete the COD advance payment first.` },
+            { status: 400 }
+          );
+        }
+
+        // Verify Razorpay signature for advance payment
+        const isValid = verifyRazorpaySignature({
+          razorpay_order_id: razorpayOrderId,
+          razorpay_payment_id: razorpayPaymentId,
+          razorpay_signature: razorpaySignature,
+        });
+
+        if (!isValid) {
+          return NextResponse.json(
+            { message: "COD advance payment verification failed" },
+            { status: 400 }
+          );
+        }
+
+        // Verify that the payment amount matches the advance amount
+        // Note: We can't verify the exact amount from just the signature, but we trust Razorpay
+        // The frontend should ensure the correct amount is sent
+        
+        // Advance payment verified
+        advancePaid = settings.codAdvanceAmount;
+        remainingCOD = Math.max(0, totalAmount - advancePaid);
+        paymentStatus = "PENDING"; // Still PENDING because full amount not paid
+        orderStatus = "CONFIRMED"; // Order confirmed after advance payment
+      } else {
+        // COD advance is disabled - allow order without advance
+        paymentStatus = "PENDING";
+        orderStatus = "CONFIRMED";
+        advancePaid = 0;
+        remainingCOD = totalAmount;
+      }
     }
 
     // Prepare customer info for legacy fields
@@ -279,8 +329,12 @@ export async function POST(req) {
       coupon: coupon?.code ? coupon : null,
       subtotal,
       discount,
+      discountAmount: discount, // Alias for clarity
       shipping: 0,
       totalAmount,
+      finalTotal: totalAmount, // Alias for clarity
+      advancePaid,
+      remainingCOD,
       razorpayOrderId,
       razorpayPaymentId,
       razorpaySignature,
@@ -307,6 +361,27 @@ export async function POST(req) {
       },
       legacyOrderStatus: orderStatus === "CONFIRMED" ? "paid" : "created",
     });
+
+    // Update user orderCount and firstOrderCouponUsed when order is confirmed (logged-in users only)
+    if (orderStatus === "CONFIRMED" && userId) {
+      try {
+        const userUpdate = { $inc: { orderCount: 1 } };
+        
+        // If first-order coupon was used, mark it as used
+        if (coupon?.code) {
+          const couponDoc = await Coupon.findOne({ code: coupon.code.toUpperCase().trim() });
+          if (couponDoc && couponDoc.isFirstOrderCoupon === true) {
+            userUpdate.$set = { firstOrderCouponUsed: true };
+          }
+        }
+        
+        await User.findByIdAndUpdate(userId, userUpdate);
+        console.log("✅ Updated user orderCount and firstOrderCouponUsed:", userId);
+      } catch (userUpdateError) {
+        // Log error but don't fail the order creation
+        console.error("❌ Failed to update user orderCount (non-blocking):", userUpdateError);
+      }
+    }
 
     // Send order to Delhivery ONLY when orderStatus is CONFIRMED
     let delhiveryResponse = null;

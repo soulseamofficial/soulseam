@@ -11,6 +11,8 @@ export async function GET() {
       email: user.email || "",
       phone: user.phone || "",
       addresses: Array.isArray(user.addresses) ? user.addresses : [],
+      orderCount: user.orderCount ?? 0,
+      firstOrderCouponUsed: user.firstOrderCouponUsed ?? false,
     },
   });
 }
