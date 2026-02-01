@@ -5,6 +5,7 @@ import { useCart } from "../CartContext";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import MobileCheckoutHeader from "../components/MobileCheckoutHeader";
+import OrderSuccessModal from "../components/OrderSuccessModal";
 
 // CONSTANTS (unchanged)
 const premiumCardClass = `
@@ -704,6 +705,11 @@ export default function CheckoutPage() {
   const [codAdvanceOrderId, setCodAdvanceOrderId] = useState(null);
   const [codAdvanceSignature, setCodAdvanceSignature] = useState(null);
 
+  // Order Success Modal State
+  const [orderSuccess, setOrderSuccess] = useState(false);
+  const [orderId, setOrderId] = useState(null);
+  const [successPaymentMethod, setSuccessPaymentMethod] = useState("COD");
+
   // Auth + guest session bootstrap (checkout must never block)
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -839,13 +845,18 @@ export default function CheckoutPage() {
   }, [verificationMethod, form.createAccount]);
   useEffect(() => {
     if (!form.createAccount) {
+      // Reset all OTP-related state when account creation is disabled
       setVerificationMethod(null);
       setVerificationStep("idle");
       setVerificationInput("");
       setVerificationOtp("");
       setOtpLoading(false);
       setOtpError("");
+      setOtpSentMessage("");
       setSelectedContactMethod(null);
+      setWhatsappVerified(false);
+      setEmailVerified(false);
+      setResendCooldown(0);
     }
   }, [form.createAccount]);
 
@@ -1251,7 +1262,8 @@ export default function CheckoutPage() {
 
   // --- OTP Verification Status ---
   // Check if OTP verification is required and completed
-  const isOTPVerificationRequired = form.phone || form.email;
+  // OTP is ONLY required when user explicitly selects "Create an account" checkbox
+  const isOTPVerificationRequired = form.createAccount && (form.phone || form.email);
   // If both channels selected, at least one must be verified
   // If single channel selected, that channel must be verified
   const isOTPVerified = 
@@ -1262,10 +1274,18 @@ export default function CheckoutPage() {
     form.email ? emailVerified :
     true; // No OTP required if no phone/email
 
-  // Allow continue only if OTP is verified (if required)
+  // Allow continue if items exist and either:
+  // - OTP not required (guest checkout or account creation disabled), OR
+  // - OTP not sent yet (will be triggered on submit), OR  
+  // - OTP is verified
+  // Disable only if OTP was sent but not verified (waiting for user input)
+  // Note: OTP is only required when form.createAccount === true
   const canContinueToShipping =
     itemsWithFinalPrice.length > 0 && 
-    (!isOTPVerificationRequired || isOTPVerified || verificationStep === "verified");
+    (!isOTPVerificationRequired || 
+     verificationStep === "idle" || 
+     isOTPVerified || 
+     verificationStep === "verified");
 
   async function handleContinue(e) {
     e.preventDefault();
@@ -1287,22 +1307,27 @@ export default function CheckoutPage() {
     setFormErrors(errors);
     if (Object.keys(errors).length > 0) return;
 
-    // Auto-trigger OTP verification if not already verified
-    if (isOTPVerificationRequired && !isOTPVerified && verificationStep !== "otp_sent") {
-      const otpSent = await triggerOTPVerification();
-      if (!otpSent) {
-        setOtpError("Failed to send verification code. Please try again.");
+    // OTP verification is ONLY required when user explicitly selects "Create an account"
+    // Guest checkout should proceed without OTP
+    if (form.createAccount) {
+      // Auto-trigger OTP verification if not already verified
+      if (isOTPVerificationRequired && !isOTPVerified && verificationStep !== "otp_sent") {
+        const otpSent = await triggerOTPVerification();
+        if (!otpSent) {
+          setOtpError("Failed to send verification code. Please try again.");
+          return;
+        }
+        // Don't proceed - wait for user to verify OTP
         return;
       }
-      // Don't proceed - wait for user to verify OTP
-      return;
-    }
 
-    // If OTP is sent but not verified, don't proceed
-    if (verificationStep === "otp_sent" && !isOTPVerified) {
-      setOtpError("Please verify the OTP before continuing.");
-      return;
+      // If OTP is sent but not verified, don't proceed
+      if (verificationStep === "otp_sent" && !isOTPVerified) {
+        setOtpError("Please verify the OTP before continuing.");
+        return;
+      }
     }
+    // If createAccount is false, skip OTP entirely and proceed to shipping
 
     // Per spec: draft is created/updated on Shipping -> Continue (not here).
     setStep(2);
@@ -1418,21 +1443,26 @@ export default function CheckoutPage() {
   async function handleCOD() {
     setDeliveryCreationError(null);
 
-    // Check OTP verification before placing order
-    if (isOTPVerificationRequired && !isOTPVerified && verificationStep !== "otp_sent") {
-      const otpSent = await triggerOTPVerification();
-      if (!otpSent) {
-        setOtpError("Failed to send verification code. Please try again.");
+    // OTP verification is ONLY required when user explicitly selects "Create an account"
+    // Guest checkout should proceed without OTP
+    if (form.createAccount) {
+      // Check OTP verification before placing order
+      if (isOTPVerificationRequired && !isOTPVerified && verificationStep !== "otp_sent") {
+        const otpSent = await triggerOTPVerification();
+        if (!otpSent) {
+          setOtpError("Failed to send verification code. Please try again.");
+          return;
+        }
+        window?.alert?.("Please verify the OTP before placing your order.");
         return;
       }
-      window?.alert?.("Please verify the OTP before placing your order.");
-      return;
-    }
 
-    if (verificationStep === "otp_sent" && !isOTPVerified) {
-      window?.alert?.("Please verify the OTP before placing your order.");
-      return;
+      if (verificationStep === "otp_sent" && !isOTPVerified) {
+        window?.alert?.("Please verify the OTP before placing your order.");
+        return;
+      }
     }
+    // If createAccount is false, skip OTP entirely and proceed with order
 
     // Check if advance payment is required and not paid
     if (codSettings.codAdvanceEnabled && !codAdvancePaid) {
@@ -1518,7 +1548,12 @@ export default function CheckoutPage() {
         return;
       }
 
-      window.alert("Order placed with Cash on Delivery.");
+      // Order successfully created in database - trigger premium success animation
+      // This is payment-agnostic and order-status driven only
+      setOrderId(checkoutData?.orderId || null);
+      setSuccessPaymentMethod("COD");
+      setOrderSuccess(true);
+      
       clearCart();
       setStep(1);
       setPaymentMethod("not_selected");
@@ -1549,21 +1584,26 @@ export default function CheckoutPage() {
   async function handlePayment() {
     setDeliveryCreationError(null);
 
-    // Check OTP verification before placing order
-    if (isOTPVerificationRequired && !isOTPVerified && verificationStep !== "otp_sent") {
-      const otpSent = await triggerOTPVerification();
-      if (!otpSent) {
-        setOtpError("Failed to send verification code. Please try again.");
+    // OTP verification is ONLY required when user explicitly selects "Create an account"
+    // Guest checkout should proceed without OTP
+    if (form.createAccount) {
+      // Check OTP verification before placing order
+      if (isOTPVerificationRequired && !isOTPVerified && verificationStep !== "otp_sent") {
+        const otpSent = await triggerOTPVerification();
+        if (!otpSent) {
+          setOtpError("Failed to send verification code. Please try again.");
+          return;
+        }
+        window?.alert?.("Please verify the OTP before placing your order.");
         return;
       }
-      window?.alert?.("Please verify the OTP before placing your order.");
-      return;
-    }
 
-    if (verificationStep === "otp_sent" && !isOTPVerified) {
-      window?.alert?.("Please verify the OTP before placing your order.");
-      return;
+      if (verificationStep === "otp_sent" && !isOTPVerified) {
+        window?.alert?.("Please verify the OTP before placing your order.");
+        return;
+      }
     }
+    // If createAccount is false, skip OTP entirely and proceed with payment
 
     if (
       !mounted ||
@@ -1663,7 +1703,13 @@ export default function CheckoutPage() {
             return;
           }
 
-          window.alert("Payment Successful! Order placed.");
+          // Order successfully created in database - trigger premium success animation
+          // This is payment-agnostic and order-status driven only
+          // Animation triggers after order is saved, not tied to payment success
+          setOrderId(checkoutData?.orderId || null);
+          setSuccessPaymentMethod("ONLINE");
+          setOrderSuccess(true);
+          
           clearCart();
           setStep(1);
           setPaymentMethod("not_selected");
@@ -2104,7 +2150,8 @@ export default function CheckoutPage() {
                     )}
 
                     {/* OTP Verification Section - Dynamic */}
-                    {verificationStep === "otp_sent" && (
+                    {/* Only show OTP UI when user has selected "Create an account" */}
+                    {form.createAccount && verificationStep === "otp_sent" && (
                       <div className="w-full mt-6 border-t border-white/12 pt-6 transition-all duration-500 ease-out">
                         {/* Inline success message */}
                         {otpSentMessage && (
@@ -3022,6 +3069,17 @@ export default function CheckoutPage() {
           min-width: 84px;
         }
       `}</style>
+      {/* Premium Order Success Modal */}
+      <OrderSuccessModal
+        isOpen={orderSuccess}
+        onClose={() => {
+          setOrderSuccess(false);
+          setOrderId(null);
+        }}
+        paymentMethod={successPaymentMethod}
+        orderId={orderId}
+        clearCart={clearCart}
+      />
     </>
   );
 }
