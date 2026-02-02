@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useMemo } from "react";
 import { useCart } from "../CartContext";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -1390,10 +1390,15 @@ export default function CheckoutPage() {
   // Check if OTP verification is required and completed
   // If creating account with email, email OTP is not required (password is used instead)
   // Add safe fallbacks for SSR/prerender
-  const skipEmailOTP = (typeof window !== "undefined" && 
-    form?.createAccount && 
-    (selectedContactMethod === "email" || (!selectedContactMethod && form?.email))) ||
-    (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_SKIP_EMAIL_OTP === "true");
+  const skipEmailOTP = useMemo(() => {
+    if (typeof window === "undefined") {
+      // During SSR/prerender, default to false
+      return typeof process !== "undefined" && process.env?.NEXT_PUBLIC_SKIP_EMAIL_OTP === "true";
+    }
+    return (form?.createAccount && 
+      (selectedContactMethod === "email" || (!selectedContactMethod && form?.email))) ||
+      (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_SKIP_EMAIL_OTP === "true");
+  }, [form?.createAccount, form?.email, selectedContactMethod]);
   const isOTPVerificationRequired = form?.phone || (form?.email && !skipEmailOTP);
   
   // If both channels selected, at least one must be verified
