@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useRef, useState, useEffect } from "react";
 import { useCart } from "../CartContext";
 import Image from "next/image";
@@ -1358,9 +1360,6 @@ export default function CheckoutPage() {
   async function triggerOTPVerification() {
     const channels = [];
     
-    // If creating account with email, skip email OTP (will use password instead)
-    const skipEmailOTP = form.createAccount && (selectedContactMethod === "email" || (!selectedContactMethod && form.email));
-    
     if (selectedContactMethod === "whatsapp" && form.phone) {
       channels.push({ channel: "whatsapp", identifier: form.phone.replace(/\D/g, "").slice(0, 10) });
     }
@@ -1399,6 +1398,8 @@ export default function CheckoutPage() {
   // If both channels selected, at least one must be verified
   // If single channel selected, that channel must be verified
   // For email account creation, check password fields instead of email OTP
+  // If creating account with email, skip email OTP (will use password instead)
+  const skipEmailOTP = typeof window !== "undefined" && form.createAccount && (selectedContactMethod === "email" || (!selectedContactMethod && form.email));
   const emailAccountCreated = skipEmailOTP && passwordFields.password && passwordFields.password.length >= 6 && passwordFields.password === passwordFields.confirm;
   const isOTPVerified = 
     selectedContactMethod === "whatsapp" ? whatsappVerified :
