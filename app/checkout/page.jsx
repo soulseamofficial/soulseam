@@ -1349,16 +1349,20 @@ export default function CheckoutPage() {
     const channels = [];
     
     // If creating account with email, skip email OTP (will use password instead)
-    const skipEmailOTP = form.createAccount && (selectedContactMethod === "email" || (!selectedContactMethod && form.email));
+    // Add safe fallbacks for SSR/prerender
+    const skipEmailOTP = (typeof window !== "undefined" && 
+      form?.createAccount && 
+      (selectedContactMethod === "email" || (!selectedContactMethod && form?.email))) ||
+      (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_SKIP_EMAIL_OTP === "true");
     
-    if (selectedContactMethod === "whatsapp" && form.phone) {
+    if (selectedContactMethod === "whatsapp" && form?.phone) {
       channels.push({ channel: "whatsapp", identifier: form.phone.replace(/\D/g, "").slice(0, 10) });
     }
-    if (selectedContactMethod === "email" && form.email && !skipEmailOTP) {
+    if (selectedContactMethod === "email" && form?.email && !skipEmailOTP) {
       channels.push({ channel: "email", identifier: form.email.trim().toLowerCase() });
     }
     // If both selected, send to both (unless creating account with email)
-    if (selectedContactMethod === null && form.phone && form.email) {
+    if (selectedContactMethod === null && form?.phone && form?.email) {
       channels.push({ channel: "whatsapp", identifier: form.phone.replace(/\D/g, "").slice(0, 10) });
       if (!skipEmailOTP) {
         channels.push({ channel: "email", identifier: form.email.trim().toLowerCase() });
@@ -1385,19 +1389,23 @@ export default function CheckoutPage() {
   // --- OTP Verification Status ---
   // Check if OTP verification is required and completed
   // If creating account with email, email OTP is not required (password is used instead)
-  const skipEmailOTP = form.createAccount && (selectedContactMethod === "email" || (!selectedContactMethod && form.email));
-  const isOTPVerificationRequired = form.phone || (form.email && !skipEmailOTP);
+  // Add safe fallbacks for SSR/prerender
+  const skipEmailOTP = (typeof window !== "undefined" && 
+    form?.createAccount && 
+    (selectedContactMethod === "email" || (!selectedContactMethod && form?.email))) ||
+    (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_SKIP_EMAIL_OTP === "true");
+  const isOTPVerificationRequired = form?.phone || (form?.email && !skipEmailOTP);
   
   // If both channels selected, at least one must be verified
   // If single channel selected, that channel must be verified
   // For email account creation, check password fields instead of email OTP
-  const emailAccountCreated = skipEmailOTP && passwordFields.password && passwordFields.password.length >= 6 && passwordFields.password === passwordFields.confirm;
+  const emailAccountCreated = skipEmailOTP && passwordFields?.password && passwordFields.password.length >= 6 && passwordFields.password === passwordFields?.confirm;
   const isOTPVerified = 
     selectedContactMethod === "whatsapp" ? whatsappVerified :
     selectedContactMethod === "email" ? (skipEmailOTP ? emailAccountCreated : emailVerified) :
-    selectedContactMethod === null && form.phone && form.email ? (whatsappVerified || (skipEmailOTP ? emailAccountCreated : emailVerified)) :
-    form.phone ? whatsappVerified :
-    form.email ? (skipEmailOTP ? emailAccountCreated : emailVerified) :
+    selectedContactMethod === null && form?.phone && form?.email ? (whatsappVerified || (skipEmailOTP ? emailAccountCreated : emailVerified)) :
+    form?.phone ? whatsappVerified :
+    form?.email ? (skipEmailOTP ? emailAccountCreated : emailVerified) :
     true; // No OTP required if no phone/email
 
   // Allow continue only if OTP is verified (if required)
@@ -1426,8 +1434,12 @@ export default function CheckoutPage() {
     if (Object.keys(errors).length > 0) return;
 
     // If creating account with email, create Firebase account first
-    const skipEmailOTP = form.createAccount && (selectedContactMethod === "email" || (!selectedContactMethod && form.email));
-    if (skipEmailOTP && form.email && passwordFields.password && passwordFields.password.length >= 6) {
+    // Add safe fallbacks for SSR/prerender
+    const skipEmailOTP = (typeof window !== "undefined" && 
+      form?.createAccount && 
+      (selectedContactMethod === "email" || (!selectedContactMethod && form?.email))) ||
+      (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_SKIP_EMAIL_OTP === "true");
+    if (skipEmailOTP && form?.email && passwordFields?.password && passwordFields.password.length >= 6) {
       if (passwordFields.password !== passwordFields.confirm) {
         setPasswordError("Passwords do not match");
         return;
