@@ -20,7 +20,6 @@ export async function POST(req) {
     const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
     const phone = typeof body?.phone === "string" ? body.phone.trim() : "";
     const password = typeof body?.password === "string" ? body.password : "";
-    const firebaseUid = typeof body?.firebaseUid === "string" ? body.firebaseUid.trim() : null;
 
     if (!name) {
       return NextResponse.json(
@@ -53,18 +52,8 @@ export async function POST(req) {
       );
     }
 
-    // Password is required for email registration, optional for phone-only registration
-    // For phone-only registration, password can be empty or not provided
-    if (email && (!password || password.length < 6)) {
-      return NextResponse.json(
-        { error: "Password must be at least 6 characters" },
-        { status: 400 }
-      );
-    }
-    
-    // For phone-only registration, password is not required
-    // If password is provided for phone registration, validate it
-    if (phone && !email && password && password.length < 6) {
+    // Password is required for all registrations
+    if (!password || password.length < 6) {
       return NextResponse.json(
         { error: "Password must be at least 6 characters" },
         { status: 400 }
@@ -119,6 +108,7 @@ export async function POST(req) {
       name,
       provider: "local",
       addresses,
+      isVerified: false, // Verification will be added later
     };
 
     // Determine loginMethod based on what's provided
@@ -127,30 +117,22 @@ export async function POST(req) {
       userData.loginMethod = "email";
       userData.email = email;
       userData.phone = phone;
-      userData.emailVerified = false; // Will be verified via Firebase
+      userData.emailVerified = false;
       userData.isPhoneVerified = false;
     } else if (email) {
       // Email only
       userData.loginMethod = "email";
       userData.email = email;
-      userData.emailVerified = false; // Will be verified via Firebase
+      userData.emailVerified = false;
     } else if (phone) {
       // Phone only
       userData.loginMethod = "phone";
       userData.phone = phone;
-      userData.isPhoneVerified = true; // Phone verified via OTP
+      userData.isPhoneVerified = false;
     }
 
-    // Only include passwordHash if password is provided (email registration)
-    if (password && password.length >= 6) {
-      userData.passwordHash = await bcrypt.hash(password, 10);
-    }
-
-    // Include firebaseUid if provided (from Firebase email registration)
-    if (firebaseUid) {
-      userData.firebaseUid = firebaseUid;
-      userData.provider = "email"; // Firebase email/password provider
-    }
+    // Hash password using bcrypt with salt rounds 10
+    userData.passwordHash = await bcrypt.hash(password, 10);
 
     try {
       const user = await User.create(userData);

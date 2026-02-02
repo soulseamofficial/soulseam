@@ -33,6 +33,7 @@ const UserSchema = new mongoose.Schema(
     loginMethod: { type: String, enum: ["email", "phone"], required: false }, // "email" | "phone"
     emailVerified: { type: Boolean, default: false }, // For email users
     isPhoneVerified: { type: Boolean, default: false }, // For phone users
+    isVerified: { type: Boolean, default: false }, // General verification status
 
     role: { type: String, default: "user" },
 

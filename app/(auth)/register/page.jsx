@@ -164,83 +164,17 @@ function VerificationCard({
               {typeof inputError === "string" ? inputError : `Enter valid ${mode === "phone" ? "phone number" : "email address"}`}
             </div>
           )}
-          {mode === "phone" ? (
-            <button
-              type="button"
-              onClick={() => onRequestOtp(mode)}
-              disabled={disableOtpSend || loading || !inputValue}
-              className="w-full py-2.5 rounded-xl font-semibold text-sm bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? "Sending..." : "Send OTP"}
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => onRequestOtp(mode)}
-              disabled={disableOtpSend || loading || !inputValue}
-              className="w-full py-2.5 rounded-xl font-semibold text-sm bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? "Processing..." : "Continue"}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => onRequestOtp(mode)}
+            disabled={disableOtpSend || loading || !inputValue}
+            className="w-full py-2.5 rounded-xl font-semibold text-sm bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? "Processing..." : "Continue"}
+          </button>
         </>
       )}
 
-      {step === "otp" && !verified && mode === "phone" && (
-        <>
-          <div className="text-xs text-white/60 mb-1">
-            Enter the 6-digit code sent to +91{inputValue}
-          </div>
-          {/* Development Mode: Show OTP if WhatsApp API not configured */}
-          {devOtp && devMessage && (
-            <div className="mb-3 p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/30">
-              <div className="text-xs font-semibold text-yellow-400/90 mb-1">
-                {devMessage}
-              </div>
-              <div className="text-lg font-bold text-yellow-300 text-center tracking-widest">
-                {devOtp}
-              </div>
-            </div>
-          )}
-          <input
-            type="text"
-            placeholder="Enter 6-digit OTP"
-            value={otpValue}
-            onChange={(e) => {
-              const otpVal = e.target.value.replace(/[^\d]/g, "").slice(0, 6);
-              onOtpChange(mode, otpVal);
-            }}
-            className={`${inputBase} ${otpError ? inputError : inputDefault}`}
-            disabled={disableOtpVerify || loading}
-            autoComplete="one-time-code"
-            inputMode="numeric"
-            maxLength={6}
-          />
-          {otpError && (
-            <div className="text-xs font-semibold text-rose-400 px-1">
-              {typeof otpError === "string" ? otpError : "Invalid OTP"}
-            </div>
-          )}
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => onVerifyOtp(mode)}
-              disabled={disableOtpVerify || loading || otpValue.length !== 6}
-              className="flex-1 py-2.5 rounded-xl font-semibold text-sm bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? "Verifying..." : "Verify OTP"}
-            </button>
-            <button
-              type="button"
-              onClick={() => onRequestOtp(mode)}
-              disabled={loading}
-              className="px-4 py-2.5 rounded-xl font-semibold text-sm bg-white/10 text-white hover:bg-white/20 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Resend
-            </button>
-          </div>
-        </>
-      )}
 
       {verified && (
         <div className="flex items-center gap-2 text-green-400 text-sm font-semibold">
@@ -248,9 +182,9 @@ function VerificationCard({
           <span>Verified</span>
         </div>
       )}
-      {mode === "email" && step === "input" && !verified && (
+      {step === "input" && !verified && (
         <div className="text-xs text-white/50 mt-2 px-1">
-          Click Continue to proceed with email registration
+          Click Continue to proceed with registration
         </div>
       )}
     </div>
@@ -288,6 +222,7 @@ export default function RegisterPage() {
       otpError: false,
       devOtp: null,
       devMessage: null,
+      showPasswordFields: false,
     },
     email: {
       step: "input",
@@ -375,44 +310,16 @@ export default function RegisterPage() {
         return;
       }
 
-      // WhatsApp OTP flow (unchanged)
-      try {
-        const res = await fetch("/api/auth/whatsapp/send-otp", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phone: phoneVal }),
-        });
-        const data = await res.json();
-
-        if (res.ok) {
-          setVerif(prev => ({
-            ...prev,
-            phone: {
-              ...prev.phone,
-              loading: false,
-              step: "otp",
-              inputError: false,
-              otpError: false,
-              devOtp: data.devOtp || null,
-              devMessage: data.devMessage || null,
-            }
-          }));
-        } else {
-          setVerif(prev => ({
-            ...prev,
-            phone: {
-              ...prev.phone,
-              loading: false,
-              inputError: data.message || "Failed to send OTP"
-            }
-          }));
+      // Show password fields for phone (no OTP)
+      setVerif(prev => ({
+        ...prev,
+        phone: {
+          ...prev.phone,
+          loading: false,
+          showPasswordFields: true,
+          inputError: false,
         }
-      } catch (err) {
-        setVerif(prev => ({
-          ...prev,
-          phone: { ...prev.phone, loading: false, inputError: "Network error" }
-        }));
-      }
+      }));
     } else if (mode === "email") {
       // Email flow: Just validate and show password fields (no OTP)
       if (!/^[\w-.]+@[\w-]+\.[\w-.]+$/.test(verif.email.value)) {
@@ -436,69 +343,9 @@ export default function RegisterPage() {
     }
   }
 
+  // OTP verification removed - no longer needed
   async function handleVerifyOtp(mode) {
-    setVerif(prev => ({
-      ...prev,
-      [mode]: { ...prev[mode], loading: true, otpError: false }
-    }));
-
-    const otpVal = verif[mode].otp.trim();
-    if (!/^\d{6}$/.test(otpVal)) {
-      setVerif(prev => ({
-        ...prev,
-        [mode]: { ...prev[mode], loading: false, otpError: "Enter 6 digit code" }
-      }));
-      return;
-    }
-
-    const api =
-      mode === "phone"
-        ? "/api/auth/whatsapp/verify-otp"
-        : "/api/auth/email/verify-otp";
-    const payload =
-      mode === "phone"
-        ? { phone: verif.phone.value.replace(/[^\d]/g, ""), otp: otpVal }
-        : { email: verif.email.value.trim(), otp: otpVal };
-
-    try {
-      const res = await fetch(api, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-
-      if (res.ok && data.verified) {
-        setVerif(prev => ({
-          ...prev,
-          [mode]: {
-            ...prev[mode],
-            otp: "",
-            loading: false,
-            verified: true,
-            otpError: false
-          }
-        }));
-
-        if (mode === "phone") {
-          setForm(f => ({ ...f, phone: verif.phone.value.replace(/[^\d]/g, "") }));
-        }
-      } else {
-        setVerif(prev => ({
-          ...prev,
-          [mode]: {
-            ...prev[mode],
-            loading: false,
-            otpError: data.error || "Incorrect code"
-          }
-        }));
-      }
-    } catch (err) {
-      setVerif(prev => ({
-        ...prev,
-        [mode]: { ...prev[mode], loading: false, otpError: "Verification error" }
-      }));
-    }
+    // This function is no longer used but kept for compatibility
   }
 
   function selectMode(mode) {
@@ -540,21 +387,17 @@ export default function RegisterPage() {
     return !errors.street && !errors.city && !errors.state && !errors.pincode;
   }
 
-  const isVerified = verifyMode === "email" 
-    ? (verif.email.showPasswordFields && verif.email.value) 
-    : verif[verifyMode].verified;
-  // Password validation only required for email registration
-  const pwValid = verifyMode === "email" 
-    ? checkPwValid(form.password, form.confirmPassword)
-    : true;
+  const isVerified = verif[verifyMode].showPasswordFields && verif[verifyMode].value;
+  // Password validation required for both email and phone registration
+  const pwValid = checkPwValid(form.password, form.confirmPassword);
   const addressValid = isVerified && !Object.values(addressError).some(Boolean);
   const canSubmit = !submitting && form.firstName && form.lastName && isVerified && pwValid && addressValid;
 
   async function handleRegister(e) {
     e.preventDefault();
 
-    // Only validate password for email registration
-    if (verifyMode === "email" && !validatePw()) return;
+    // Validate password for both email and phone registration
+    if (!validatePw()) return;
 
     if (!validateAddressAndSetErrors(form, verifyMode)) return;
 
@@ -567,90 +410,44 @@ export default function RegisterPage() {
     const phone = verifyMode === "phone" ? verif.phone.value.replace(/[^\d]/g, "") : (form.phone || "");
 
     try {
-      if (verifyMode === "email") {
-        // Firebase email/password registration
-        const firebaseRes = await fetch("/api/auth/email/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email,
-            password: form.password,
-          }),
-        });
+      // MongoDB-only registration (no Firebase)
+      const payload = {
+        name,
+        email: email || undefined,
+        phone: phone || undefined,
+        password: form.password,
+        address: {
+          addressLine1: form.street,
+          addressLine2: form.apartment,
+          city: form.city,
+          state: form.state,
+          country: "India",
+          pincode: form.pincode
+        }
+      };
 
-        const firebaseData = await firebaseRes.json();
+      const res = await fetch("/api/auth/user/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
 
-        if (!firebaseRes.ok) {
-          // Handle email already exists error with popup
-          if (firebaseRes.status === 400 && (
-            firebaseData.message?.toLowerCase().includes("already") ||
-            firebaseData.message?.toLowerCase().includes("login")
-          )) {
+      if (res.ok) {
+        showToast("Account created successfully", "success");
+        setTimeout(() => {
+          router.push("/profile");
+        }, 1500);
+      } else {
+        // Handle email/phone already exists error with popup
+        if (res.status === 409 || res.status === 400) {
+          if (data.error?.toLowerCase().includes("already") || data.error?.toLowerCase().includes("login")) {
             setShowEmailExistsPopup(true);
           } else {
-            showToast(firebaseData.message || "Registration failed", "error");
+            showToast(data?.error || data?.message || "Registration failed", "error");
           }
-          setSubmitting(false);
-          return;
-        }
-
-        // Create user in MongoDB - only include email (no phone for email registration)
-        const payload = {
-          name,
-          email,
-          password: form.password,
-          firebaseUid: firebaseData.uid,
-          address: {
-            addressLine1: form.street,
-            addressLine2: form.apartment,
-            city: form.city,
-            state: form.state,
-            country: "India",
-            pincode: form.pincode
-          }
-        };
-
-        const res = await fetch("/api/auth/user/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        const data = await res.json();
-
-        if (res.ok) {
-          showToast("Verification email sent. Please verify your email before logging in.", "success");
-          setTimeout(() => {
-            router.push("/login");
-          }, 2000);
         } else {
-          showToast(data?.message || "Registration failed", "error");
-        }
-      } else {
-        // Phone/WhatsApp registration - only include phone (no email, no password for phone registration)
-        const payload = {
-          name,
-          phone,
-          address: {
-            addressLine1: form.street,
-            addressLine2: form.apartment,
-            city: form.city,
-            state: form.state,
-            country: "India",
-            pincode: form.pincode
-          }
-        };
-
-        const res = await fetch("/api/auth/user/register", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        const data = await res.json();
-
-        if (res.ok) {
-          router.push("/profile");
-        } else {
-          showToast(data?.message || "Registration failed", "error");
+          showToast(data?.error || data?.message || "Registration failed", "error");
         }
       }
     } catch (err) {
@@ -870,12 +667,12 @@ export default function RegisterPage() {
             </div>
             {!isVerified && (
               <div className="text-xs text-yellow-400/70 text-center mt-2">
-                {verifyMode === "phone" ? "• Enter phone number" : "• Enter email id and click Continue"}
+                {verifyMode === "phone" ? "• Enter phone number and click Continue" : "• Enter email id and click Continue"}
               </div>
             )}
           </div>
 
-          {verifyMode === "email" && (isVerified || verif.email.showPasswordFields) && (
+          {(isVerified || verif[verifyMode].showPasswordFields) && (
             <div className={sectionCard} style={{ animationDelay: "0.35s" }}>
               <div className={sectionHead}>Create Password</div>
 
@@ -945,8 +742,8 @@ export default function RegisterPage() {
             <div className="mt-3 text-xs text-yellow-400/70 text-center">
               {!form.firstName && "• Enter first name"}
               {!form.lastName && "• Enter last name"}
-              {!isVerified && (verifyMode === "phone" ? "• Verify phone number with OTP" : "• Enter email and click Continue")}
-              {verifyMode === "email" && !pwValid && form.password && "• Passwords must match (min. 6 chars)"}
+              {!isVerified && (verifyMode === "phone" ? "• Enter phone number and click Continue" : "• Enter email and click Continue")}
+              {!pwValid && form.password && "• Passwords must match (min. 6 chars)"}
               {!addressValid && isVerified && "• Complete address fields"}
             </div>
           )}
