@@ -13,6 +13,7 @@ export default function AdminLayout({ children }) {
   const menu = [
     { name: "Dashboard", path: "/admin/dashboard" },
     { name: "Orders", path: "/admin/orders" },
+    { name: "Exchange Orders", path: "/admin/orders/exchanges" },
     { name: "Reels", path: "/admin/reels" },
     { name: "Products", path: "/admin/products" },
     { name: "Coupons", path: "/admin/coupons" },

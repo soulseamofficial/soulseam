@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef, useCallback, useContext, createContext } from "react";
 import { useRouter } from "next/navigation";
+import ExchangeRequestModal from "../components/ExchangeRequestModal";
 
 // Premium input styling classes
 const inputClassReadOnly =
@@ -135,6 +136,13 @@ export default function ProfilePage() {
   const [orders, setOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [payingOrderId, setPayingOrderId] = useState(null);
+  
+  // Exchange state
+  const [exchangeEligibility, setExchangeEligibility] = useState({});
+  const [loadingExchange, setLoadingExchange] = useState({});
+  const [requestingExchange, setRequestingExchange] = useState({});
+  const [exchangeModalOpen, setExchangeModalOpen] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
 
   // Accordion state - only one section open at a time
   const [openAccordionKey, setOpenAccordionKey] = useState(null);
@@ -196,6 +204,16 @@ export default function ProfilePage() {
     loadOrders();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Auto-check exchange eligibility for all delivered orders
+  useEffect(() => {
+    orders.forEach(order => {
+      if (order.orderStatus === "DELIVERED" && !exchangeEligibility[order._id] && !loadingExchange[order._id]) {
+        checkExchangeEligibility(order._id);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orders]);
 
   async function saveProfile() {
     if (!editName.trim()) {
@@ -291,6 +309,68 @@ export default function ProfilePage() {
     if (!confirm("Are you sure you want to delete this address?")) return;
     const res = await fetch(`/api/users/addresses/${id}`, { method: "DELETE", credentials: "include" });
     if (res.ok) await load();
+  }
+
+  // Check exchange eligibility for an order
+  async function checkExchangeEligibility(orderId) {
+    if (loadingExchange[orderId]) return;
+    
+    setLoadingExchange(prev => ({ ...prev, [orderId]: true }));
+    try {
+      const res = await fetch(`/api/orders/${orderId}/exchange-eligibility`, {
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setExchangeEligibility(prev => ({
+          ...prev,
+          [orderId]: data,
+        }));
+      } else {
+        // Set error state so we can display it
+        setExchangeEligibility(prev => ({
+          ...prev,
+          [orderId]: {
+            eligible: false,
+            reason: data.error || "Unable to check exchange eligibility",
+            exchangeDeadline: null,
+            daysRemaining: 0,
+          },
+        }));
+      }
+    } catch (error) {
+      console.error("Error checking exchange eligibility:", error);
+      // Set error state so we can display it
+      setExchangeEligibility(prev => ({
+        ...prev,
+        [orderId]: {
+          eligible: false,
+          reason: "Error checking exchange eligibility. Please try again.",
+          exchangeDeadline: null,
+          daysRemaining: 0,
+        },
+      }));
+    } finally {
+      setLoadingExchange(prev => ({ ...prev, [orderId]: false }));
+    }
+  }
+
+  // Open exchange request modal
+  function handleExchangeRequest(orderId) {
+    setSelectedOrderId(orderId);
+    setExchangeModalOpen(true);
+  }
+
+  // Handle exchange request submission (called from modal)
+  async function handleExchangeSubmit(data) {
+    if (!selectedOrderId) return;
+    
+    // Reload orders to get updated exchange status
+    await loadOrders();
+    // Refresh eligibility
+    await checkExchangeEligibility(selectedOrderId);
+    
+    alert("Exchange request submitted successfully!");
   }
 
   async function handlePayNow(order) {
@@ -872,6 +952,119 @@ export default function ProfilePage() {
                             {payingOrderId === order._id ? "Processing..." : "Pay Now"}
                           </button>
                         )}
+                        
+                        {/* Exchange Section */}
+                        {order.orderStatus === "DELIVERED" && (
+                          <div className="border-t border-white/10 pt-4 mt-4">
+                            {(() => {
+                              const eligibility = exchangeEligibility[order._id];
+                              const isLoading = loadingExchange[order._id];
+                              const isRequesting = requestingExchange[order._id];
+                              
+                              // Show exchange status if already requested
+                              if (order.exchangeRequested) {
+                                const statusColors = {
+                                  REQUESTED: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+                                  APPROVED: "bg-green-500/20 text-green-400 border-green-500/30",
+                                  REJECTED: "bg-red-500/20 text-red-400 border-red-500/30",
+                                  COMPLETED: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+                                };
+                                return (
+                                  <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm font-semibold text-white/80">Exchange Status:</span>
+                                      <span className={`px-2 py-1 rounded text-xs font-bold border ${
+                                        statusColors[order.exchangeStatus] || "bg-white/10 text-white/70 border-white/20"
+                                      }`}>
+                                        {order.exchangeStatus || "REQUESTED"}
+                                      </span>
+                                    </div>
+                                    {order.exchangeRequestedAt && (
+                                      <div className="text-xs text-white/60">
+                                        Requested on: {new Date(order.exchangeRequestedAt).toLocaleDateString("en-IN", {
+                                          year: "numeric",
+                                          month: "long",
+                                          day: "numeric",
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              }
+                              
+                              // Show loading state
+                              if (isLoading) {
+                                return (
+                                  <div className="text-sm text-white/60">
+                                    Checking exchange eligibility...
+                                  </div>
+                                );
+                              }
+                              
+                              // Show eligibility info if available
+                              if (eligibility) {
+                                if (eligibility.eligible) {
+                                  const deadlineDate = eligibility.exchangeDeadline 
+                                    ? new Date(eligibility.exchangeDeadline).toLocaleDateString("en-IN", {
+                                        year: "numeric",
+                                        month: "long",
+                                        day: "numeric",
+                                      })
+                                    : null;
+                                  
+                                  return (
+                                    <div className="space-y-3">
+                                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                        <div className="text-sm text-white/80">
+                                          <span className="font-semibold">Exchange available till:</span>{" "}
+                                          <span className="text-green-400 font-bold">{deadlineDate}</span>
+                                          {eligibility.daysRemaining > 0 && (
+                                            <span className="ml-2 text-xs text-white/60">
+                                              ({eligibility.daysRemaining} {eligibility.daysRemaining === 1 ? "day" : "days"} remaining)
+                                            </span>
+                                          )}
+                                        </div>
+                                        <button
+                                          onClick={() => handleExchangeRequest(order._id)}
+                                          disabled={isRequesting}
+                                          className={`${buttonPrimaryClass} text-sm w-full sm:w-auto self-start`}
+                                        >
+                                          {isRequesting ? "Submitting..." : "REQUEST EXCHANGE"}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                } else {
+                                  // Not eligible
+                                  return (
+                                    <div className="space-y-2">
+                                      <div className="text-sm text-white/70">
+                                        <span className="font-semibold">Exchange Status:</span>{" "}
+                                        <span className="text-red-400">{eligibility.reason || "Not eligible"}</span>
+                                      </div>
+                                      {eligibility.exchangeDeadline && (
+                                        <div className="text-xs text-white/60">
+                                          Exchange period expired on: {new Date(eligibility.exchangeDeadline).toLocaleDateString("en-IN", {
+                                            year: "numeric",
+                                            month: "long",
+                                            day: "numeric",
+                                          })}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                }
+                              }
+                              
+                              // Default: Show loading or fallback message
+                              return (
+                                <div className="text-sm text-white/60">
+                                  Loading exchange information...
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -881,6 +1074,17 @@ export default function ProfilePage() {
           </LuxuryAccordion>
         </AccordionGroup>
       </div>
+
+      {/* Exchange Request Modal */}
+      <ExchangeRequestModal
+        isOpen={exchangeModalOpen}
+        onClose={() => {
+          setExchangeModalOpen(false);
+          setSelectedOrderId(null);
+        }}
+        orderId={selectedOrderId}
+        onSubmit={handleExchangeSubmit}
+      />
     </div>
   );
 }

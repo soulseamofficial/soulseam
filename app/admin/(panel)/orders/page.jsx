@@ -7,6 +7,7 @@ export default function AdminOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [expandedOrderId, setExpandedOrderId] = useState(null);
   const [sortBy, setSortBy] = useState("latest");
+  const [updatingStatus, setUpdatingStatus] = useState({});
 
   useEffect(() => {
     async function fetchOrders() {
@@ -29,6 +30,40 @@ export default function AdminOrdersPage() {
 
   function toggleOrder(id) {
     setExpandedOrderId(prev => (prev === id ? null : id));
+  }
+
+  async function updateOrderStatus(orderId, newStatus) {
+    if (updatingStatus[orderId]) return;
+    
+    setUpdatingStatus(prev => ({ ...prev, [orderId]: true }));
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ orderStatus: newStatus }),
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        // Refresh orders
+        const refreshRes = await fetch("/api/admin/orders", {
+          credentials: "include",
+        });
+        const refreshData = await refreshRes.json();
+        if (refreshData.success) {
+          setOrders(refreshData.orders);
+        }
+        alert(`Order status updated to ${newStatus}`);
+      } else {
+        alert(data.error || "Failed to update order status");
+      }
+    } catch (error) {
+      console.error("Error updating order status:", error);
+      alert("An error occurred while updating order status");
+    } finally {
+      setUpdatingStatus(prev => ({ ...prev, [orderId]: false }));
+    }
   }
 
   /* ---------- SORT ---------- */
@@ -223,9 +258,35 @@ export default function AdminOrdersPage() {
                       </div>
                       <div>
                         <p className="text-sm text-white/60">Status</p>
-                        <p className="font-semibold capitalize">
-                          {order.orderStatus}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold capitalize">
+                            {order.orderStatus}
+                          </p>
+                          <select
+                            value={order.orderStatus}
+                            onChange={(e) => updateOrderStatus(order._id, e.target.value)}
+                            disabled={updatingStatus[order._id]}
+                            className="ml-2 bg-black/60 border border-white/15 rounded-lg px-3 py-1 text-sm text-white focus:outline-none focus:border-white/40 disabled:opacity-50"
+                          >
+                            <option value="CREATED">CREATED</option>
+                            <option value="CONFIRMED">CONFIRMED</option>
+                            <option value="SHIPPED">SHIPPED</option>
+                            <option value="DELIVERED">DELIVERED</option>
+                            <option value="CANCELLED">CANCELLED</option>
+                          </select>
+                          {updatingStatus[order._id] && (
+                            <span className="text-xs text-white/60">Updating...</span>
+                          )}
+                        </div>
+                        {order.deliveredAt && (
+                          <p className="text-xs text-white/50 mt-1">
+                            Delivered: {new Date(order.deliveredAt).toLocaleDateString("en-IN", {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            })}
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -297,6 +358,35 @@ export default function AdminOrdersPage() {
                         </p>
                       </div>
                     </div>
+
+                    {/* Exchange Information */}
+                    {order.exchangeRequested && (
+                      <div className="mt-4 p-4 rounded-xl bg-blue-900/20 border border-blue-500/30">
+                        <p className="text-sm font-semibold text-blue-400 mb-2">Exchange Information</p>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-xs text-white/60">Exchange Status</p>
+                            <p className="font-bold text-blue-400">
+                              {order.exchangeStatus || "REQUESTED"}
+                            </p>
+                          </div>
+                          {order.exchangeRequestedAt && (
+                            <div>
+                              <p className="text-xs text-white/60">Requested At</p>
+                              <p className="font-semibold text-white/80">
+                                {new Date(order.exchangeRequestedAt).toLocaleDateString("en-IN", {
+                                  year: "numeric",
+                                  month: "long",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

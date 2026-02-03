@@ -27,7 +27,7 @@ export async function PUT(req, { params }) {
   if (!authed) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
   await connectDB();
-  const addressId = params?.addressId;
+  const { addressId } = await params;
   if (!addressId) return NextResponse.json({ message: "Address ID missing" }, { status: 400 });
 
   const body = await req.json();
@@ -59,7 +59,7 @@ export async function DELETE(_req, { params }) {
   if (!authed) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
   await connectDB();
-  const addressId = params?.addressId;
+  const { addressId } = await params;
   if (!addressId) return NextResponse.json({ message: "Address ID missing" }, { status: 400 });
 
   await User.updateOne({ _id: authed._id }, { $pull: { addresses: { _id: addressId } } });
