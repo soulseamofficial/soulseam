@@ -50,17 +50,6 @@ export async function PATCH(req, { params }) {
       );
     }
 
-    // Enforce video requirement: Cannot approve exchange without video
-    if (exchangeStatus === "APPROVED" && (!order.exchangeVideo || !order.exchangeVideo.url || order.exchangeVideo.url.trim().length === 0)) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: "Cannot approve exchange request without video proof. Video proof is mandatory for all exchange requests according to our Exchange Policy. The exchange request must include a valid video (10-30 seconds, max 30 MB, MP4/MOV/WEBM format) showing the product condition. Please reject this request and inform the customer to resubmit with a valid video." 
-        },
-        { status: 400 }
-      );
-    }
-
     // Prepare update data
     const updateData = {
       exchangeStatus,
@@ -69,16 +58,6 @@ export async function PATCH(req, { params }) {
 
     // Set exchangeApprovedAt when status changes to APPROVED
     if (exchangeStatus === "APPROVED" && order.exchangeStatus !== "APPROVED") {
-      // Additional validation: Ensure video exists before setting approval timestamp
-      if (!order.exchangeVideo || !order.exchangeVideo.url) {
-        return NextResponse.json(
-          { 
-            success: false, 
-            error: "Cannot approve exchange request without video proof. Video proof is mandatory for all exchange requests." 
-          },
-          { status: 400 }
-        );
-      }
       updateData.exchangeApprovedAt = new Date();
     }
 

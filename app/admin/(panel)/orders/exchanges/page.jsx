@@ -510,15 +510,9 @@ export default function AdminExchangeOrdersPage() {
                           )}
                         </div>
                       ) : (
-                        <div className="bg-red-500/10 border-2 border-red-500/30 rounded-lg p-4">
-                          <p className="text-sm font-bold text-red-300 mb-2">
-                            🚫 NO VIDEO UPLOADED
-                          </p>
-                          <p className="text-xs text-red-200 leading-relaxed">
-                            This exchange request does not have a video uploaded. According to our Exchange Policy, video proof is mandatory for all exchange requests. Exchange requests without a valid video (10-30 seconds, max 30 MB, MP4/MOV/WEBM format) will not be accepted or processed.
-                          </p>
-                          <p className="text-xs text-red-200 mt-2 font-semibold">
-                            Action Required: This request should be rejected. Please inform the customer to resubmit with a valid video.
+                        <div className="bg-white/5 border border-white/10 rounded-lg p-3">
+                          <p className="text-xs text-white/60 leading-relaxed">
+                            No video uploaded. Video upload is optional but helps process exchanges faster.
                           </p>
                         </div>
                       )}
@@ -575,16 +569,6 @@ export default function AdminExchangeOrdersPage() {
                     {/* Admin Actions */}
                     <div className="mt-6 p-4 bg-white/5 rounded-xl border border-white/10">
                       <h3 className="text-lg font-bold text-white/90 mb-3">Admin Actions</h3>
-                      {order.exchangeStatus === "REQUESTED" && !order.exchangeVideo?.url && (
-                        <div className="mb-3 px-4 py-3 rounded-lg bg-red-500/20 border-2 border-red-500/50">
-                          <p className="text-sm text-red-300 font-bold mb-2">
-                            🚫 CRITICAL: No exchange video uploaded. Video proof is mandatory for all exchange requests.
-                          </p>
-                          <p className="text-xs text-red-200 leading-relaxed">
-                            According to our Exchange Policy, all exchange requests must include a valid video (10-30 seconds, max 30 MB, MP4/MOV/WEBM format) showing the product condition. This request cannot be approved without a valid video. Please reject this request and inform the customer to resubmit with a valid video.
-                          </p>
-                        </div>
-                      )}
                       {order.exchangeStatus === "REQUESTED" && order.exchangeVideo?.url && (
                         <div className="mb-3 px-4 py-2 rounded-lg bg-blue-500/10 border border-blue-500/30">
                           <p className="text-sm text-blue-300 font-semibold">
@@ -597,24 +581,20 @@ export default function AdminExchangeOrdersPage() {
                           <>
                             <button
                               onClick={() => {
-                                if (!order.exchangeVideo?.url) {
-                                  if (confirm("WARNING: This exchange request does not have a video uploaded. Video proof is mandatory according to our Exchange Policy. Are you sure you want to approve this request without a video? This violates our policy.")) {
+                                if (order.exchangeVideo?.url) {
+                                  if (confirm("Have you reviewed the uploaded video? Please confirm that you have reviewed the video before approving this exchange request.")) {
                                     updateExchangeStatus(order._id, "APPROVED");
                                   }
                                 } else {
-                                  if (confirm("Have you reviewed the uploaded video? Please confirm that you have reviewed the video before approving this exchange request.")) {
+                                  if (confirm("Are you sure you want to approve this exchange request?")) {
                                     updateExchangeStatus(order._id, "APPROVED");
                                   }
                                 }
                               }}
                               disabled={updatingStatus[order._id]}
-                              className={`px-4 py-2 rounded-lg border font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed ${
-                                !order.exchangeVideo?.url
-                                  ? "bg-yellow-500/20 text-yellow-300 border-yellow-500/40 hover:bg-yellow-500/30"
-                                  : "bg-blue-500/20 text-blue-300 border-blue-500/40 hover:bg-blue-500/30"
-                              }`}
+                              className="px-4 py-2 rounded-lg border font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed bg-blue-500/20 text-blue-300 border-blue-500/40 hover:bg-blue-500/30"
                             >
-                              {!order.exchangeVideo?.url ? "⚠️ Approve (No Video)" : "Approve Exchange"}
+                              Approve Exchange
                             </button>
                             <button
                               onClick={() => updateExchangeStatus(order._id, "REJECTED")}
