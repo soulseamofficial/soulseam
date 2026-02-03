@@ -135,6 +135,45 @@ const OrderSchema = new mongoose.Schema(
       type: String,
       default: "created",
     },
+
+    // Exchange-related fields (replaced return system)
+    deliveredAt: { type: Date, default: null },
+    exchangeRequested: { type: Boolean, default: false },
+    exchangeRequestedAt: { type: Date, default: null },
+    exchangeStatus: {
+      type: String,
+      enum: ["REQUESTED", "APPROVED", "REJECTED", "COMPLETED", null],
+      default: null,
+    },
+    exchangeReason: { type: String, default: null, trim: true },
+    exchangeType: {
+      type: String,
+      enum: ["SIZE", "COLOR", "DEFECT", "WRONG_ITEM", null],
+      default: null,
+    },
+    exchangeVideo: {
+      url: { type: String, default: null },
+      uploadedAt: { type: Date, default: null },
+    },
+    exchangeApprovedAt: { type: Date, default: null },
+    exchangeCompletedAt: { type: Date, default: null },
+
+    // Return-related fields
+    returnRequested: { type: Boolean, default: false },
+    returnRequestedAt: { type: Date, default: null },
+    returnStatus: {
+      type: String,
+      enum: ["REQUESTED", "APPROVED", "PICKUP_SCHEDULED", "COMPLETED", "REJECTED", null],
+      default: null,
+    },
+    returnReason: { type: String, default: null, trim: true },
+    returnVideoUrl: { type: String, default: null },
+    returnApprovedAt: { type: Date, default: null },
+    refundStatus: {
+      type: String,
+      enum: ["PENDING", "PROCESSING", "COMPLETED", "FAILED", null],
+      default: null,
+    },
   },
   { timestamps: true }
 );

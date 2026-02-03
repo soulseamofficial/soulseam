@@ -6,8 +6,10 @@ import { useRef, useState, useEffect, useMemo } from "react";
 import { useCart } from "../CartContext";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import MobileCheckoutHeader from "../components/MobileCheckoutHeader";
 import OrderSuccessModal from "../components/OrderSuccessModal";
+import { motion, useInView } from "framer-motion";
 
 // CONSTANTS (unchanged)
 const premiumCardClass = `
@@ -764,6 +766,283 @@ function usePasswordVerification(accountEnabled, step) {
 const discount = 0;
 
 // --- MAIN PAGE ---
+// ---- Premium OUR POLICY Section Component ----
+function OurPolicySection() {
+  const sectionRef = useRef(null);
+  const isInView = useInView(sectionRef, { once: true, margin: "-10% 0px" });
+
+  const policies = [
+    { name: "Privacy Policy", href: "/privacy-policy" },
+    { name: "Shipping Policy", href: "/shipping-policy" },
+    { name: "Terms of Service", href: "/terms-of-service" },
+    { name: "Exchange Policy", href: "/exchange-policy" },
+  ];
+
+  return (
+    <section
+      ref={sectionRef}
+      className="relative w-full py-20 px-4 sm:px-6 lg:px-8 overflow-hidden"
+      style={{
+        background: "linear-gradient(180deg, #000000 0%, #0a0a0a 50%, #000000 100%)",
+      }}
+    >
+      {/* Floating Particles Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {[...Array(12)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute w-1 h-1 bg-white/10 rounded-full"
+            initial={{
+              x: Math.random() * 100 + "%",
+              y: Math.random() * 100 + "%",
+              opacity: 0,
+            }}
+            animate={{
+              y: [null, (Math.random() - 0.5) * 100 + "px"],
+              x: [null, (Math.random() - 0.5) * 50 + "px"],
+              opacity: [0, 0.3, 0],
+            }}
+            transition={{
+              duration: 8 + Math.random() * 4,
+              repeat: Infinity,
+              delay: Math.random() * 2,
+              ease: "easeInOut",
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Light Noise Overlay */}
+      <div
+        className="absolute inset-0 opacity-[0.03] pointer-events-none"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+        }}
+      />
+
+      <div className="max-w-4xl mx-auto relative z-10">
+        {/* Title */}
+        <motion.h2
+          initial={{ opacity: 0, y: 30 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.8, ease: [0.22, 0.6, 0.36, 1] }}
+          className="text-center text-4xl sm:text-5xl font-black uppercase tracking-[0.2em] mb-16 text-white"
+          style={{
+            fontFamily: "Poppins, Inter, sans-serif",
+            textShadow: "0 4px 24px rgba(255,255,255,0.15)",
+            letterSpacing: "0.15em",
+          }}
+        >
+          OUR POLICY
+        </motion.h2>
+
+        {/* Policy Items */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
+          {policies.map((policy, index) => (
+            <PolicyCard
+              key={policy.name}
+              policy={policy}
+              index={index}
+              isInView={isInView}
+            />
+          ))}
+        </div>
+      </div>
+
+      <style jsx>{`
+        @keyframes gradientBorder {
+          0% {
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
+          }
+          100% {
+            background-position: 0% 50%;
+          }
+        }
+        .gradient-border-animated {
+          background: linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0.1) 0%,
+            rgba(255, 255, 255, 0.3) 50%,
+            rgba(255, 255, 255, 0.1) 100%
+          );
+          background-size: 200% 100%;
+          animation: gradientBorder 4s ease infinite;
+        }
+      `}</style>
+    </section>
+  );
+}
+
+// ---- Individual Policy Card Component ----
+function PolicyCard({ policy, index, isInView }) {
+  const cardRef = useRef(null);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [clickPosition, setClickPosition] = useState({ x: 0, y: 0 });
+  const [isHovered, setIsHovered] = useState(false);
+  const [isClicked, setIsClicked] = useState(false);
+
+  const handleMouseMove = (e) => {
+    if (!cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    setMousePosition({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
+  };
+
+  const handleClick = (e) => {
+    if (!cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    setClickPosition({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
+    setIsClicked(true);
+    setTimeout(() => setIsClicked(false), 600);
+  };
+
+  return (
+    <Link
+      href={policy.href}
+      className="block relative group cursor-pointer"
+      style={{ perspective: "1000px" }}
+      onClick={handleClick}
+    >
+      <motion.div
+        ref={cardRef}
+        initial={{ opacity: 0, y: 40 }}
+        animate={
+          isInView
+            ? {
+                opacity: 1,
+                y: 0,
+              }
+            : {}
+        }
+        transition={{
+          duration: 0.7,
+          delay: index * 0.15,
+          ease: [0.22, 0.6, 0.36, 1],
+        }}
+        whileHover={{
+          scale: 1.03,
+          rotateY: isHovered ? (mousePosition.x - 150) / 25 : 0,
+          rotateX: isHovered ? -(mousePosition.y - 100) / 25 : 0,
+        }}
+        onMouseMove={handleMouseMove}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        className="relative w-full"
+      >
+      {/* Glassmorphism Card */}
+      <div
+        className="relative w-full h-32 sm:h-36 rounded-2xl overflow-hidden backdrop-blur-xl transition-all duration-500 ease-out"
+        style={{
+          background:
+            "linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 50%, rgba(0,0,0,0.3) 100%)",
+          border: isHovered ? "1px solid rgba(255,255,255,0.3)" : "1px solid rgba(255,255,255,0.2)",
+          boxShadow: isHovered
+            ? "0 20px 60px rgba(255,255,255,0.15), 0 0 0 1px rgba(255,255,255,0.1), inset 0 1px 0 rgba(255,255,255,0.1)"
+            : "0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)",
+          transform: isHovered ? "translateY(-4px)" : "translateY(0)",
+        }}
+      >
+        {/* Gradient Border Animation - Animated Shimmer */}
+        <motion.div
+          className="absolute -inset-[2px] rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none z-0"
+          style={{
+            background:
+              "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)",
+            backgroundSize: "200% 100%",
+            borderRadius: "inherit",
+          }}
+          animate={{
+            backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
+          }}
+          transition={{
+            duration: 3,
+            repeat: Infinity,
+            ease: "linear",
+          }}
+        />
+
+        {/* Shimmer Effect on Hover */}
+        <motion.div
+          className="absolute inset-0 opacity-0 group-hover:opacity-100"
+          initial={{ x: "-100%" }}
+          whileHover={{ x: "100%" }}
+          transition={{ duration: 0.8, ease: "easeInOut" }}
+          style={{
+            background:
+              "linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)",
+            width: "50%",
+            height: "100%",
+          }}
+        />
+
+        {/* Ripple Effect on Click */}
+        {isClicked && (
+          <motion.div
+            className="absolute rounded-full bg-white/40 pointer-events-none z-30"
+            initial={{ scale: 0, opacity: 0.9 }}
+            animate={{ scale: 5, opacity: 0 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            style={{
+              left: clickPosition.x,
+              top: clickPosition.y,
+              width: "40px",
+              height: "40px",
+              transform: "translate(-50%, -50%)",
+              filter: "blur(2px)",
+            }}
+          />
+        )}
+
+        {/* Content */}
+        <div className="relative z-20 h-full flex items-center justify-center px-6">
+          <motion.span
+            className="text-white font-bold text-lg sm:text-xl tracking-wide relative"
+            style={{
+              fontFamily: "Inter, Poppins, sans-serif",
+              textShadow: isHovered
+                ? "0 0 20px rgba(255,255,255,0.4), 0 2px 8px rgba(255,255,255,0.2)"
+                : "0 2px 4px rgba(0,0,0,0.3)",
+            }}
+            whileHover={{ scale: 1.05 }}
+            transition={{ duration: 0.3 }}
+          >
+            {policy.name}
+            {/* Animated Underline */}
+            <motion.span
+              className="absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-white/80 to-white/40"
+              initial={{ width: 0 }}
+              whileHover={{ width: "100%" }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              style={{
+                boxShadow: isHovered ? "0 0 8px rgba(255,255,255,0.5)" : "none",
+              }}
+            />
+          </motion.span>
+        </div>
+
+        {/* Glow Effect */}
+        <div
+          className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(circle at center, rgba(255,255,255,0.1) 0%, transparent 70%)",
+            filter: "blur(20px)",
+          }}
+        />
+      </div>
+      </motion.div>
+    </Link>
+  );
+}
+
 export default function CheckoutPage() {
   // All code here is unchanged except discount definition added above and error fixes below.
   const { cartItems, clearCart } = useCart();
@@ -3239,6 +3518,9 @@ export default function CheckoutPage() {
         </div>
       </div>
 
+      {/* Premium OUR POLICY Section */}
+      <OurPolicySection />
+
       {/* Email Already Exists Popup */}
       {showEmailExistsPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
@@ -3473,6 +3755,29 @@ export default function CheckoutPage() {
         input:-webkit-autofill:focus {
           -webkit-box-shadow: 0 0 0px 1000px #000 inset !important;
           -webkit-text-fill-color: #fff !important;
+        }
+
+        /* Policy Section Animations */
+        @keyframes gradientBorder {
+          0% {
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
+          }
+          100% {
+            background-position: 0% 50%;
+          }
+        }
+        .gradient-border-animated {
+          background: linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0.1) 0%,
+            rgba(255, 255, 255, 0.3) 50%,
+            rgba(255, 255, 255, 0.1) 100%
+          );
+          background-size: 200% 100%;
+          animation: gradientBorder 4s ease infinite;
         }
       `}</style>
     );

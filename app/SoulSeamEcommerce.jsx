@@ -890,42 +890,42 @@ const SoulSeamEcommerce = () => {
               <h3 className="text-lg sm:text-xl font-bold mb-4 sm:mb-6">OUR POLICY</h3>
               <ul className="space-y-2 sm:space-y-3">
                 <li>
-                  <a
-                    href="#"
+                  <Link
+                    href="/privacy-policy"
                     className="text-sm sm:text-base text-white/70 hover:text-white transition-colors duration-300"
                   >
                     Privacy Policy
-                  </a>
+                  </Link>
                 </li>
                 <li>
-                  <a
-                    href="#"
+                  <Link
+                    href="/shipping-policy"
                     className="text-sm sm:text-base text-white/70 hover:text-white transition-colors duration-300"
                   >
                     Shipping Policy
-                  </a>
+                  </Link>
                 </li>
                 <li>
-                  <a
-                    href="#"
+                  <Link
+                    href="/terms-of-service"
                     className="text-sm sm:text-base text-white/70 hover:text-white transition-colors duration-300"
                   >
                     Terms of Service
-                  </a>
+                  </Link>
                 </li>
                 <li>
-                  <a
-                    href="#"
+                  <Link
+                    href="/exchange-policy"
                     className="text-sm sm:text-base text-white/70 hover:text-white transition-colors duration-300"
                   >
-                    Return Policy
-                  </a>
+                    Exchange Policy
+                  </Link>
                 </li>
               </ul>
             </div>
             <div>
               <h3 className="text-lg sm:text-xl font-bold mb-4 sm:mb-6">CONTACT</h3>
-              <p className="text-sm sm:text-base text-white/70 mb-3 sm:mb-4 break-words">Email: hello@soulseam.com</p>
+              <p className="text-sm sm:text-base text-white/70 mb-3 sm:mb-4 break-words">Email: soulseamhelp@gmail.com</p>
               <p className="text-sm sm:text-base text-white/70 break-words">Phone: +91 XXX XXX XXXX</p>
             </div>
           </div>

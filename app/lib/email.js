@@ -52,7 +52,7 @@ async function sendViaResend(to, otp) {
       Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
     },
     body: JSON.stringify({
-      from: process.env.RESEND_FROM_EMAIL || "SoulSeam <noreply@soulseam.com>",
+      from: process.env.RESEND_FROM_EMAIL || "SoulSeam <soulseamhelp@gmail.com>",
       to: [to],
       subject: "Verify your SoulSeam account",
       html: getOTPEmailHTML(otp),
@@ -87,7 +87,7 @@ async function sendViaSendGrid(to, otp) {
         },
       ],
       from: {
-        email: process.env.SENDGRID_FROM_EMAIL || "noreply@soulseam.com",
+        email: process.env.SENDGRID_FROM_EMAIL || "soulseamhelp@gmail.com",
         name: "SoulSeam",
       },
       content: [
