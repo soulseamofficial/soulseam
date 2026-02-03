@@ -1,11 +1,13 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useRef, useState, useEffect, useMemo } from "react";
 import { useCart } from "../CartContext";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import MobileCheckoutHeader from "../components/MobileCheckoutHeader";
-import { showToast } from "../components/Toast";
+import OrderSuccessModal from "../components/OrderSuccessModal";
 
 // CONSTANTS (unchanged)
 const premiumCardClass = `
@@ -832,6 +834,11 @@ export default function CheckoutPage() {
   const [codAdvanceSignature, setCodAdvanceSignature] = useState(null);
   const [showEmailExistsPopup, setShowEmailExistsPopup] = useState(false);
 
+  // Order Success Modal State
+  const [orderSuccess, setOrderSuccess] = useState(false);
+  const [orderId, setOrderId] = useState(null);
+  const [successPaymentMethod, setSuccessPaymentMethod] = useState("COD");
+
   // Auth + guest session bootstrap (checkout must never block)
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -967,13 +974,18 @@ export default function CheckoutPage() {
   }, [verificationMethod, form.createAccount]);
   useEffect(() => {
     if (!form.createAccount) {
+      // Reset all OTP-related state when account creation is disabled
       setVerificationMethod(null);
       setVerificationStep("idle");
       setVerificationInput("");
       setVerificationOtp("");
       setOtpLoading(false);
       setOtpError("");
+      setOtpSentMessage("");
       setSelectedContactMethod(null);
+      setWhatsappVerified(false);
+      setEmailVerified(false);
+      setResendCooldown(0);
     }
   }, [form.createAccount]);
 
@@ -1463,7 +1475,7 @@ export default function CheckoutPage() {
             password: passwordFields.password,
             address: form.address ? {
               addressLine1: form.address,
-              addressLine2: form.apartment || "",
+              addressLine2: form.apt || "",
               city: form.city || "",
               state: form.state || "",
               country: "India",
@@ -1482,22 +1494,22 @@ export default function CheckoutPage() {
                 registerData.error?.toLowerCase().includes("login")) {
               setShowEmailExistsPopup(true);
             } else {
-              showToast(registerData.error || registerData.message || "Failed to create account", "error");
+              window?.alert?.(registerData.error || registerData.message || "Failed to create account");
             }
           } else {
-            showToast(registerData.error || registerData.message || "Failed to create account", "error");
+            window?.alert?.(registerData.error || registerData.message || "Failed to create account");
           }
           return;
         }
 
-        showToast("Account created successfully", "success");
+        // Account created successfully
         setEmailVerified(true);
         if (form.phone) {
           setWhatsappVerified(true);
         }
       } catch (err) {
         setOtpLoading(false);
-        showToast("Failed to create account. Please try again.", "error");
+        window?.alert?.("Failed to create account. Please try again.");
         return;
       }
     }
@@ -1622,11 +1634,6 @@ export default function CheckoutPage() {
     // OTP verification disabled - password-based account creation only
     // OTP checks removed - not needed for password-based flow
 
-    if (verificationStep === "otp_sent" && !isOTPVerified) {
-      window?.alert?.("Please verify the OTP before placing your order.");
-      return;
-    }
-
     // Check if advance payment is required and not paid
     if (codSettings.codAdvanceEnabled && !codAdvancePaid) {
       window?.alert?.(`To confirm your Cash On Delivery order, please pay ₹${codSettings.codAdvanceAmount} as advance.`);
@@ -1711,7 +1718,12 @@ export default function CheckoutPage() {
         return;
       }
 
-      window.alert("Order placed with Cash on Delivery.");
+      // Order successfully created in database - trigger premium success animation
+      // This is payment-agnostic and order-status driven only
+      setOrderId(checkoutData?.orderId || null);
+      setSuccessPaymentMethod("COD");
+      setOrderSuccess(true);
+      
       clearCart();
       setStep(1);
       setPaymentMethod("not_selected");
@@ -1744,11 +1756,6 @@ export default function CheckoutPage() {
 
     // OTP verification disabled - password-based account creation only
     // OTP checks removed - not needed for password-based flow
-
-    if (verificationStep === "otp_sent" && !isOTPVerified) {
-      window?.alert?.("Please verify the OTP before placing your order.");
-      return;
-    }
 
     if (
       !mounted ||
@@ -1848,7 +1855,13 @@ export default function CheckoutPage() {
             return;
           }
 
-          window.alert("Payment Successful! Order placed.");
+          // Order successfully created in database - trigger premium success animation
+          // This is payment-agnostic and order-status driven only
+          // Animation triggers after order is saved, not tied to payment success
+          setOrderId(checkoutData?.orderId || null);
+          setSuccessPaymentMethod("ONLINE");
+          setOrderSuccess(true);
+          
           clearCart();
           setStep(1);
           setPaymentMethod("not_selected");
@@ -2346,7 +2359,8 @@ export default function CheckoutPage() {
                     )}
 
                     {/* OTP Verification Section - Dynamic */}
-                    {verificationStep === "otp_sent" && (
+                    {/* Only show OTP UI when user has selected "Create an account" */}
+                    {form.createAccount && verificationStep === "otp_sent" && (
                       <div className="w-full mt-6 border-t border-white/12 pt-6 transition-all duration-500 ease-out">
                         {/* Inline success message */}
                         {otpSentMessage && (
@@ -3326,6 +3340,17 @@ export default function CheckoutPage() {
           min-width: 84px;
         }
       `}</style>
+      {/* Premium Order Success Modal */}
+      <OrderSuccessModal
+        isOpen={orderSuccess}
+        onClose={() => {
+          setOrderSuccess(false);
+          setOrderId(null);
+        }}
+        paymentMethod={successPaymentMethod}
+        orderId={orderId}
+        clearCart={clearCart}
+      />
     </>
   );
 }

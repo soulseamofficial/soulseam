@@ -4,6 +4,7 @@ import { ShoppingBag, Menu, X, Search, User, ShoppingCart, Heart } from "lucide-
 import { useCart } from "./CartContext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 const Star = ({ className = "" }) => (
   <svg className={className} fill="currentColor" viewBox="0 0 20 20" width={16} height={16}>
@@ -378,12 +379,17 @@ const SoulSeamEcommerce = () => {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-20">
-            <div className="flex-shrink-0">
-              <img
-                src="/logo.jpg"
-                alt="SOUL SEAM Logo"
-                className="h-12 w-auto sm:h-16 md:h-20"
-              />
+            <div className="flex items-center justify-center flex-shrink-0 h-full">
+              <Link href="/" className="flex items-center justify-center h-full">
+                <Image
+                  src="/logo.jpg"
+                  alt="SOUL SEAM Logo"
+                  width={80}
+                  height={80}
+                  priority
+                  className="max-h-[2.75rem] sm:max-h-[3.5rem] md:max-h-[4.5rem] lg:max-h-[4.75rem] w-auto h-auto object-contain"
+                />
+              </Link>
             </div>
             <nav className="hidden lg:flex items-center space-x-6 xl:space-x-8">
               <a
