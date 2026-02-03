@@ -1,11 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  eslint: {
-    // NOTE: This repo contains legacy UI files that violate strict hook lint rules.
-    // We keep build unblocked while focusing on runtime correctness.
-    ignoreDuringBuilds: true,
-  },
+  // NOTE: eslint config removed - Next.js 16 no longer supports eslint in next.config.ts
+  // To disable eslint during builds, use: next build --no-lint
   images: {
     remotePatterns: [
       {

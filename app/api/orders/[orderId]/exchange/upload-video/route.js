@@ -6,7 +6,6 @@ import { getCloudinary } from "@/app/lib/cloudinary";
 import { writeFile, unlink } from "fs/promises";
 import { join } from "path";
 import { tmpdir } from "os";
-import getVideoDuration from "get-video-duration";
 
 export async function POST(req, { params }) {
   try {
@@ -85,36 +84,12 @@ export async function POST(req, { params }) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Create temporary file for validation
+    // Create temporary file for upload
     const tempPath = join(tmpdir(), `exchange-video-${orderId}-${Date.now()}.${file.name.split('.').pop()}`);
     await writeFile(tempPath, buffer);
 
-    // Validate video duration (10-30 seconds)
-    try {
-      const duration = await getVideoDuration(tempPath);
-      if (duration < 10) {
-        await unlink(tempPath).catch(() => {});
-        return NextResponse.json(
-          { success: false, error: "Video duration must be at least 10 seconds. Your video is " + duration.toFixed(1) + " seconds long." },
-          { status: 400 }
-        );
-      }
-      if (duration > 30) {
-        await unlink(tempPath).catch(() => {});
-        return NextResponse.json(
-          { success: false, error: "Video duration must not exceed 30 seconds. Your video is " + duration.toFixed(1) + " seconds long." },
-          { status: 400 }
-        );
-      }
-    } catch (durationError) {
-      // Clean up temp file if duration check fails
-      await unlink(tempPath).catch(() => {});
-      console.error("[Exchange Video Upload] Duration validation error:", durationError);
-      return NextResponse.json(
-        { success: false, error: "Failed to validate video duration. Please ensure your video file is valid and in a supported format (MP4, MOV, or WEBM)." },
-        { status: 400 }
-      );
-    }
+    // TODO: Video duration validation temporarily disabled due to build issues with get-video-duration
+    // Duration validation (10-30 seconds) will be re-enabled with an alternative solution
 
     try {
       // Upload to Cloudinary
