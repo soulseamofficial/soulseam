@@ -33,7 +33,7 @@ export default function ExchangeRequestModal({ isOpen, onClose, orderId, onSubmi
     }
   }, [isOpen]);
 
-  // Validate video duration (10-30 seconds)
+  // Validate video duration (10-60 seconds)
   const validateVideoDuration = (file) => {
     return new Promise((resolve, reject) => {
       const video = document.createElement("video");
@@ -43,8 +43,8 @@ export default function ExchangeRequestModal({ isOpen, onClose, orderId, onSubmi
         const duration = video.duration;
         if (duration < 10) {
           reject(new Error("Video must be at least 10 seconds long"));
-        } else if (duration > 30) {
-          reject(new Error("Video must not exceed 30 seconds"));
+        } else if (duration > 60) {
+          reject(new Error("Video must not exceed 60 seconds"));
         } else {
           resolve();
         }
@@ -61,16 +61,16 @@ export default function ExchangeRequestModal({ isOpen, onClose, orderId, onSubmi
     setError("");
 
     // Validate file type
-    const allowedTypes = ["video/mp4", "video/quicktime", "video/webm"];
+    const allowedTypes = ["video/mp4", "video/webm", "video/quicktime"];
     if (!allowedTypes.includes(file.type)) {
-      setError("Invalid file type. Only MP4, MOV, and WEBM are allowed.");
+      setError("Invalid file type. Only MP4, WEBM, and MOV are allowed.");
       return;
     }
 
-    // Validate file size (30 MB max)
-    const maxSize = 30 * 1024 * 1024; // 30 MB
+      // Validate file size (20 MB max)
+    const maxSize = 20 * 1024 * 1024; // 20 MB
     if (file.size > maxSize) {
-      setError("File size exceeds 30 MB limit");
+      setError("Video must be under 20MB");
       return;
     }
 
@@ -87,6 +87,50 @@ export default function ExchangeRequestModal({ isOpen, onClose, orderId, onSubmi
     setVideoPreview(previewUrl);
   };
 
+  const uploadVideo = async (file) => {
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    
+    if (!cloudName) {
+      throw new Error("Cloudinary cloud name is not configured");
+    }
+    
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", "exchange_unsigned");
+
+    try {
+      const res = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        console.error("Cloudinary upload error:", errorData);
+        console.error("Response status:", res.status);
+        console.error("Full error data:", JSON.stringify(errorData, null, 2));
+        
+        // Check for specific Cloudinary error messages
+        if (errorData.error?.message) {
+          throw new Error(errorData.error.message);
+        } else if (errorData.error) {
+          throw new Error(typeof errorData.error === 'string' ? errorData.error : JSON.stringify(errorData.error));
+        } else {
+          throw new Error(`Upload failed with status ${res.status}. Please check that the upload preset "exchange_unsigned" exists in your Cloudinary dashboard and is set to "Unsigned".`);
+        }
+      }
+
+      const data = await res.json();
+      return data.secure_url;
+    } catch (err) {
+      console.error("Upload error:", err);
+      throw err;
+    }
+  };
+
   const handleUploadVideo = async () => {
     if (!videoFile) {
       setError("Please select a video file");
@@ -97,26 +141,8 @@ export default function ExchangeRequestModal({ isOpen, onClose, orderId, onSubmi
     setError("");
 
     try {
-      const formData = new FormData();
-      formData.append("video", videoFile);
-
-      const res = await fetch(`/api/orders/${orderId}/exchange/upload-video`, {
-        method: "POST",
-        credentials: "include",
-        body: formData,
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to upload video");
-      }
-
-      if (!data.videoUrl) {
-        throw new Error("Video upload succeeded but no video URL was returned");
-      }
-
-      setVideoUrl(data.videoUrl);
+      const secureUrl = await uploadVideo(videoFile);
+      setVideoUrl(secureUrl);
       setError("");
     } catch (err) {
       setError(err.message || "Failed to upload video. Please try again.");
@@ -140,11 +166,7 @@ export default function ExchangeRequestModal({ isOpen, onClose, orderId, onSubmi
       return;
     }
 
-    // Validate video
-    if (!videoUrl) {
-      setError("Please upload an exchange video");
-      return;
-    }
+    // Video is optional, no validation needed
 
     setSubmitting(true);
 
@@ -156,7 +178,7 @@ export default function ExchangeRequestModal({ isOpen, onClose, orderId, onSubmi
         body: JSON.stringify({
           exchangeReason: exchangeReason.trim(),
           exchangeType: exchangeType,
-          exchangeVideoUrl: videoUrl,
+          exchangeVideoUrl: videoUrl || null,
         }),
       });
 
@@ -200,13 +222,8 @@ export default function ExchangeRequestModal({ isOpen, onClose, orderId, onSubmi
             Request Exchange
           </h2>
           <p className="text-white/70 text-sm mb-3">
-            Please provide a reason, select exchange type, and upload a video showing the product condition
+            Please provide a reason and select exchange type. Uploading a video helps us approve your exchange faster.
           </p>
-          <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-3">
-            <p className="text-xs text-rose-300 font-semibold">
-              ⚠️ Video proof is mandatory. Exchange requests without a valid video will not be accepted or processed.
-            </p>
-          </div>
         </div>
 
         {/* Error Message */}
@@ -252,18 +269,17 @@ export default function ExchangeRequestModal({ isOpen, onClose, orderId, onSubmi
         {/* Video Upload Section */}
         <div className="mb-6">
           <label className="block text-sm font-semibold text-white/90 mb-2">
-            Upload Exchange Video <span className="text-rose-400">*</span>
-            <span className="ml-2 text-xs text-rose-400 font-bold">(MANDATORY)</span>
+            Upload Exchange Video (Optional)
           </label>
           <div className="bg-white/5 border border-white/10 rounded-lg p-3 mb-3">
             <p className="text-xs text-white/80 font-semibold mb-2">
-              Video proof is required for all exchange requests. Your request will not be processed without a valid video.
+              Uploading a video helps us approve your exchange faster.
             </p>
             <p className="text-xs text-white/70 leading-relaxed">
-              <strong>Requirements:</strong> Duration 10-30 seconds • Max file size 30 MB • Formats: MP4, MOV, or WEBM only
+              <strong>Requirements:</strong> Duration 10-60 seconds • Max file size 20 MB • Formats: MP4, WEBM, or MOV only
             </p>
             <p className="text-xs text-white/60 mt-2 italic">
-              The video must clearly show the product condition at the time of requesting the exchange.
+              The video should clearly show the product condition at the time of requesting the exchange.
             </p>
           </div>
 
@@ -272,7 +288,7 @@ export default function ExchangeRequestModal({ isOpen, onClose, orderId, onSubmi
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="video/mp4,video/quicktime,video/webm"
+                accept="video/mp4,video/webm,video/mov"
                 onChange={handleVideoSelect}
                 className="hidden"
               />
@@ -369,7 +385,6 @@ export default function ExchangeRequestModal({ isOpen, onClose, orderId, onSubmi
             disabled={
               submitting || 
               uploading || 
-              !videoUrl || 
               !exchangeReason.trim() || 
               !exchangeType
             }

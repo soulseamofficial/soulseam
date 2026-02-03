@@ -67,37 +67,28 @@ export async function POST(req, { params }) {
     const body = await req.json().catch(() => ({}));
     const { exchangeReason, exchangeType, exchangeVideoUrl } = body;
 
-    // Validate required fields - Video is MANDATORY
-    if (!exchangeVideoUrl || typeof exchangeVideoUrl !== "string" || exchangeVideoUrl.trim().length === 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Video proof is mandatory for all exchange requests. Please upload a valid video (10-30 seconds, max 30 MB, MP4/MOV/WEBM format) before submitting your exchange request. Exchange requests without a valid video will not be accepted or processed.",
-        },
-        { status: 400 }
-      );
-    }
-
-    // Validate video URL format (basic check)
-    try {
-      const videoUrlObj = new URL(exchangeVideoUrl);
-      if (!videoUrlObj.protocol.startsWith("http")) {
+    // Validate video URL format (only if provided)
+    if (exchangeVideoUrl && typeof exchangeVideoUrl === "string" && exchangeVideoUrl.trim().length > 0) {
+      try {
+        const videoUrlObj = new URL(exchangeVideoUrl);
+        if (!videoUrlObj.protocol.startsWith("http")) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "Invalid video URL format. Please upload a valid video file.",
+            },
+            { status: 400 }
+          );
+        }
+      } catch (urlError) {
         return NextResponse.json(
           {
             success: false,
-            error: "Invalid video URL format. Please upload a valid video file.",
+            error: "Invalid video URL. Please upload a valid video file that meets all requirements (10-60 seconds, max 20 MB, MP4/WEBM/MOV format).",
           },
           { status: 400 }
         );
       }
-    } catch (urlError) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Invalid video URL. Please upload a valid video file that meets all requirements (10-30 seconds, max 30 MB, MP4/MOV/WEBM format).",
-        },
-        { status: 400 }
-      );
     }
 
     if (!exchangeReason || exchangeReason.trim().length === 0) {
@@ -127,11 +118,15 @@ export async function POST(req, { params }) {
       exchangeStatus: "REQUESTED",
       exchangeReason: exchangeReason.trim(),
       exchangeType: exchangeType,
-      exchangeVideo: {
+    };
+
+    // Only add video if provided
+    if (exchangeVideoUrl && typeof exchangeVideoUrl === "string" && exchangeVideoUrl.trim().length > 0) {
+      updateData.exchangeVideo = {
         url: exchangeVideoUrl,
         uploadedAt: new Date(),
-      },
-    };
+      };
+    }
 
     await Order.findByIdAndUpdate(orderId, { $set: updateData });
 

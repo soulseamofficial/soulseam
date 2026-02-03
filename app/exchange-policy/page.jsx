@@ -41,9 +41,9 @@ export default function ExchangePolicyPage() {
               </p>
               <h3 className="text-xl sm:text-2xl font-bold mb-3 text-white/90">Video Requirements:</h3>
               <ul className="list-disc list-inside text-white/80 space-y-2 ml-4 text-base sm:text-lg">
-                <li><strong>Duration:</strong> Between 10-30 seconds</li>
-                <li><strong>File Size:</strong> Maximum 30 MB</li>
-                <li><strong>Supported Formats:</strong> MP4, MOV, or WEBM only</li>
+                <li><strong>Duration:</strong> Between 10-60 seconds</li>
+                <li><strong>File Size:</strong> Maximum 20 MB</li>
+                <li><strong>Supported Formats:</strong> MP4, WEBM, or MOV only</li>
                 <li><strong>Content:</strong> Video must clearly show the product condition, including any defects, size issues, or discrepancies</li>
               </ul>
               <p className="text-white/70 mt-4 leading-relaxed text-sm sm:text-base">
@@ -59,7 +59,7 @@ export default function ExchangePolicyPage() {
               <li>Click on &quot;Request Exchange&quot; for the item you wish to exchange</li>
               <li>Select the exchange type (Size Change, Color Change, Defective Product, or Wrong Item Received)</li>
               <li>Provide a detailed reason for the exchange</li>
-              <li><strong>Upload a mandatory video (10-30 seconds, max 30 MB, MP4/MOV/WEBM format) showing the product condition</strong></li>
+              <li><strong>Upload a mandatory video (10-60 seconds, max 20 MB, MP4/WEBM/MOV format) showing the product condition</strong></li>
               <li>Submit your exchange request</li>
               <li>Our team will review your request and the uploaded video</li>
               <li>Once approved, we will provide you with return instructions</li>
