@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useMemo } from "react";
 import { useCart } from "../CartContext";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -1360,14 +1360,21 @@ export default function CheckoutPage() {
   async function triggerOTPVerification() {
     const channels = [];
     
-    if (selectedContactMethod === "whatsapp" && form.phone) {
+    // If creating account with email, skip email OTP (will use password instead)
+    // Add safe fallbacks for SSR/prerender
+    const skipEmailOTP = (typeof window !== "undefined" && 
+      form?.createAccount && 
+      (selectedContactMethod === "email" || (!selectedContactMethod && form?.email))) ||
+      (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_SKIP_EMAIL_OTP === "true");
+    
+    if (selectedContactMethod === "whatsapp" && form?.phone) {
       channels.push({ channel: "whatsapp", identifier: form.phone.replace(/\D/g, "").slice(0, 10) });
     }
-    if (selectedContactMethod === "email" && form.email && !skipEmailOTP) {
+    if (selectedContactMethod === "email" && form?.email && !skipEmailOTP) {
       channels.push({ channel: "email", identifier: form.email.trim().toLowerCase() });
     }
     // If both selected, send to both (unless creating account with email)
-    if (selectedContactMethod === null && form.phone && form.email) {
+    if (selectedContactMethod === null && form?.phone && form?.email) {
       channels.push({ channel: "whatsapp", identifier: form.phone.replace(/\D/g, "").slice(0, 10) });
       if (!skipEmailOTP) {
         channels.push({ channel: "email", identifier: form.email.trim().toLowerCase() });
@@ -1393,34 +1400,33 @@ export default function CheckoutPage() {
 
   // --- OTP Verification Status ---
   // Check if OTP verification is required and completed
-  // OTP is ONLY required when user explicitly selects "Create an account" checkbox
-  const isOTPVerificationRequired = form.createAccount && (form.phone || form.email);
-  // If both channels selected, at least one must be verified
-  // If single channel selected, that channel must be verified
-  // For email account creation, check password fields instead of email OTP
-  // If creating account with email, skip email OTP (will use password instead)
-  const skipEmailOTP = typeof window !== "undefined" && form.createAccount && (selectedContactMethod === "email" || (!selectedContactMethod && form.email));
-  const emailAccountCreated = skipEmailOTP && passwordFields.password && passwordFields.password.length >= 6 && passwordFields.password === passwordFields.confirm;
-  const isOTPVerified = 
-    selectedContactMethod === "whatsapp" ? whatsappVerified :
-    selectedContactMethod === "email" ? (skipEmailOTP ? emailAccountCreated : emailVerified) :
-    selectedContactMethod === null && form.phone && form.email ? (whatsappVerified || (skipEmailOTP ? emailAccountCreated : emailVerified)) :
-    form.phone ? whatsappVerified :
-    form.email ? (skipEmailOTP ? emailAccountCreated : emailVerified) :
-    true; // No OTP required if no phone/email
+  // If creating account with email, email OTP is not required (password is used instead)
+  // Add safe fallbacks for SSR/prerender
+  // OTP is disabled - only password-based account creation is used
+  // Structure kept for future OTP integration
+  const skipEmailOTP = useMemo(() => {
+    // Always skip OTP when creating account (password-based only)
+    if (typeof window === "undefined") {
+      return typeof process !== "undefined" && process.env?.NEXT_PUBLIC_SKIP_EMAIL_OTP === "true";
+    }
+    return form?.createAccount || 
+      (typeof process !== "undefined" && process.env?.NEXT_PUBLIC_SKIP_EMAIL_OTP === "true");
+  }, [form?.createAccount]);
+  
+  // OTP verification not required - password-based account creation only
+  const isOTPVerificationRequired = false; // Disabled for now
+  
+  // Account is created when password fields are filled and match
+  const emailAccountCreated = form?.createAccount && 
+    passwordFields?.password && 
+    passwordFields.password.length >= 6 && 
+    passwordFields.password === passwordFields?.confirm;
+  
+  // OTP verification disabled - use password-based account creation
+  const isOTPVerified = form?.createAccount ? emailAccountCreated : true;
 
-  // Allow continue if items exist and either:
-  // - OTP not required (guest checkout or account creation disabled), OR
-  // - OTP not sent yet (will be triggered on submit), OR  
-  // - OTP is verified
-  // Disable only if OTP was sent but not verified (waiting for user input)
-  // Note: OTP is only required when form.createAccount === true
-  const canContinueToShipping =
-    itemsWithFinalPrice.length > 0 && 
-    (!isOTPVerificationRequired || 
-     verificationStep === "idle" || 
-     isOTPVerified || 
-     verificationStep === "verified");
+  // Allow continue - no OTP verification required
+  const canContinueToShipping = itemsWithFinalPrice.length > 0;
 
   async function handleContinue(e) {
     e.preventDefault();
@@ -1442,27 +1448,74 @@ export default function CheckoutPage() {
     setFormErrors(errors);
     if (Object.keys(errors).length > 0) return;
 
-    // OTP verification is ONLY required when user explicitly selects "Create an account"
-    // Guest checkout should proceed without OTP
-    if (form.createAccount) {
-      // Auto-trigger OTP verification if not already verified
-      if (isOTPVerificationRequired && !isOTPVerified && verificationStep !== "otp_sent") {
-        const otpSent = await triggerOTPVerification();
-        if (!otpSent) {
-          setOtpError("Failed to send verification code. Please try again.");
-          return;
-        }
-        // Don't proceed - wait for user to verify OTP
+    // If creating account, create MongoDB account
+    // Add safe fallbacks for SSR/prerender
+    const shouldCreateAccount = (typeof window !== "undefined" && 
+      form?.createAccount && 
+      passwordFields?.password && 
+      passwordFields.password.length >= 6);
+    
+    if (shouldCreateAccount) {
+      if (passwordFields.password !== passwordFields.confirm) {
+        setPasswordError("Passwords do not match");
         return;
       }
+      
+      // Create MongoDB account (register API will check for existing users)
+      setOtpLoading(true);
+      try {
+        const name = `${form.firstName || ""} ${form.lastName || ""}`.trim() || "Customer";
+        const registerRes = await fetch("/api/auth/user/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name,
+            email: form.email?.trim().toLowerCase() || undefined,
+            phone: form.phone?.replace(/\D/g, "").slice(0, 10) || undefined,
+            password: passwordFields.password,
+            address: form.address ? {
+              addressLine1: form.address,
+              addressLine2: form.apt || "",
+              city: form.city || "",
+              state: form.state || "",
+              country: "India",
+              pincode: form.pin || ""
+            } : undefined
+          }),
+        });
 
-      // If OTP is sent but not verified, don't proceed
-      if (verificationStep === "otp_sent" && !isOTPVerified) {
-        setOtpError("Please verify the OTP before continuing.");
+        const registerData = await registerRes.json();
+        setOtpLoading(false);
+
+        if (!registerRes.ok) {
+          // Handle email/phone already exists error with popup
+          if (registerRes.status === 409 || registerRes.status === 400) {
+            if (registerData.error?.toLowerCase().includes("already") || 
+                registerData.error?.toLowerCase().includes("login")) {
+              setShowEmailExistsPopup(true);
+            } else {
+              window?.alert?.(registerData.error || registerData.message || "Failed to create account");
+            }
+          } else {
+            window?.alert?.(registerData.error || registerData.message || "Failed to create account");
+          }
+          return;
+        }
+
+        // Account created successfully
+        setEmailVerified(true);
+        if (form.phone) {
+          setWhatsappVerified(true);
+        }
+      } catch (err) {
+        setOtpLoading(false);
+        window?.alert?.("Failed to create account. Please try again.");
         return;
       }
     }
-    // If createAccount is false, skip OTP entirely and proceed to shipping
+
+    // OTP verification disabled - password-based account creation only
+    // Auto-trigger OTP verification removed - not needed for password-based flow
 
     // Per spec: draft is created/updated on Shipping -> Continue (not here).
     setStep(2);
@@ -1578,26 +1631,8 @@ export default function CheckoutPage() {
   async function handleCOD() {
     setDeliveryCreationError(null);
 
-    // OTP verification is ONLY required when user explicitly selects "Create an account"
-    // Guest checkout should proceed without OTP
-    if (form.createAccount) {
-      // Check OTP verification before placing order
-      if (isOTPVerificationRequired && !isOTPVerified && verificationStep !== "otp_sent") {
-        const otpSent = await triggerOTPVerification();
-        if (!otpSent) {
-          setOtpError("Failed to send verification code. Please try again.");
-          return;
-        }
-        window?.alert?.("Please verify the OTP before placing your order.");
-        return;
-      }
-
-      if (verificationStep === "otp_sent" && !isOTPVerified) {
-        window?.alert?.("Please verify the OTP before placing your order.");
-        return;
-      }
-    }
-    // If createAccount is false, skip OTP entirely and proceed with order
+    // OTP verification disabled - password-based account creation only
+    // OTP checks removed - not needed for password-based flow
 
     // Check if advance payment is required and not paid
     if (codSettings.codAdvanceEnabled && !codAdvancePaid) {
@@ -1719,26 +1754,8 @@ export default function CheckoutPage() {
   async function handlePayment() {
     setDeliveryCreationError(null);
 
-    // OTP verification is ONLY required when user explicitly selects "Create an account"
-    // Guest checkout should proceed without OTP
-    if (form.createAccount) {
-      // Check OTP verification before placing order
-      if (isOTPVerificationRequired && !isOTPVerified && verificationStep !== "otp_sent") {
-        const otpSent = await triggerOTPVerification();
-        if (!otpSent) {
-          setOtpError("Failed to send verification code. Please try again.");
-          return;
-        }
-        window?.alert?.("Please verify the OTP before placing your order.");
-        return;
-      }
-
-      if (verificationStep === "otp_sent" && !isOTPVerified) {
-        window?.alert?.("Please verify the OTP before placing your order.");
-        return;
-      }
-    }
-    // If createAccount is false, skip OTP entirely and proceed with payment
+    // OTP verification disabled - password-based account creation only
+    // OTP checks removed - not needed for password-based flow
 
     if (
       !mounted ||
@@ -2170,8 +2187,8 @@ export default function CheckoutPage() {
                       <div
                         className="w-full mt-6 flex flex-col gap-4 border-t border-white/12 pt-7 transition-all duration-500 ease-out"
                       >
-                        {/* Password Fields for Email Account Creation - Show immediately when email is selected */}
-                        {(selectedContactMethod === "email" || (!selectedContactMethod && form.email)) && form.email && (
+                        {/* Password Fields for Account Creation - Show for both email and phone */}
+                        {form.createAccount && (
                           <div className="space-y-3 mb-4">
                             <label className="block text-sm font-semibold text-white/90 mb-2">
                               Create Password for Account
@@ -2225,6 +2242,7 @@ export default function CheckoutPage() {
                           </div>
                         )}
                         
+                        {/* Contact method selection removed - password is now required for all account creation */}
                         <div className="flex flex-col sm:flex-row gap-4" style={{ minHeight: 120 }}>
                         {/* WhatsApp Icon - Visual Only */}
                         <div 
@@ -2473,8 +2491,8 @@ export default function CheckoutPage() {
                             </div>
                           ) : null}
 
-                          {/* Password Fields for Email Account Creation */}
-                          {form.createAccount && (selectedContactMethod === "email" || (!selectedContactMethod && form.email)) && form.email && (
+                          {/* Password Fields for Account Creation - Show for both email and phone */}
+                          {form.createAccount && (
                             <div className="space-y-3">
                               <label className="block text-sm font-semibold text-white/90 mb-2">
                                 Create Password for Account
