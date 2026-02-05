@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
 
 const AddressSchema = new mongoose.Schema(
   {
@@ -63,7 +64,6 @@ UserSchema.pre('save', async function () {
 
   // Hash password only if modified
   if (this._password) {
-    const bcrypt = require('bcryptjs');
     const salt = await bcrypt.genSalt(10);
     this.passwordHash = await bcrypt.hash(this._password, salt);
     delete this._password;

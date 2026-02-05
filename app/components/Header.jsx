@@ -2,6 +2,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import TrackOrderModal from "./TrackOrderModal";
 
 const navLinks = [
   { label: "Home", href: "/" },
@@ -13,6 +14,7 @@ const navLinks = [
 export default function Header() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const [isTrackModalOpen, setIsTrackModalOpen] = React.useState(false);
 
   React.useEffect(() => {
     setMenuOpen(false); // close menu on route change
@@ -43,6 +45,16 @@ export default function Header() {
                 </NavLink>
               </li>
             ))}
+            {/* Track Your Order Button */}
+            <li>
+              <button
+                onClick={() => setIsTrackModalOpen(true)}
+                className="relative px-4 py-2 text-sm font-medium text-white/90 hover:text-white bg-gradient-to-r from-primary-400/20 to-primary-600/20 border border-primary-400/30 rounded-lg hover:from-primary-400/30 hover:to-primary-600/30 hover:border-primary-400/50 transform hover:scale-105 active:scale-95 transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-primary-400/20"
+              >
+                <span className="relative z-10">Track Your Order</span>
+                <div className="absolute inset-0 bg-gradient-to-r from-primary-400/10 to-primary-600/10 rounded-lg opacity-0 hover:opacity-100 transition-opacity duration-300" />
+              </button>
+            </li>
           </ul>
           {/* Hamburger */}
           <div className="md:hidden z-50">
@@ -85,11 +97,28 @@ export default function Header() {
                     </NavLink>
                   </li>
                 ))}
+                {/* Track Your Order Button - Mobile */}
+                <li>
+                  <button
+                    onClick={() => {
+                      setIsTrackModalOpen(true);
+                      setMenuOpen(false);
+                    }}
+                    className="w-full px-4 py-3 text-sm font-medium text-white/90 hover:text-white bg-gradient-to-r from-primary-400/20 to-primary-600/20 border border-primary-400/30 rounded-lg hover:from-primary-400/30 hover:to-primary-600/30 hover:border-primary-400/50 transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 shadow-lg hover:shadow-xl hover:shadow-primary-400/20 mt-2"
+                  >
+                    Track Your Order
+                  </button>
+                </li>
               </ul>
             </nav>
           </div>
         </div>
       </nav>
+      {/* Track Order Modal */}
+      <TrackOrderModal
+        isOpen={isTrackModalOpen}
+        onClose={() => setIsTrackModalOpen(false)}
+      />
     </header>
   );
 }

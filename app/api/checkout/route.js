@@ -317,6 +317,11 @@ export async function POST(req) {
     const [firstName, ...rest] = fullName.split(" ").filter(Boolean);
     const lastName = rest.join(" ");
 
+    // Extract order message (optional)
+    const orderMessage = body?.orderMessage && typeof body.orderMessage === "string"
+      ? body.orderMessage.trim().substring(0, 250)
+      : null;
+
     // Create order directly
     const order = await Order.create({
       userId: userId || null,
@@ -338,6 +343,7 @@ export async function POST(req) {
       razorpayOrderId,
       razorpayPaymentId,
       razorpaySignature,
+      orderMessage: orderMessage || null,
 
       // Legacy fields for backward compatibility
       customer: {

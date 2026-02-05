@@ -75,17 +75,17 @@ export default function AdminExchangeOrdersPage() {
     }
   }
 
-  // Get status badge color
+  // Get status badge color (matching user profile page)
   function getStatusBadgeColor(status) {
     switch (status) {
       case "REQUESTED":
-        return "bg-yellow-500/20 text-yellow-300 border-yellow-500/40";
+        return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
       case "APPROVED":
-        return "bg-blue-500/20 text-blue-300 border-blue-500/40";
+        return "bg-green-500/20 text-green-400 border-green-500/30";
       case "COMPLETED":
-        return "bg-green-500/20 text-green-300 border-green-500/40";
+        return "bg-blue-500/20 text-blue-400 border-blue-500/30";
       case "REJECTED":
-        return "bg-red-500/20 text-red-300 border-red-500/40";
+        return "bg-red-500/20 text-red-400 border-red-500/30";
       default:
         return "bg-white/10 text-white/70 border-white/20";
     }

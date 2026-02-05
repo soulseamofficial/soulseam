@@ -17,9 +17,6 @@ export default function BlogsClient({ blogs }) {
     }
   }, []);
 
-  const heroBlog = blogs.length > 0 ? blogs[0] : null;
-  const secondaryBlogs = blogs.slice(1);
-
   return (
     <div className="min-h-screen bg-black text-white relative overflow-hidden">
       {/* Grain/Noise Overlay for Cinematic Texture */}
@@ -107,32 +104,14 @@ export default function BlogsClient({ blogs }) {
               <p className="text-white/40 text-sm sm:text-base">Check back soon for new content.</p>
             </motion.div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 md:gap-6 lg:gap-8 auto-rows-max">
-              {/* Hero Blog Card (First, larger - spans 2 columns and 2 rows on desktop) */}
-              {heroBlog && (
-                <div className="md:col-span-2 md:row-span-2">
-                  <BlogCard blog={heroBlog} index={0} isHero={true} />
-                </div>
-              )}
-
-              {/* Secondary Blog Cards with varied sizes for masonry effect */}
-              {secondaryBlogs.map((blog, index) => {
-                // Create varied card sizes for visual interest (only on desktop)
-                const cardSize = 
-                  index % 5 === 0 ? "md:row-span-2" : 
-                  index % 7 === 0 ? "md:col-span-2" : 
-                  "";
-                
-                return (
-                  <div key={blog._id} className={cardSize}>
-                    <BlogCard 
-                      blog={blog} 
-                      index={index + 1}
-                      isHero={false}
-                    />
-                  </div>
-                );
-              })}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8 lg:gap-10">
+              {blogs.map((blog, index) => (
+                <BlogCard 
+                  key={blog._id}
+                  blog={blog} 
+                  index={index}
+                />
+              ))}
             </div>
           )}
         </div>

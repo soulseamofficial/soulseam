@@ -14,14 +14,13 @@ export default function OrderSuccessModal({
   const router = useRouter();
   const [showContent, setShowContent] = useState(false);
   const [confetti, setConfetti] = useState([]);
+  const [particleStyles, setParticleStyles] = useState([]);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       // Disable body scroll
       document.body.style.overflow = "hidden";
-      
-      // Trigger content animation immediately (no delay)
-      setShowContent(true);
       
       // Generate confetti particles
       const particles = Array.from({ length: 30 }, (_, i) => ({
@@ -31,31 +30,89 @@ export default function OrderSuccessModal({
         delay: Math.random() * 0.5,
         duration: 2 + Math.random() * 1,
       }));
-      setConfetti(particles);
       
-      // Auto-close after 4 seconds (optional)
-      // const timer = setTimeout(() => onClose(), 4000);
-      // return () => clearTimeout(timer);
+      // Generate particle styles (colors) once
+      const styles = Array.from({ length: 30 }, () => ({
+        hue: Math.random() * 60 + 40,
+        shadowHue: Math.random() * 60 + 40,
+        animateX: (Math.random() - 0.5) * 100,
+      }));
+      
+      // Delay state updates using requestAnimationFrame to avoid cascading renders
+      const frameId = requestAnimationFrame(() => {
+        setShowContent(true);
+        setConfetti(particles);
+        setParticleStyles(styles);
+      });
+      
+      // Cleanup: cancel animation frame and reset state
+      return () => {
+        cancelAnimationFrame(frameId);
+        document.body.style.overflow = "";
+        setShowContent(false);
+        setConfetti([]);
+        setParticleStyles([]);
+      };
     } else {
       // Re-enable body scroll
       document.body.style.overflow = "";
-      setShowContent(false);
-      setConfetti([]);
+      
+      // Delay state updates using requestAnimationFrame to avoid cascading renders
+      const navFrame = requestAnimationFrame(() => {
+        setIsNavigating(false);
+      });
+      
+      // Delay state reset to avoid cascading renders
+      const timeoutId = setTimeout(() => {
+        setShowContent(false);
+        setConfetti([]);
+        setParticleStyles([]);
+      }, 200);
+      
+      return () => {
+        cancelAnimationFrame(navFrame);
+        clearTimeout(timeoutId);
+      };
     }
   }, [isOpen, onClose]);
 
   const handleTrackOrder = () => {
+    // Prevent double clicking
+    if (isNavigating) return;
+    
+    setIsNavigating(true);
+    
+    // Close modal first to allow animation to run
     onClose();
-    router.push("/profile");
+    
+    // Wait for modal close animation before navigating
+    setTimeout(() => {
+      // Navigate to profile page with orderId as query parameter if available
+      const trackUrl = orderId 
+        ? `/profile?orderId=${encodeURIComponent(orderId)}`
+        : "/profile";
+      router.push(trackUrl);
+    }, 300); // Wait for modal exit animation (0.4s transition, but 300ms is enough for UX)
   };
 
-  const handleContinueShopping = () => {
+  const handleReturnToHome = () => {
+    // Prevent double clicking
+    if (isNavigating) return;
+    
+    setIsNavigating(true);
+    
     // Clear cart if function is provided
     if (clearCart && typeof clearCart === 'function') {
       clearCart();
     }
+    
+    // Close modal first to allow animation to run
     onClose();
-    router.push("/");
+    
+    // Wait for modal close animation before navigating
+    setTimeout(() => {
+      router.push("/");
+    }, 300);
   };
 
   if (!isOpen) return null;
@@ -100,29 +157,32 @@ export default function OrderSuccessModal({
           />
 
           {/* Confetti Particles */}
-          {confetti.map((particle) => (
-            <motion.div
-              key={particle.id}
-              className="absolute w-2 h-2 rounded-full"
-              style={{
-                left: `${particle.x}%`,
-                background: `hsl(${Math.random() * 60 + 40}, 70%, 60%)`,
-                boxShadow: `0 0 6px hsl(${Math.random() * 60 + 40}, 70%, 60%)`,
-              }}
-              initial={{ y: particle.y, opacity: 0, scale: 0 }}
-              animate={{
-                y: typeof window !== "undefined" ? window.innerHeight + 20 : 800,
-                opacity: [0, 1, 1, 0],
-                scale: [0, 1, 1, 0],
-                x: particle.x + (Math.random() - 0.5) * 100,
-              }}
-              transition={{
-                delay: particle.delay,
-                duration: particle.duration,
-                ease: "easeOut",
-              }}
-            />
-          ))}
+          {confetti.map((particle, idx) => {
+            const style = particleStyles[idx] || { hue: 50, shadowHue: 50, animateX: 0 };
+            return (
+              <motion.div
+                key={particle.id}
+                className="absolute w-2 h-2 rounded-full"
+                style={{
+                  left: `${particle.x}%`,
+                  background: `hsl(${style.hue}, 70%, 60%)`,
+                  boxShadow: `0 0 6px hsl(${style.shadowHue}, 70%, 60%)`,
+                }}
+                initial={{ y: particle.y, opacity: 0, scale: 0 }}
+                animate={{
+                  y: typeof window !== "undefined" ? window.innerHeight + 20 : 800,
+                  opacity: [0, 1, 1, 0],
+                  scale: [0, 1, 1, 0],
+                  x: particle.x + style.animateX,
+                }}
+                transition={{
+                  delay: particle.delay,
+                  duration: particle.duration,
+                  ease: "easeOut",
+                }}
+              />
+            );
+          })}
 
           {/* Glassmorphism Card */}
           <motion.div
@@ -250,27 +310,31 @@ export default function OrderSuccessModal({
                 >
                   <button
                     onClick={handleTrackOrder}
+                    disabled={isNavigating}
                     className="flex-1 px-6 py-3.5 rounded-xl font-bold text-sm uppercase tracking-wider
                              bg-gradient-to-r from-white/10 to-white/5 
                              border border-white/30 hover:border-white/50
                              text-white hover:text-white
                              transition-all duration-200
                              hover:shadow-[0_8px_30px_rgba(255,255,255,0.15)]
-                             hover:scale-[1.02] active:scale-[0.98]"
+                             hover:scale-[1.02] active:scale-[0.98]
+                             disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                   >
-                    Track Order
+                    {isNavigating ? "Loading..." : "Track Your Order"}
                   </button>
                   <button
-                    onClick={handleContinueShopping}
+                    onClick={handleReturnToHome}
+                    disabled={isNavigating}
                     className="flex-1 px-6 py-3.5 rounded-xl font-bold text-sm uppercase tracking-wider
                              bg-gradient-to-r from-amber-500/20 to-yellow-500/20
                              border border-amber-400/40 hover:border-amber-400/60
                              text-amber-200 hover:text-amber-100
                              transition-all duration-200
                              hover:shadow-[0_8px_30px_rgba(255,215,0,0.2)]
-                             hover:scale-[1.02] active:scale-[0.98]"
+                             hover:scale-[1.02] active:scale-[0.98]
+                             disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                   >
-                    Continue Shopping
+                    {isNavigating ? "Loading..." : "Return To Home"}
                   </button>
                 </motion.div>
               </div>

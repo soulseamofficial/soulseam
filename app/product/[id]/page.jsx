@@ -155,12 +155,54 @@ function useAccordionGroup() {
 
 function LuxuryAccordion({ title, children, defaultOpen, accordionKey }) {
   const contentRef = useRef(null);
+  const innerContentRef = useRef(null);
+  const [contentHeight, setContentHeight] = useState(0);
   const group = useAccordionGroup();
   const isInGroup = !!group && typeof accordionKey === "string";
   const [localOpen, setLocalOpen] = useState(!!defaultOpen);
   const open = isInGroup
     ? group.openKey === accordionKey
     : localOpen;
+
+  // Measure content height when it becomes visible
+  useEffect(() => {
+    if (open && innerContentRef.current) {
+      // Measure after a brief delay to ensure content is rendered
+      const measureHeight = () => {
+        if (innerContentRef.current) {
+          setContentHeight(innerContentRef.current.scrollHeight);
+        }
+      };
+      // Use requestAnimationFrame for accurate measurement
+      requestAnimationFrame(() => {
+        requestAnimationFrame(measureHeight);
+      });
+    }
+  }, [open, children]);
+
+  // Measure on mount if defaultOpen
+  useEffect(() => {
+    if (defaultOpen && innerContentRef.current) {
+      const timer = setTimeout(() => {
+        if (innerContentRef.current) {
+          setContentHeight(innerContentRef.current.scrollHeight);
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [defaultOpen]);
+
+  // Re-measure on window resize
+  useEffect(() => {
+    if (!open) return;
+    const handleResize = () => {
+      if (innerContentRef.current) {
+        setContentHeight(innerContentRef.current.scrollHeight);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [open]);
 
   const handleToggle = useCallback(() => {
     if (isInGroup) {
@@ -181,34 +223,99 @@ function LuxuryAccordion({ title, children, defaultOpen, accordionKey }) {
     // eslint-disable-next-line
   }, []);
 
+  // Luxury easing curve - smooth, premium feel (Apple-like)
+  const luxuryEasing = "cubic-bezier(0.4, 0.0, 0.2, 1)"; // Material Design's standard easing
+  const animationDuration = "300ms"; // 300ms for luxury feel
+
   return (
     <div className={glassAccordion + " group"}>
       {/* Inner glow overlay */}
       <div className={glassAccordionInner}></div>
       <button
         onClick={handleToggle}
-        className="relative z-10 w-full flex items-center justify-between px-6 py-5 text-left text-lg font-semibold tracking-wide text-white/90 hover:bg-black/20 hover:border-white/30 transition-all duration-600 ease-out rounded-2xl"
+        className="relative z-10 w-full flex items-center justify-between px-6 py-5 text-left text-lg font-semibold tracking-wide text-white/90 rounded-2xl transition-all duration-300 ease-in-out hover:bg-white/5 hover:border-white/20 hover:shadow-[0_0_20px_rgba(255,255,255,0.08)] hover:scale-[1.01] active:scale-[0.99]"
         aria-expanded={open}
         type="button"
         tabIndex={0}
+        style={{
+          transition: `all ${animationDuration} ${luxuryEasing}`,
+        }}
       >
-        <span>{title}</span>
-        <svg width={22} height={22} className={"transition-transform duration-600 ease-out " + (open ? "rotate-90" : "rotate-0")} viewBox="0 0 22 22" fill="none"><path d="M7 8l4 4 4-4" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        <span className="transition-all duration-300 ease-in-out">{title}</span>
+        <svg 
+          width={22} 
+          height={22} 
+          className="transition-transform duration-300 ease-in-out flex-shrink-0" 
+          style={{
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+            transition: `transform ${animationDuration} ${luxuryEasing}`,
+          }}
+          viewBox="0 0 22 22" 
+          fill="none"
+        >
+          <path 
+            d="M7 8l4 4 4-4" 
+            stroke="#fff" 
+            strokeWidth="2.2" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+          />
+        </svg>
       </button>
       <div
         ref={contentRef}
         style={{
-          maxHeight: open
-            ? 9999
-            : 0,
-          transition: "max-height 340ms cubic-bezier(0.75,0,0.38,1)",
+          maxHeight: open ? (contentHeight > 0 ? `${contentHeight}px` : "2000px") : "0px",
+          transition: `max-height ${animationDuration} ${luxuryEasing}`,
           overflow: "hidden",
+          willChange: "max-height",
         }}
         aria-hidden={!open}
       >
-        <div className="relative z-10 px-6 pb-6 pt-2 text-white/75 text-base leading-relaxed">{children}</div>
+        <div 
+          ref={innerContentRef}
+          className="relative z-10 px-6 pb-6 pt-2 text-white/75 text-base leading-relaxed"
+          style={{
+            opacity: open ? 1 : 0,
+            transform: open ? "translateY(0)" : "translateY(-8px)",
+            transition: `opacity ${animationDuration} ${luxuryEasing}, transform ${animationDuration} ${luxuryEasing}`,
+            willChange: "opacity, transform",
+          }}
+        >
+          {children}
+        </div>
       </div>
     </div>
+  );
+}
+
+// Back Button: Matching Coupons Page Style - Moved outside component to avoid render-time creation
+function LuxuryBackButton({ fixed, isMobile, router }) {
+  // Always visible, z-50, never pointer-events-none
+  return (
+    <button
+      type="button"
+      onClick={() => router.back()}
+      aria-label="Back"
+      className={[
+        fixed ? "absolute" : "fixed",
+        "z-50",
+        isMobile
+          ? "left-0 top-0 m-3 md:left-10 md:top-7"
+          : "left-3 top-4 md:left-10 md:top-7",
+        "flex items-center gap-2",
+        "px-4 py-2 rounded-xl font-medium text-base",
+        "text-white/90 bg-black/40 backdrop-blur-sm",
+        "border border-white/15",
+        "shadow-[0_10px_45px_rgba(255,255,255,0.12)]",
+        "transition-all duration-300",
+        "hover:bg-black/50 hover:border-white/25 hover:scale-[1.02] hover:shadow-[0_15px_60px_rgba(255,255,255,0.16)]",
+        focusRing,
+      ].join(" ")}
+    >
+      <IconArrowLeft className="text-white/75 w-5 h-5 mr-0.5" />
+      <span className="block pr-1 !text-base font-medium" style={{fontWeight: 500, letterSpacing: 0.01}}>Back</span>
+    </button>
   );
 }
 
@@ -245,9 +352,12 @@ export default function ProductPage() {
 
   // Product data fetch
   useEffect(() => {
-    setLoading(true);
-    setNotFound(false);
-    setProduct(null);
+    // Use setTimeout to avoid synchronous setState in effect
+    setTimeout(() => {
+      setLoading(true);
+      setNotFound(false);
+      setProduct(null);
+    }, 0);
     if (!id) return;
     fetch("/api/products")
       .then((r) => r.json())
@@ -265,15 +375,25 @@ export default function ProductPage() {
 
   // Animation: image fade/scale in on thumbnail switch
   useEffect(() => {
-    setImgTransitioning(true);
+    // Use setTimeout to avoid synchronous setState in effect
+    const timer = setTimeout(() => {
+      setImgTransitioning(true);
+    }, 0);
     const t1 = setTimeout(() => setImgTransitioning(false), 400);
-    return () => clearTimeout(t1);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(t1);
+    };
   }, [mainImgIdx]);
 
   // Whenever selectedSize or product changes, reset quantity and reset add-to-cart state
   useEffect(() => {
-    setQty(1);
-    setIsAddedToCart(false);
+    // Use setTimeout to avoid synchronous setState in effect
+    const timer = setTimeout(() => {
+      setQty(1);
+      setIsAddedToCart(false);
+    }, 0);
+    return () => clearTimeout(timer);
   }, [selectedSize, product]);
 
   // Price and selection logic
@@ -315,36 +435,6 @@ export default function ProductPage() {
     router.push("/cart");
   }
 
-  // Back Button: Matching Coupons Page Style
-  function LuxuryBackButton({fixed}) {
-    // Always visible, z-50, never pointer-events-none
-    return (
-      <button
-        type="button"
-        onClick={() => router.back()}
-        aria-label="Back"
-        className={[
-          fixed ? "absolute" : "fixed",
-          "z-50",
-          isMobile
-            ? "left-0 top-0 m-3 md:left-10 md:top-7"
-            : "left-3 top-4 md:left-10 md:top-7",
-          "flex items-center gap-2",
-          "px-4 py-2 rounded-xl font-medium text-base",
-          "text-white/90 bg-black/40 backdrop-blur-sm",
-          "border border-white/15",
-          "shadow-[0_10px_45px_rgba(255,255,255,0.12)]",
-          "transition-all duration-300",
-          "hover:bg-black/50 hover:border-white/25 hover:scale-[1.02] hover:shadow-[0_15px_60px_rgba(255,255,255,0.16)]",
-          focusRing,
-        ].join(" ")}
-      >
-        <IconArrowLeft className="text-white/75 w-5 h-5 mr-0.5" />
-        <span className="block pr-1 !text-base font-medium" style={{fontWeight: 500, letterSpacing: 0.01}}>Back</span>
-      </button>
-    );
-  }
-
   // Skeleton Loader (Mobile-first image)
   if (loading) {
     return (
@@ -352,11 +442,11 @@ export default function ProductPage() {
         {/* Top image loader */}
         <div className="relative w-full h-[75vh] md:hidden">
           <div className={"absolute inset-0 rounded-b-3xl " + shimmer}></div>
-          <LuxuryBackButton fixed />
+          <LuxuryBackButton fixed isMobile={isMobile} router={router} />
         </div>
         {/* Desktop: fallback desktop skeleton */}
         <div className="hidden md:flex items-center justify-center min-h-[60vh] w-full">
-          <LuxuryBackButton />
+          <LuxuryBackButton isMobile={isMobile} router={router} />
           <div className="flex flex-col md:flex-row items-center gap-10 md:gap-20 w-full max-w-6xl px-3">
             <div className={"aspect-[4/5] w-full max-w-lg rounded-3xl mb-4 " + shimmer}></div>
             <div className="w-full max-w-xl space-y-8">
@@ -429,7 +519,7 @@ export default function ProductPage() {
             }}
           />
           {/* Mobile Back Button (absolute, overlays image) */}
-          <LuxuryBackButton fixed />
+          <LuxuryBackButton fixed isMobile={isMobile} router={router} />
           {/* Thumbnails: indicator dots on mobile */}
           <div className="absolute bottom-8 left-1/2 z-20 flex gap-1 -translate-x-1/2">
             {product.images?.map((img, idx) => (

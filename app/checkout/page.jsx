@@ -753,11 +753,13 @@ function usePasswordVerification(accountEnabled, step) {
   const [passwordError, setPasswordError] = useState("");
   useEffect(() => {
     if (!accountEnabled || step !== "verified") {
-      setPasswordFields({ password: "", confirm: "" });
-      setPasswordError("");
+      // Use setTimeout to avoid synchronous setState in effect
+      const timer = setTimeout(() => {
+        setPasswordFields({ password: "", confirm: "" });
+        setPasswordError("");
+      }, 0);
+      return () => clearTimeout(timer);
     }
-    // The original used eslint-disable-next-line react-hooks/set-state-in-effect,
-    // but this is a safe usage as documented in React.
   }, [accountEnabled, step]);
   return { passwordFields, setPasswordFields, passwordError, setPasswordError };
 }
@@ -770,6 +772,31 @@ const discount = 0;
 function OurPolicySection() {
   const sectionRef = useRef(null);
   const isInView = useInView(sectionRef, { once: true, margin: "-10% 0px" });
+  const [particles, setParticles] = useState([]);
+
+  // Generate particles once after mount
+  useEffect(() => {
+    // Generate particle values first
+    const generatedParticles = Array.from({ length: 12 }, (_, i) => ({
+      id: i,
+      initialX: Math.random() * 100,
+      initialY: Math.random() * 100,
+      animateY: (Math.random() - 0.5) * 100,
+      animateX: (Math.random() - 0.5) * 50,
+      duration: 8 + Math.random() * 4,
+      delay: Math.random() * 2,
+    }));
+    
+    // Delay setState using requestAnimationFrame
+    const frameId = requestAnimationFrame(() => {
+      setParticles(generatedParticles);
+    });
+    
+    // Cleanup: cancel animation frame if component unmounts
+    return () => {
+      cancelAnimationFrame(frameId);
+    };
+  }, []);
 
   const policies = [
     { name: "Privacy Policy", href: "/privacy-policy" },
@@ -788,24 +815,24 @@ function OurPolicySection() {
     >
       {/* Floating Particles Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(12)].map((_, i) => (
+        {particles.map((particle) => (
           <motion.div
-            key={i}
+            key={particle.id}
             className="absolute w-1 h-1 bg-white/10 rounded-full"
             initial={{
-              x: Math.random() * 100 + "%",
-              y: Math.random() * 100 + "%",
+              x: particle.initialX + "%",
+              y: particle.initialY + "%",
               opacity: 0,
             }}
             animate={{
-              y: [null, (Math.random() - 0.5) * 100 + "px"],
-              x: [null, (Math.random() - 0.5) * 50 + "px"],
+              y: [null, particle.animateY + "px"],
+              x: [null, particle.animateX + "px"],
               opacity: [0, 0.3, 0],
             }}
             transition={{
-              duration: 8 + Math.random() * 4,
+              duration: particle.duration,
               repeat: Infinity,
-              delay: Math.random() * 2,
+              delay: particle.delay,
               ease: "easeInOut",
             }}
           />
@@ -1045,7 +1072,7 @@ function PolicyCard({ policy, index, isInView }) {
 
 export default function CheckoutPage() {
   // All code here is unchanged except discount definition added above and error fixes below.
-  const { cartItems, clearCart } = useCart();
+  const { cartItems, clearCart, orderMessage } = useCart();
   const router = useRouter();
 
   // Steps and form (unchanged)
@@ -1975,6 +2002,7 @@ export default function CheckoutPage() {
         discount,
         total,
         paymentMethod: "COD",
+        orderMessage: orderMessage || undefined,
       };
 
       // Add advance payment details if paid
@@ -2125,6 +2153,7 @@ export default function CheckoutPage() {
               razorpay_order_id: data.orderId,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
+              orderMessage: orderMessage || undefined,
             }),
           });
 

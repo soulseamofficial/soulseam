@@ -185,15 +185,14 @@ export default function AdminOrdersPage() {
             return (
               <div
                 key={order._id}
-                className="bg-white/10 border border-white/15 rounded-2xl backdrop-blur-xl transition-all"
+                className="border border-white/10 rounded-2xl p-5 bg-black/40 backdrop-blur-sm transition-all duration-300 hover:border-white/20 hover:bg-black/50 hover:shadow-[0_8px_24px_rgba(255,255,255,0.08)]"
               >
                 {/* COLLAPSED */}
                 <button
                   onClick={() => toggleOrder(order._id)}
                   className="w-full p-5 flex justify-between items-center hover:bg-white/5 transition"
                 >
-<div className="grid grid-cols-2 sm:grid-cols-5 gap-x-8 gap-y-4">
-
+                  <div className="grid grid-cols-2 sm:grid-cols-6 gap-x-8 gap-y-4 flex-1">
                     <div>
                       <p className="text-xs text-white/50">Order ID</p>
                       <p className="font-semibold break-all text-xs">{order._id.slice(-8)}</p>
@@ -234,21 +233,40 @@ export default function AdminOrdersPage() {
                     </div>
 
                     <div>
-                      <p className="text-xs text-white/50">Date</p>
-                      <p className="font-semibold text-sm">
-                        {new Date(order.createdAt).toLocaleDateString()}
-                      </p>
+                      <p className="text-xs text-white/50 mb-1">Status</p>
+                      <span className={`px-2 py-1 rounded text-xs font-bold border ${
+                        (order.orderStatus || "CREATED") === "DELIVERED" ? "bg-green-500/20 text-green-400 border-green-500/30" :
+                        (order.orderStatus || "CREATED") === "SHIPPED" ? "bg-blue-500/20 text-blue-400 border-blue-500/30" :
+                        (order.orderStatus || "CREATED") === "CONFIRMED" ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" :
+                        (order.orderStatus || "CREATED") === "CANCELLED" ? "bg-red-500/20 text-red-400 border-red-500/30" :
+                        (order.orderStatus || "CREATED") === "PENDING" || (order.orderStatus || "CREATED") === "CREATED" ? "bg-red-500/20 text-red-400 border-red-500/30" :
+                        "bg-white/10 text-white/70 border-white/20"
+                      }`}>
+                        {order.orderStatus || "CREATED"}
+                      </span>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-white/50 mb-1">Payment</p>
+                      <span className={`text-xs font-semibold ${
+                        (order.paymentStatus || "PENDING") === "PAID" ? "text-green-400" :
+                        (order.paymentStatus || "PENDING") === "FAILED" ? "text-red-400" :
+                        (order.paymentStatus || "PENDING") === "PENDING" ? "text-yellow-400" :
+                        "text-yellow-400"
+                      }`}>
+                        {order.paymentStatus || "PENDING"}
+                      </span>
                     </div>
                   </div>
 
-                  <span className="font-bold text-white/70">
+                  <span className="font-bold text-white/70 ml-4">
                     {isOpen ? "▲ Hide" : "▼ View"}
                   </span>
                 </button>
 
                 {/* EXPANDED */}
                 {isOpen && (
-                  <div className="px-6 pb-6 pt-4 border-t border-white/10 animate-expand">
+                  <div className="pt-4 mt-4 border-t border-white/10 animate-expand">
                     <div className="grid md:grid-cols-2 gap-4 mb-4">
                       <div>
                         <p className="text-sm text-white/60">Email</p>
@@ -257,16 +275,23 @@ export default function AdminOrdersPage() {
                         </p>
                       </div>
                       <div>
-                        <p className="text-sm text-white/60">Status</p>
-                        <div className="flex items-center gap-2">
-                          <p className="font-semibold capitalize">
-                            {order.orderStatus}
-                          </p>
+                        <p className="text-sm text-white/60 mb-2">Status</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`px-2 py-1 rounded text-xs font-bold border ${
+                            (order.orderStatus || "CREATED") === "DELIVERED" ? "bg-green-500/20 text-green-400 border-green-500/30" :
+                            (order.orderStatus || "CREATED") === "SHIPPED" ? "bg-blue-500/20 text-blue-400 border-blue-500/30" :
+                            (order.orderStatus || "CREATED") === "CONFIRMED" ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" :
+                            (order.orderStatus || "CREATED") === "CANCELLED" ? "bg-red-500/20 text-red-400 border-red-500/30" :
+                            (order.orderStatus || "CREATED") === "PENDING" || (order.orderStatus || "CREATED") === "CREATED" ? "bg-red-500/20 text-red-400 border-red-500/30" :
+                            "bg-white/10 text-white/70 border-white/20"
+                          }`}>
+                            {order.orderStatus || "CREATED"}
+                          </span>
                           <select
                             value={order.orderStatus}
                             onChange={(e) => updateOrderStatus(order._id, e.target.value)}
                             disabled={updatingStatus[order._id]}
-                            className="ml-2 bg-black/60 border border-white/15 rounded-lg px-3 py-1 text-sm text-white focus:outline-none focus:border-white/40 disabled:opacity-50"
+                            className="bg-black/60 border border-white/15 rounded-lg px-3 py-1 text-sm text-white focus:outline-none focus:border-white/40 disabled:opacity-50"
                           >
                             <option value="CREATED">CREATED</option>
                             <option value="CONFIRMED">CONFIRMED</option>
@@ -279,7 +304,7 @@ export default function AdminOrdersPage() {
                           )}
                         </div>
                         {order.deliveredAt && (
-                          <p className="text-xs text-white/50 mt-1">
+                          <p className="text-xs text-white/50 mt-2">
                             Delivered: {new Date(order.deliveredAt).toLocaleDateString("en-IN", {
                               year: "numeric",
                               month: "long",
@@ -298,9 +323,14 @@ export default function AdminOrdersPage() {
                         </p>
                       </div>
                       <div>
-                        <p className="text-sm text-white/60">Payment Status</p>
-                        <p className="font-semibold capitalize">
-                          {order.paymentStatus || order.payment?.status || "N/A"}
+                        <p className="text-sm text-white/60 mb-2">Payment Status</p>
+                        <p className={`font-semibold capitalize ${
+                          (order.paymentStatus || "PENDING") === "PAID" ? "text-green-400" :
+                          (order.paymentStatus || "PENDING") === "FAILED" ? "text-red-400" :
+                          (order.paymentStatus || "PENDING") === "PENDING" ? "text-yellow-400" :
+                          "text-yellow-400"
+                        }`}>
+                          {order.paymentStatus || order.payment?.status || "PENDING"}
                         </p>
                       </div>
                     </div>
@@ -358,6 +388,37 @@ export default function AdminOrdersPage() {
                         </p>
                       </div>
                     </div>
+
+                    {/* Items List */}
+                    <div className="mb-4">
+                      <div className="text-sm font-semibold mb-2 text-white/90">Items:</div>
+                      <div className="space-y-2">
+                        {Array.isArray(order.items) && order.items.length > 0 ? (
+                          order.items.map((item, idx) => (
+                            <div key={item.productId || idx} className="flex items-center gap-3 text-sm text-white/70">
+                              <span className="font-medium">{item.quantity || 1}x</span>
+                              <span>{item.name || "Unknown Item"}</span>
+                              {item.size && <span className="text-white/50">({item.size})</span>}
+                              <span className="ml-auto">₹{((item.price || 0) * (item.quantity || 1)).toLocaleString("en-IN")}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-white/50 text-sm italic">No items found</div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Customer Message */}
+                    {order.orderMessage && (
+                      <div className="mb-4 p-4 rounded-xl bg-gradient-to-br from-pink-900/20 to-purple-900/20 border border-pink-500/30">
+                        <p className="text-sm font-semibold text-pink-400 mb-2">Customer Message</p>
+                        <div className="p-3 rounded-lg bg-black/30 border border-pink-400/20">
+                          <p className="text-sm text-white/90 italic whitespace-pre-wrap">
+                            &quot;{order.orderMessage}&quot;
+                          </p>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Exchange Information */}
                     {order.exchangeRequested && (
