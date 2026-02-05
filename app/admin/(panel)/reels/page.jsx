@@ -3,6 +3,101 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AdminConfirmModal from "@/app/components/AdminConfirmModal";
+import ReelVideo from "@/app/components/ReelVideo";
+
+// Admin Reel Card Component
+function AdminReelCard({ reel, onDelete }) {
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <div
+      className="group reel-card-wrapper"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        transition: 'transform 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+        transform: isHovered ? 'translateY(-8px) scale(1.05)' : 'translateY(0) scale(1)',
+      }}
+    >
+      <ReelVideo
+        videoUrl={reel.videoUrl}
+        isHovered={isHovered}
+        autoPlay={true}
+        className="reel-card"
+      >
+        {/* Category Badge */}
+        {reel.category && (
+          <div className="mb-3 pointer-events-auto">
+            <span className="inline-block px-3 py-1 text-[10px] font-medium tracking-wider uppercase rounded-full bg-white/10 backdrop-blur-sm text-white/90 border border-white/20">
+              {reel.category}
+            </span>
+          </div>
+        )}
+
+        {/* Title - Max 2 lines */}
+        <h2
+          className="text-lg font-semibold text-white mb-2 leading-tight line-clamp-2 pointer-events-auto"
+          style={{
+            textShadow: '0 1px 8px rgba(0, 0, 0, 0.6)'
+          }}
+        >
+          {reel.title || "Untitled Reel"}
+        </h2>
+
+        {/* Meta Information - Smaller, muted */}
+        <div className="flex items-center gap-3 text-xs text-white/60 mb-3 pointer-events-auto">
+          {reel.duration && (
+            <div className="flex items-center gap-1.5">
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <span>{reel.duration}</span>
+            </div>
+          )}
+
+          {reel.createdAt && (
+            <span>
+              {new Date(reel.createdAt).toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+            </span>
+          )}
+        </div>
+
+        {/* Admin Actions */}
+        <div className="mt-2 flex gap-2 pointer-events-auto">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(reel._id);
+            }}
+            className="
+              px-3 py-1.5 rounded-lg text-xs font-semibold
+              border border-rose-500/50 text-rose-400
+              hover:bg-rose-500/10 transition-all duration-300
+              backdrop-blur-sm bg-black/30
+              hover:border-rose-500/80 hover:shadow-[0_0_12px_rgba(239,68,68,0.3)]
+            "
+          >
+            Delete
+          </button>
+        </div>
+      </ReelVideo>
+    </div>
+  );
+}
 
 export default function AdminReelsPage() {
   const router = useRouter();
@@ -64,68 +159,25 @@ export default function AdminReelsPage() {
 
       {/* CONTENT */}
       {loading ? (
-        <p className="text-white/60">Loading...</p>
+        <div className="text-center py-24">
+          <p className="text-white/60 text-lg mb-4 font-light">Loading reels...</p>
+        </div>
       ) : reels.length === 0 ? (
-        <p className="text-white/50">No reels added yet.</p>
+        <div className="text-center py-24">
+          <p className="text-white/60 text-lg mb-4 font-light">No reels added yet.</p>
+          <p className="text-white/40 text-sm">Add your first reel to get started.</p>
+        </div>
       ) : (
-        <div className="space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 md:gap-8 lg:gap-10">
           {reels.map((reel) => (
-            <div
+            <AdminReelCard
               key={reel._id}
-              className="
-                relative overflow-hidden
-                rounded-3xl
-                bg-gradient-to-b from-white/8 via-black/25 to-black
-                backdrop-blur-xl
-                border border-white/12
-                p-6
-                transition-all duration-300
-                hover:scale-[1.015]
-                hover:shadow-[0_10px_45px_rgba(255,255,255,0.18)]
-              "
-            >
-              {/* TOP-ONLY WHITE GLOW */}
-              <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_rgba(255,255,255,0.14)_0%,_rgba(0,0,0,0.9)_55%)]" />
-
-              <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* VIDEO */}
-                <video
-                  src={reel.videoUrl}
-                  controls
-                  className="w-full h-64 rounded-2xl object-cover bg-black"
-                />
-
-                {/* DETAILS */}
-                <div className="text-white flex flex-col justify-between">
-                  <div>
-                    <p className="text-sm text-white/50">Title</p>
-                    <p className="font-semibold text-lg">{reel.title}</p>
-
-                    <p className="mt-4 text-sm text-white/50">Category</p>
-                    <p className="font-semibold">{reel.category}</p>
-
-                    <p className="mt-4 text-sm text-white/50">Duration</p>
-                    <p className="font-semibold">{reel.duration}</p>
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      setSelectedId(reel._id);
-                      setConfirmOpen(true);
-                    }}
-                    className="
-                      mt-6 px-5 py-2 rounded-xl
-                      border border-rose-500/50
-                      text-rose-400
-                      hover:bg-rose-500/10
-                      transition w-fit
-                    "
-                  >
-                    Delete Reel
-                  </button>
-                </div>
-              </div>
-            </div>
+              reel={reel}
+              onDelete={(id) => {
+                setSelectedId(id);
+                setConfirmOpen(true);
+              }}
+            />
           ))}
         </div>
       )}

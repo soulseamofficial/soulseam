@@ -24,6 +24,17 @@ export const CartProvider = ({ children }) => {
     }
   });
 
+  // Order message state
+  const [orderMessage, setOrderMessage] = useState(() => {
+    if (typeof window === "undefined") return "";
+    try {
+      const stored = window.localStorage.getItem("soulseam_order_message");
+      return stored ? JSON.parse(stored) : "";
+    } catch {
+      return "";
+    }
+  });
+
   // Save cart to localStorage when cartItems change
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -36,6 +47,19 @@ export const CartProvider = ({ children }) => {
       // silent fail
     }
   }, [cartItems]);
+
+  // Save order message to localStorage when it changes
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        "soulseam_order_message",
+        JSON.stringify(orderMessage)
+      );
+    } catch {
+      // silent fail
+    }
+  }, [orderMessage]);
 
   // Sync cart between tabs/windows
   useEffect(() => {
@@ -109,7 +133,10 @@ export const CartProvider = ({ children }) => {
     );
   };
 
-  const clearCart = () => setCartItems([]);
+  const clearCart = () => {
+    setCartItems([]);
+    setOrderMessage(""); // Clear message when cart is cleared
+  };
 
   const cartCount = cartItems.reduce(
     (sum, item) => sum + (item.quantity || 0),
@@ -135,6 +162,8 @@ export const CartProvider = ({ children }) => {
         clearCart,
         cartCount,
         subtotal,
+        orderMessage,
+        setOrderMessage,
       }}
     >
       {children}

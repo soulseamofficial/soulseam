@@ -5,6 +5,8 @@ import { useCart } from "./CartContext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import TrackOrderModal from "./components/TrackOrderModal";
+import Footer from "./components/Footer";
 
 const Star = ({ className = "" }) => (
   <svg className={className} fill="currentColor" viewBox="0 0 20 20" width={16} height={16}>
@@ -32,6 +34,7 @@ const SoulSeamEcommerce = () => {
   const [isMounted, setIsMounted] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isTrackOrderModalOpen, setIsTrackOrderModalOpen] = useState(false);
 
   // Removed all quick view related state
   const scrollContainerRef = useRef(null);
@@ -428,6 +431,12 @@ const SoulSeamEcommerce = () => {
               >
                 CONTACT
               </a>
+              <button
+                onClick={() => setIsTrackOrderModalOpen(true)}
+                className="text-xs xl:text-sm font-medium hover:text-gray-600 transition-colors duration-300 whitespace-nowrap"
+              >
+                TRACK YOUR ORDER
+              </button>
             </nav>
             <div className="flex items-center space-x-2 sm:space-x-4 md:space-x-6">
               <button 
@@ -518,11 +527,26 @@ const SoulSeamEcommerce = () => {
                 >
                   CONTACT
                 </a>
+                <button
+                  onClick={() => {
+                    setIsTrackOrderModalOpen(true);
+                    setIsMenuOpen(false);
+                  }}
+                  className="text-sm font-medium hover:text-gray-600 transition-colors duration-300 py-2 text-left"
+                >
+                  TRACK YOUR ORDER
+                </button>
               </nav>
             </div>
           )}
         </div>
       </header>
+      
+      {/* Track Order Modal */}
+      <TrackOrderModal
+        isOpen={isTrackOrderModalOpen}
+        onClose={() => setIsTrackOrderModalOpen(false)}
+      />
 
       <section id="home" className="relative w-full h-screen bg-black overflow-hidden">
         <div
@@ -846,96 +870,7 @@ const SoulSeamEcommerce = () => {
         </div>
       </section>
 
-      <footer id="contact" className="bg-gray-900 text-white py-12 sm:py-14 md:py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 sm:gap-10 md:gap-12 mb-8 sm:mb-10 md:mb-12">
-            <div>
-              <h3 className="text-lg sm:text-xl font-bold mb-4 sm:mb-6">COMPANY</h3>
-              <ul className="space-y-2 sm:space-y-3">
-                <li>
-                  <a
-                    href="#home"
-                    className="text-sm sm:text-base text-white/70 hover:text-white transition-colors duration-300"
-                  >
-                    Home
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="#hoodies"
-                    className="text-sm sm:text-base text-white/70 hover:text-white transition-colors duration-300"
-                  >
-                    Clothing
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="#story"
-                    className="text-sm sm:text-base text-white/70 hover:text-white transition-colors duration-300"
-                  >
-                    Our Story
-                  </a>
-                </li>
-                <li>
-                  <a
-                    href="#contact"
-                    className="text-sm sm:text-base text-white/70 hover:text-white transition-colors duration-300"
-                  >
-                    Contact
-                  </a>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-lg sm:text-xl font-bold mb-4 sm:mb-6">OUR POLICY</h3>
-              <ul className="space-y-2 sm:space-y-3">
-                <li>
-                  <Link
-                    href="/privacy-policy"
-                    className="text-sm sm:text-base text-white/70 hover:text-white transition-colors duration-300"
-                  >
-                    Privacy Policy
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/shipping-policy"
-                    className="text-sm sm:text-base text-white/70 hover:text-white transition-colors duration-300"
-                  >
-                    Shipping Policy
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/terms-of-service"
-                    className="text-sm sm:text-base text-white/70 hover:text-white transition-colors duration-300"
-                  >
-                    Terms of Service
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/exchange-policy"
-                    className="text-sm sm:text-base text-white/70 hover:text-white transition-colors duration-300"
-                  >
-                    Exchange Policy
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-lg sm:text-xl font-bold mb-4 sm:mb-6">CONTACT</h3>
-              <p className="text-sm sm:text-base text-white/70 mb-3 sm:mb-4 break-words">Email: soulseamhelp@gmail.com</p>
-              <p className="text-sm sm:text-base text-white/70 break-words">Phone: +91 XXX XXX XXXX</p>
-            </div>
-          </div>
-          <div className="border-t border-white/10 pt-6 sm:pt-8 text-center">
-            <p className="text-xs sm:text-sm text-white/50">
-              © SOUL SEAM 2026. All rights reserved.
-            </p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
 
       {/* Search Modal */}
       {isSearchOpen && (

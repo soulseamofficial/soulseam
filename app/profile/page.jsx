@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useRef, useCallback, useContext, createContext } from "react";
 import { useRouter } from "next/navigation";
 import ExchangeRequestModal from "../components/ExchangeRequestModal";
+import GlobalModal from "../components/GlobalModal";
 
 // Premium input styling classes
 const inputClassReadOnly =
@@ -147,6 +148,9 @@ export default function ProfilePage() {
   // Accordion state - only one section open at a time
   const [openAccordionKey, setOpenAccordionKey] = useState(null);
 
+  // Logout modal state
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
   const canSaveAddr = useMemo(() => {
     const a = addrForm;
     return (
@@ -242,8 +246,12 @@ export default function ProfilePage() {
     setIsEditingProfile(false);
   }
 
-  async function logout() {
-    if (!confirm("Are you sure you want to logout?")) return;
+  function logout() {
+    setShowLogoutModal(true);
+  }
+
+  async function confirmLogout() {
+    setShowLogoutModal(false);
     await fetch("/api/auth/user/logout", { method: "POST", credentials: "include" });
     router.push("/");
   }
@@ -1084,6 +1092,18 @@ export default function ProfilePage() {
         }}
         orderId={selectedOrderId}
         onSubmit={handleExchangeSubmit}
+      />
+
+      {/* Logout Confirmation Modal */}
+      <GlobalModal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        title="Logout"
+        message="Are you sure you want to logout?"
+        primaryButtonText="Yes, Logout"
+        secondaryButtonText="Cancel"
+        onPrimaryAction={confirmLogout}
+        primaryButtonVariant="danger"
       />
     </div>
   );

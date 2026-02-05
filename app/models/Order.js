@@ -174,6 +174,14 @@ const OrderSchema = new mongoose.Schema(
       enum: ["PENDING", "PROCESSING", "COMPLETED", "FAILED", null],
       default: null,
     },
+
+    // Customer personal message/wishes
+    orderMessage: {
+      type: String,
+      default: null,
+      trim: true,
+      maxlength: 250,
+    },
   },
   { timestamps: true }
 );
