@@ -497,9 +497,7 @@ export default function ProductPage() {
     <main className="relative w-full min-h-screen bg-gradient-to-b from-black via-[#0a0a0a] to-black">
       {/* --- MOBILE PRODUCT IMAGE SECTION IN FLOW, 75vh, NOT FIXED, Back Btn overlays image --- */}
       <div className="md:hidden w-full relative" style={{ minHeight: "75vh" }}>
-        <div className="w-full h-[75vh] relative rounded-b-3xl overflow-hidden bg-gradient-to-b from-white/8 via-black/25 to-black border-b border-white/12 transition-all duration-600 ease-out will-change-transform premium-summary-hover">
-          {/* Ambient glow overlay */}
-          <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_rgba(255,255,255,0.12)_0%,_rgba(0,0,0,0.9)_55%)] rounded-b-3xl z-10"></div>
+        <div className="w-full h-[75vh] relative rounded-b-3xl overflow-hidden bg-black transition-all duration-600 ease-out will-change-transform premium-summary-hover">
           <img
             src={product.images[mainImgIdx] || "/placeholder.png"}
             alt={product.name}
@@ -507,16 +505,9 @@ export default function ProductPage() {
             className="absolute inset-0 w-full h-full object-cover rounded-b-3xl select-none transition-all duration-600 ease-out"
             style={{
               opacity: imgTransitioning ? 0.88 : 1,
-              filter: "brightness(1.05)",
-              transition: "opacity 0.6s cubic-bezier(.4,0,.2,1), filter 0.6s cubic-bezier(.4,0,.2,1)"
+              transition: "opacity 0.6s cubic-bezier(.4,0,.2,1)"
             }}
             draggable={false}
-          />
-          {/* Subtle bottom fade for premium transition - DARKER */}
-          <div className="absolute bottom-0 left-0 right-0 h-32 z-10"
-            style={{
-              background: "linear-gradient(180deg,rgba(0,0,0,0.0) 40%,rgba(11,11,11,0.60) 90%,rgba(0,0,0,0.98) 100%)"
-            }}
           />
           {/* Mobile Back Button (absolute, overlays image) */}
           <LuxuryBackButton fixed isMobile={isMobile} router={router} />
