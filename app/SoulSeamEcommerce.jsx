@@ -7,12 +7,139 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import TrackOrderModal from "./components/TrackOrderModal";
 import Footer from "./components/Footer";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Pagination } from "swiper/modules";
+import "swiper/css";
+import "swiper/css/pagination";
 
 const Star = ({ className = "" }) => (
   <svg className={className} fill="currentColor" viewBox="0 0 20 20" width={16} height={16}>
     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.967a1 1 0 00.95.69h4.179c.969 0 1.371 1.24.588 1.81l-3.384 2.458a1 1 0 00-.363 1.118l1.287 3.966c.3.921-.755 1.688-1.54 1.118l-3.385-2.457a1 1 0 00-1.176 0l-3.385 2.457c-.785.57-1.84-.197-1.539-1.118l1.287-3.966a1 1 0 00-.364-1.118L2.048 9.394c-.783-.57-.38-1.81.588-1.81h4.18a1 1 0 00.95-.69l1.286-3.967z"></path>
   </svg>
 );
+
+// Search Product Card Component with Swiper
+const SearchProductCard = ({ product, router, onClose }) => {
+  const dragStartRef = useRef({ x: 0, y: 0, isDragging: false });
+  const searchProductImages = Array.isArray(product.images) && product.images.length > 0
+    ? product.images
+    : [product.image || "/coming-soon.jpg"];
+
+  const handleCardClick = (e) => {
+    if (!dragStartRef.current.isDragging) {
+      router.push(`/product/${product._id}`);
+      onClose();
+    }
+  };
+
+  const handleMouseDown = (e) => {
+    dragStartRef.current = {
+      x: e.clientX || e.touches?.[0]?.clientX || 0,
+      y: e.clientY || e.touches?.[0]?.clientY || 0,
+      isDragging: false,
+    };
+  };
+
+  const handleMouseMove = (e) => {
+    if (dragStartRef.current.x === 0 && dragStartRef.current.y === 0) return;
+    const currentX = e.clientX || e.touches?.[0]?.clientX || 0;
+    const currentY = e.clientY || e.touches?.[0]?.clientY || 0;
+    const deltaX = Math.abs(currentX - dragStartRef.current.x);
+    const deltaY = Math.abs(currentY - dragStartRef.current.y);
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    if (distance > 10) {
+      dragStartRef.current.isDragging = true;
+    }
+  };
+
+  const handleMouseUp = () => {
+    setTimeout(() => {
+      dragStartRef.current = { x: 0, y: 0, isDragging: false };
+    }, 100);
+  };
+
+  return (
+    <div
+      onClick={handleCardClick}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onTouchStart={handleMouseDown}
+      onTouchMove={handleMouseMove}
+      onTouchEnd={handleMouseUp}
+      className="group relative overflow-hidden bg-black/60 border border-white/10 rounded-lg cursor-pointer hover:border-white/30 transition-all duration-300 hover:scale-105"
+    >
+      <div className="relative aspect-[3/4] overflow-hidden rounded-t-lg">
+        {searchProductImages.length > 1 ? (
+          <Swiper
+            modules={[Pagination]}
+            slidesPerView={1}
+            spaceBetween={0}
+            allowTouchMove={true}
+            simulateTouch={true}
+            grabCursor={true}
+            loop={true}
+            speed={400}
+            pagination={{
+              clickable: true,
+              bulletClass: "swiper-pagination-bullet !bg-white/30 !w-1.5 !h-1.5",
+              bulletActiveClass: "!bg-white/80",
+            }}
+            className="w-full h-full"
+            style={{
+              "--swiper-pagination-bottom": "0.5rem",
+            }}
+            onTouchStart={(swiper, event) => {
+              handleMouseDown(event);
+            }}
+            onTouchMove={(swiper, event) => {
+              handleMouseMove(event);
+            }}
+            onTouchEnd={(swiper, event) => {
+              handleMouseUp();
+            }}
+          >
+            {searchProductImages.map((img, idx) => (
+              <SwiperSlide key={img || idx}>
+                <img
+                  src={img || "/coming-soon.jpg"}
+                  alt={`${product.name} - Image ${idx + 1}`}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  loading={idx === 0 ? "eager" : "lazy"}
+                  draggable={false}
+                />
+              </SwiperSlide>
+            ))}
+          </Swiper>
+        ) : (
+          <img
+            src={product.image || "/coming-soon.jpg"}
+            alt={product.name}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+            loading="lazy"
+            draggable={false}
+          />
+        )}
+      </div>
+      <div className="p-4">
+        <h3 className="font-semibold text-white mb-2 line-clamp-2">
+          {product.name}
+        </h3>
+        <div className="flex items-center gap-2">
+          <span className="text-lg font-bold text-white">
+            Rs. {Number(product.price).toLocaleString()}
+          </span>
+          {product.originalPrice > product.price && (
+            <span className="text-sm text-white/50 line-through">
+              Rs. {Number(product.originalPrice).toLocaleString()}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 function toSizeArray(sizes) {
   if (!Array.isArray(sizes)) return [];
@@ -303,37 +430,131 @@ const SoulSeamEcommerce = () => {
   // NEW ProductCard component: navigates to /product/_id, no modal, no quick view
   const ProductCard = ({ product }) => {
     const [isHovered, setIsHovered] = useState(false);
+    const dragStartRef = useRef({ x: 0, y: 0, isDragging: false });
+    const cardRef = useRef(null);
 
-    const handleCardClick = () => {
-      router.push(`/product/${product._id}`);
+    // Get all product images for swiper
+    const productImages = Array.isArray(product.images) && product.images.length > 0
+      ? product.images
+      : [product.image || "/coming-soon.jpg"];
+
+    const handleCardClick = (e) => {
+      // Only navigate if it wasn't a drag
+      if (!dragStartRef.current.isDragging) {
+        router.push(`/product/${product._id}`);
+      }
+    };
+
+    const handleMouseDown = (e) => {
+      dragStartRef.current = {
+        x: e.clientX || e.touches?.[0]?.clientX || 0,
+        y: e.clientY || e.touches?.[0]?.clientY || 0,
+        isDragging: false,
+      };
+    };
+
+    const handleMouseMove = (e) => {
+      if (dragStartRef.current.x === 0 && dragStartRef.current.y === 0) return;
+      
+      const currentX = e.clientX || e.touches?.[0]?.clientX || 0;
+      const currentY = e.clientY || e.touches?.[0]?.clientY || 0;
+      const deltaX = Math.abs(currentX - dragStartRef.current.x);
+      const deltaY = Math.abs(currentY - dragStartRef.current.y);
+      const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+      // If drag distance exceeds 10px threshold, mark as dragging
+      if (distance > 10) {
+        dragStartRef.current.isDragging = true;
+      }
+    };
+
+    const handleMouseUp = () => {
+      // Reset after a short delay to allow click handler to check isDragging
+      setTimeout(() => {
+        dragStartRef.current = { x: 0, y: 0, isDragging: false };
+      }, 100);
     };
 
     const handleKeyDown = (e) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
-        handleCardClick();
+        handleCardClick(e);
       }
     };
 
     return (
       <div
+        ref={cardRef}
         className="group relative overflow-hidden bg-black rounded-lg border border-white/10 shadow-sm hover:shadow-xl transition-all duration-500 transform hover:-translate-y-1 sm:hover:-translate-y-2 cursor-pointer"
         onClick={handleCardClick}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onTouchStart={handleMouseDown}
+        onTouchMove={handleMouseMove}
+        onTouchEnd={handleMouseUp}
         onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        onMouseLeave={() => {
+          setIsHovered(false);
+          handleMouseUp();
+        }}
         role="button"
         tabIndex={0}
         onKeyDown={handleKeyDown}
         aria-label={`View details for ${product.name}`}
       >
         <div className="relative aspect-[3/4] overflow-hidden rounded-t-lg">
-          <img
-            src={isHovered ? product.hoverImage : product.image}
-            alt={product.name}
-            className="w-full h-full object-cover transition-all duration-700 ease-in-out transform group-hover:scale-110"
-          />
+          {productImages.length > 1 ? (
+            <Swiper
+              modules={[Pagination]}
+              slidesPerView={1}
+              spaceBetween={0}
+              allowTouchMove={true}
+              simulateTouch={true}
+              grabCursor={true}
+              loop={true}
+              speed={400}
+              pagination={{
+                clickable: true,
+                bulletClass: "swiper-pagination-bullet !bg-white/30 !w-1.5 !h-1.5",
+                bulletActiveClass: "!bg-white/80",
+              }}
+              className="w-full h-full"
+              style={{
+                "--swiper-pagination-bottom": "0.5rem",
+              }}
+              onTouchStart={(swiper, event) => {
+                handleMouseDown(event);
+              }}
+              onTouchMove={(swiper, event) => {
+                handleMouseMove(event);
+              }}
+              onTouchEnd={(swiper, event) => {
+                handleMouseUp();
+              }}
+            >
+              {productImages.map((img, idx) => (
+                <SwiperSlide key={img || idx}>
+                  <img
+                    src={img || "/coming-soon.jpg"}
+                    alt={`${product.name} - Image ${idx + 1}`}
+                    className="w-full h-full object-cover transition-all duration-700 ease-in-out transform group-hover:scale-110"
+                    loading={idx === 0 ? "eager" : "lazy"}
+                    draggable={false}
+                  />
+                </SwiperSlide>
+              ))}
+            </Swiper>
+          ) : (
+            <img
+              src={product.image || "/coming-soon.jpg"}
+              alt={product.name}
+              className="w-full h-full object-cover transition-all duration-700 ease-in-out transform group-hover:scale-110"
+              loading="lazy"
+              draggable={false}
+            />
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-          {/* Removed Quick View overlay/button */}
         </div>
         <div className="p-3 sm:p-4">
           <h3 className="font-semibold text-base sm:text-lg mb-1 sm:mb-2 text-white group-hover:text-white transition-colors duration-300 line-clamp-2">
@@ -936,38 +1157,15 @@ const SoulSeamEcommerce = () => {
                   return (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       {filtered.slice(0, 6).map((product) => (
-                        <div
+                        <SearchProductCard
                           key={product._id}
-                          onClick={() => {
-                            router.push(`/product/${product._id}`);
+                          product={product}
+                          router={router}
+                          onClose={() => {
                             setIsSearchOpen(false);
                             setSearchQuery("");
                           }}
-                          className="group relative overflow-hidden bg-black/60 border border-white/10 rounded-lg cursor-pointer hover:border-white/30 transition-all duration-300 hover:scale-105"
-                        >
-                          <div className="relative aspect-[3/4] overflow-hidden rounded-t-lg">
-                            <img
-                              src={product.image || "/coming-soon.jpg"}
-                              alt={product.name}
-                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                            />
-                          </div>
-                          <div className="p-4">
-                            <h3 className="font-semibold text-white mb-2 line-clamp-2">
-                              {product.name}
-                            </h3>
-                            <div className="flex items-center gap-2">
-                              <span className="text-lg font-bold text-white">
-                                Rs. {Number(product.price).toLocaleString()}
-                              </span>
-                              {product.originalPrice > product.price && (
-                                <span className="text-sm text-white/50 line-through">
-                                  Rs. {Number(product.originalPrice).toLocaleString()}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
+                        />
                       ))}
                     </div>
                   );

@@ -4,6 +4,10 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useCart } from "@/app/CartContext";
 import { createContext, useContext } from "react";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Pagination } from "swiper/modules";
+import "swiper/css";
+import "swiper/css/pagination";
 
 // ICONS
 function IconCheck() {
@@ -66,6 +70,29 @@ function IconArrowLeft({className=""}) {
 function formatPrice(price) {
   if (price == null) return "₹0";
   return "₹" + Number(price).toLocaleString("en-IN");
+}
+
+// Helper function to format product description
+// Handles both plain text (with line breaks) and HTML content
+function formatDescription(description) {
+  if (!description) return null;
+  
+  // Check if description contains HTML tags
+  const hasHTML = /<[a-z][\s\S]*>/i.test(description);
+  
+  if (hasHTML) {
+    // Contains HTML - render as-is (admin-controlled content)
+    return description;
+  } else {
+    // Plain text - convert newlines to <br> and escape HTML for security
+    return description
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;")
+      .replace(/\n/g, "<br>");
+  }
 }
 
 
@@ -497,37 +524,43 @@ export default function ProductPage() {
     <main className="relative w-full min-h-screen bg-gradient-to-b from-black via-[#0a0a0a] to-black">
       {/* --- MOBILE PRODUCT IMAGE SECTION IN FLOW, 75vh, NOT FIXED, Back Btn overlays image --- */}
       <div className="md:hidden w-full relative" style={{ minHeight: "75vh" }}>
-        <div className="w-full h-[75vh] relative rounded-b-3xl overflow-hidden bg-black transition-all duration-600 ease-out will-change-transform premium-summary-hover">
-          <img
-            src={product.images[mainImgIdx] || "/placeholder.png"}
-            alt={product.name}
-            key={product.images[mainImgIdx] || "/placeholder.png"}
-            className="absolute inset-0 w-full h-full object-cover rounded-b-3xl select-none transition-all duration-600 ease-out"
-            style={{
-              opacity: imgTransitioning ? 0.88 : 1,
-              transition: "opacity 0.6s cubic-bezier(.4,0,.2,1)"
-            }}
-            draggable={false}
-          />
+        <div className="w-full h-[75vh] relative rounded-b-3xl overflow-hidden bg-black">
           {/* Mobile Back Button (absolute, overlays image) */}
           <LuxuryBackButton fixed isMobile={isMobile} router={router} />
-          {/* Thumbnails: indicator dots on mobile */}
-          <div className="absolute bottom-8 left-1/2 z-20 flex gap-1 -translate-x-1/2">
+          {/* Swiper for mobile image sliding */}
+          <Swiper
+            modules={[Pagination]}
+            slidesPerView={1}
+            spaceBetween={0}
+            allowTouchMove={true}
+            simulateTouch={true}
+            grabCursor={true}
+            pagination={{
+              clickable: true,
+              bulletClass: "swiper-pagination-bullet !bg-white/20 !border-white/20 !w-2.5 !h-2.5",
+              bulletActiveClass: "!bg-white/90 !border-white/90 !scale-110",
+            }}
+            onSlideChange={(swiper) => {
+              setMainImgIdx(swiper.activeIndex);
+            }}
+            initialSlide={mainImgIdx}
+            className="w-full h-full rounded-b-3xl"
+            style={{
+              "--swiper-pagination-bottom": "2rem",
+            }}
+          >
             {product.images?.map((img, idx) => (
-              <button
-                key={img}
-                onClick={() => setMainImgIdx(idx)}
-                className={[
-                  "w-2.5 h-2.5 rounded-full border transition-all duration-200",
-                  idx === mainImgIdx
-                    ? "bg-white/90 border-white/90 scale-110 shadow"
-                    : "bg-white/20 border-white/20"
-                ].join(' ')}
-                style={{ cursor: "pointer" }}
-                aria-label={`Show image ${idx + 1}`}
-              />
+              <SwiperSlide key={img || idx}>
+                <img
+                  src={img || "/placeholder.png"}
+                  alt={`${product.name} - Image ${idx + 1}`}
+                  className="w-full h-full object-cover rounded-b-3xl select-none"
+                  draggable={false}
+                  loading={idx === 0 ? "eager" : "lazy"}
+                />
+              </SwiperSlide>
             ))}
-          </div>
+          </Swiper>
         </div>
       </div>
 
@@ -687,15 +720,16 @@ export default function ProductPage() {
             <AccordionGroup openKey={openAccordionKey} setOpenKey={setOpenAccordionKey}>
               <LuxuryAccordion title="Product Description" accordionKey="philosophy">
                 <div className="text-white/70 text-[1rem] leading-loose font-light tracking-normal pt-0">
-                  <p className="mb-3">
-                    Cut from soft, high-density organic cotton jersey, this piece reflects a pursuit of clean lines and considered proportions—marrying comfort with refinement.
-                  </p>
-                  <p className="mb-3">
-                    Effortlessly versatile and meant to elevate everyday essentials, it embodies a poised, yet understated confidence.
-                  </p>
-                  <p className="mt-2 text-white/45 text-base font-extralight leading-relaxed">
-                    Feel the signature drape, precision-crafted fit, and subtle details exclusive to atelier-level garments.
-                  </p>
+                  {product.description ? (
+                    <div 
+                      className="product-description"
+                      dangerouslySetInnerHTML={{ __html: formatDescription(product.description) }}
+                    />
+                  ) : (
+                    <p className="text-white/45 text-base font-extralight leading-relaxed">
+                      No description available
+                    </p>
+                  )}
                 </div>
               </LuxuryAccordion>
             </AccordionGroup>
@@ -707,7 +741,7 @@ export default function ProductPage() {
                 <ul className="list-none pl-0 text-white/85 text-base">
                   <li className="mb-1 pb-1 border-b border-white/10 flex items-center">
                     <span className="inline-block mr-2 text-lg text-white/80"><IconCheck/></span>
-                    Hand-finished Italian seams
+                    Hand-embroidered infinity symbol detailing
                   </li>
                   <li className="mb-1 pb-1 border-b border-white/10 flex items-center">
                     <span className="inline-block mr-2 text-lg text-white/80"><IconCheck /></span>
@@ -864,15 +898,16 @@ export default function ProductPage() {
               <AccordionGroup openKey={openAccordionKey} setOpenKey={setOpenAccordionKey}>
                 <LuxuryAccordion title="Product Description" accordionKey="philosophy">
                   <div className="text-white/65 text-base leading-loose font-light tracking-normal pt-0">
-                    <p className="mb-3">
-                      Cut from soft, high-density organic cotton jersey, this piece reflects a pursuit of clean lines and considered proportions—marrying comfort with refinement.
-                    </p>
-                    <p className="mb-3">
-                      Effortlessly versatile and meant to elevate everyday essentials, it embodies a poised, yet understated confidence.
-                    </p>
-                    <p className="mt-2 text-white/45 text-base font-extralight leading-relaxed">
-                      Feel the signature drape, precision-crafted fit, and subtle details exclusive to atelier-level garments.
-                    </p>
+                    {product.description ? (
+                      <div 
+                        className="product-description"
+                        dangerouslySetInnerHTML={{ __html: formatDescription(product.description) }}
+                      />
+                    ) : (
+                      <p className="text-white/45 text-base font-extralight leading-relaxed">
+                        No description available
+                      </p>
+                    )}
                   </div>
                 </LuxuryAccordion>
               </AccordionGroup>
@@ -1073,6 +1108,48 @@ export default function ProductPage() {
         }
         .group:hover:after {
           opacity: 1;
+        }
+        /* Swiper customizations */
+        .swiper {
+          width: 100%;
+          height: 100%;
+        }
+        .swiper-slide {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .swiper-pagination {
+          position: absolute;
+          bottom: 0.5rem;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 10;
+        }
+        .swiper-pagination-bullet {
+          width: 0.375rem;
+          height: 0.375rem;
+          background: rgba(255, 255, 255, 0.3);
+          border: 1px solid rgba(255, 255, 255, 0.3);
+          opacity: 1;
+          margin: 0 0.25rem;
+          transition: all 0.2s ease;
+        }
+        .swiper-pagination-bullet-active {
+          background: rgba(255, 255, 255, 0.8);
+          border-color: rgba(255, 255, 255, 0.8);
+          transform: scale(1.1);
+        }
+        /* Ensure no layout shift */
+        .swiper-wrapper {
+          display: flex;
+          align-items: stretch;
+        }
+        .swiper-slide img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
         }
       `}</style>
     </main>

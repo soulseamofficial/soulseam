@@ -3,7 +3,12 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ChevronRight, Sparkles, Filter, X, ShoppingBag, Star, ArrowUpRight } from "lucide-react";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Pagination } from "swiper/modules";
+import "swiper/css";
+import "swiper/css/pagination";
 
 // ----------- GLOBAL PRODUCT FALLBACK IMAGE UTILITY -------------
 // Returns the primary product image if valid, otherwise '/coming-soon.jpg'
@@ -125,21 +130,114 @@ const ExploreCollection = () => {
   const ProductCard = ({ product }) => {
     // Guard: fallback to 1-2 lines, line-clamp utility ensures truncation
     const description = product.description || "";
+    const dragStartRef = useRef({ x: 0, y: 0, isDragging: false });
+    const router = useRouter();
+
+    // Get all product images for swiper
+    const productImages = Array.isArray(product.images) && product.images.length > 0
+      ? product.images
+      : [getProductImage(product)];
+
+    const handleCardClick = (e) => {
+      if (!dragStartRef.current.isDragging) {
+        router.push(`/product/${product.id}`);
+      }
+    };
+
+    const handleMouseDown = (e) => {
+      dragStartRef.current = {
+        x: e.clientX || e.touches?.[0]?.clientX || 0,
+        y: e.clientY || e.touches?.[0]?.clientY || 0,
+        isDragging: false,
+      };
+    };
+
+    const handleMouseMove = (e) => {
+      if (dragStartRef.current.x === 0 && dragStartRef.current.y === 0) return;
+      const currentX = e.clientX || e.touches?.[0]?.clientX || 0;
+      const currentY = e.clientY || e.touches?.[0]?.clientY || 0;
+      const deltaX = Math.abs(currentX - dragStartRef.current.x);
+      const deltaY = Math.abs(currentY - dragStartRef.current.y);
+      const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+      if (distance > 10) {
+        dragStartRef.current.isDragging = true;
+      }
+    };
+
+    const handleMouseUp = () => {
+      setTimeout(() => {
+        dragStartRef.current = { x: 0, y: 0, isDragging: false };
+      }, 100);
+    };
 
     return (
-      <Link
-        href={`/product/${product.id}`}
+      <div
+        onClick={handleCardClick}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onTouchStart={handleMouseDown}
+        onTouchMove={handleMouseMove}
+        onTouchEnd={handleMouseUp}
         className="product-card group relative overflow-hidden bg-black/60 border border-white/10 rounded-2xl shadow-xl transition-transform duration-200 hover:scale-[1.015] hover:border-white/20 cursor-pointer block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
         tabIndex={0}
+        role="button"
+        aria-label={`View details for ${product.name}`}
       >
         <div className="relative aspect-[3/4] overflow-hidden rounded-t-xl sm:rounded-t-2xl bg-black">
-          <img
-            src={getProductImage(product)}
-            alt={product.name}
-            loading="lazy"
-            className="w-full h-full object-cover transition-opacity duration-300 bg-black"
-            onError={e => { if (e.target.src !== "/coming-soon.jpg") e.target.src = "/coming-soon.jpg"; }}
-          />
+          {productImages.length > 1 ? (
+            <Swiper
+              modules={[Pagination]}
+              slidesPerView={1}
+              spaceBetween={0}
+              allowTouchMove={true}
+              simulateTouch={true}
+              grabCursor={true}
+              loop={true}
+              speed={400}
+              pagination={{
+                clickable: true,
+                bulletClass: "swiper-pagination-bullet !bg-white/30 !w-1.5 !h-1.5",
+                bulletActiveClass: "!bg-white/80",
+              }}
+              className="w-full h-full"
+              style={{
+                "--swiper-pagination-bottom": "0.5rem",
+              }}
+              onTouchStart={(swiper, event) => {
+                handleMouseDown(event);
+              }}
+              onTouchMove={(swiper, event) => {
+                handleMouseMove(event);
+              }}
+              onTouchEnd={(swiper, event) => {
+                handleMouseUp();
+              }}
+            >
+              {productImages.map((img, idx) => (
+                <SwiperSlide key={img || idx}>
+                  <img
+                    src={img || "/coming-soon.jpg"}
+                    alt={`${product.name} - Image ${idx + 1}`}
+                    loading={idx === 0 ? "eager" : "lazy"}
+                    className="w-full h-full object-cover transition-opacity duration-300 bg-black"
+                    onError={e => { if (e.target.src !== "/coming-soon.jpg") e.target.src = "/coming-soon.jpg"; }}
+                    draggable={false}
+                  />
+                </SwiperSlide>
+              ))}
+            </Swiper>
+          ) : (
+            <img
+              src={getProductImage(product)}
+              alt={product.name}
+              loading="lazy"
+              className="w-full h-full object-cover transition-opacity duration-300 bg-black"
+              onError={e => { if (e.target.src !== "/coming-soon.jpg") e.target.src = "/coming-soon.jpg"; }}
+              draggable={false}
+            />
+          )}
           {/* Tags */}
           {product.tags && product.tags.length > 0 && (
             <div className="absolute top-4 left-4 z-20 flex gap-2">
@@ -180,7 +278,7 @@ const ExploreCollection = () => {
             )}
           </div>
         </div>
-      </Link>
+      </div>
     );
   };
 
