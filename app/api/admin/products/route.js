@@ -132,11 +132,16 @@ export async function GET(req) {
     const id = searchParams.get("id");
 
     if (id) {
-      const product = await Product.findById(id);
+      const product = await Product.findById(id).lean();
       if (!product) {
         return NextResponse.json({ error: "Product not found" }, { status: 404 });
       }
-      return NextResponse.json(product, {
+      // Ensure images array exists and is properly formatted
+      const productData = {
+        ...product,
+        images: product.images || [],
+      };
+      return NextResponse.json(productData, {
         headers: {
           "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
           "Pragma": "no-cache",
@@ -185,8 +190,6 @@ export async function PUT(req) {
       );
     }
 
-    const body = await req.json();
-
     // Fetch existing product for validation
     const existingProduct = await Product.findById(id);
     if (!existingProduct) {
@@ -196,17 +199,129 @@ export async function PUT(req) {
       );
     }
 
-    // Build update object with only provided fields
-    const updateData = {};
-    if (body.title !== undefined) updateData.title = body.title;
-    if (body.price !== undefined) updateData.price = body.price;
-    if (body.compareAtPrice !== undefined) {
-      updateData.compareAtPrice = body.compareAtPrice || null;
+    // Check if request is FormData (for image uploads) or JSON
+    const contentType = req.headers.get("content-type") || "";
+    let updateData = {};
+    let finalImages = existingProduct.images || [];
+
+    if (contentType.includes("multipart/form-data")) {
+      // Handle FormData (with images)
+      const formData = await req.formData();
+
+      // Extract text fields
+      const title = formData.get("title");
+      const price = formData.get("price");
+      const compareAtPriceRaw = formData.get("compareAtPrice");
+      const description = formData.get("description");
+      const category = formData.get("category");
+      const sizesJson = formData.get("sizes");
+      const existingImagesJson = formData.get("existingImages");
+
+      // Build update object
+      if (title) updateData.title = title;
+      if (price) updateData.price = Number(price);
+      if (compareAtPriceRaw) {
+        updateData.compareAtPrice = Number(compareAtPriceRaw) || null;
+      } else if (compareAtPriceRaw === "") {
+        updateData.compareAtPrice = null;
+      }
+      if (description) updateData.description = description;
+      if (category) updateData.category = category;
+      if (sizesJson) {
+        try {
+          updateData.sizes = JSON.parse(sizesJson);
+        } catch (e) {
+          return NextResponse.json(
+            { error: "Invalid sizes format" },
+            { status: 400 }
+          );
+        }
+      }
+
+      // Handle images: merge existing + new uploads
+      if (existingImagesJson) {
+        try {
+          const existingImagesArray = JSON.parse(existingImagesJson);
+          
+          // Upload new images to Cloudinary
+          const newImageFiles = formData.getAll("newImages");
+          const cloudinary = getCloudinary();
+          const uploadedImages = [];
+
+          for (const file of newImageFiles) {
+            if (file && file.size > 0) {
+              const bytes = await file.arrayBuffer();
+              const buffer = Buffer.from(bytes);
+
+              const uploadResult = await new Promise((resolve, reject) => {
+                cloudinary.uploader
+                  .upload_stream(
+                    {
+                      folder: "soulseam/products",
+                      resource_type: "image",
+                    },
+                    (error, result) => {
+                      if (error) reject(error);
+                      else resolve(result);
+                    }
+                  )
+                  .end(buffer);
+              });
+
+              uploadedImages.push(uploadResult.secure_url);
+            }
+          }
+
+          // Merge: existingImages (from form) + newUploads
+          // The frontend already handles deletion by not including deleted images in existingImagesJson
+          // Check if new images should come first (when there are no existing images)
+          const newImagesFirst = formData.get("newImagesFirst") === "true";
+          if (newImagesFirst) {
+            finalImages = [...uploadedImages, ...existingImagesArray];
+          } else {
+            finalImages = [...existingImagesArray, ...uploadedImages];
+          }
+
+          // Validation: At least one image required
+          if (finalImages.length === 0) {
+            return NextResponse.json(
+              { error: "At least one image is required" },
+              { status: 400 }
+            );
+          }
+
+          // Validation: Max 6 images
+          if (finalImages.length > 6) {
+            return NextResponse.json(
+              { error: "Maximum 6 images allowed" },
+              { status: 400 }
+            );
+          }
+
+          updateData.images = finalImages;
+        } catch (e) {
+          console.error("[Admin Products] Image processing error:", e);
+          return NextResponse.json(
+            { error: "Failed to process images" },
+            { status: 500 }
+          );
+        }
+      }
+    } else {
+      // Handle JSON (backward compatibility for non-image updates)
+      const body = await req.json();
+
+      if (body.title !== undefined) updateData.title = body.title;
+      if (body.price !== undefined) updateData.price = body.price;
+      if (body.compareAtPrice !== undefined) {
+        updateData.compareAtPrice = body.compareAtPrice || null;
+      }
+      if (body.description !== undefined) updateData.description = body.description;
+      if (body.category !== undefined) updateData.category = body.category;
+      if (body.sizes !== undefined) updateData.sizes = body.sizes;
+      if (body.isActive !== undefined) updateData.isActive = body.isActive;
+      if (body.images !== undefined) updateData.images = body.images;
     }
-    if (body.description !== undefined) updateData.description = body.description;
-    if (body.category !== undefined) updateData.category = body.category;
-    if (body.sizes !== undefined) updateData.sizes = body.sizes;
-    if (body.isActive !== undefined) updateData.isActive = body.isActive;
 
     // ✅ VALIDATION: Prevent fake discounts
     const finalPrice = updateData.price !== undefined ? updateData.price : existingProduct.price;

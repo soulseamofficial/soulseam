@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 // Reusable Address Accordion Component
 function AddressAccordion({ address }) {
@@ -105,6 +106,7 @@ function AddressAccordion({ address }) {
 }
 
 export default function AdminOrdersPage() {
+  const router = useRouter();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedOrderId, setExpandedOrderId] = useState(null);
@@ -342,6 +344,14 @@ export default function AdminOrdersPage() {
             <option value="amount">Amount high → low</option>
             <option value="payment">Payment Status</option>
           </select>
+
+          {/* Create Order */}
+          <button
+            onClick={() => router.push("/admin/orders/create")}
+            className="px-5 py-2 rounded-xl bg-white/10 border border-white/20 text-white font-extrabold hover:bg-white/15 hover:border-white/30 transition"
+          >
+            + Create Order
+          </button>
 
           {/* Export */}
           <button
