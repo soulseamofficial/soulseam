@@ -306,6 +306,28 @@ h1, h2, h3, h4, h5, h6 {
   text-rendering: optimizeLegibility;
 }
 
+/* ===== DARK THEME SELECT/OPTION STYLING ===== */
+/* Force dark theme for all select elements */
+select {
+  background-color: #000 !important;
+  color: #fff !important;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+/* Force dark theme for all option elements */
+select option {
+  background-color: #000 !important;
+  color: #fff !important;
+}
+
+/* Ensure select dropdown menu (when open) has dark background */
+select:focus option:checked {
+  background-color: #1a1a1a !important;
+  color: #fff !important;
+}
+
 /* Parallax Container Support */
 .parallax-container {
   will-change: transform;
