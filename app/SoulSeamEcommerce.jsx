@@ -183,26 +183,26 @@ const SoulSeamEcommerce = () => {
 
   // Horizontal scrolling gallery images - using actual product photos
   const fashionImages = [
-    "/images/shoot1.jpeg",
-    "/images/shoot2.jpeg",
-    "/images/shoot3.jpeg",
-    "/images/shoot4.jpeg",
-    "/images/shoot5.jpeg",
-    "/images/shoot6.jpeg",
-    "/images/shoot7.jpeg",
-    "/images/shoot8.jpeg",
+    "/images/shoot1.jpeg",  // 1
+    "/images/shoot2.jpeg",  // 2
+    "/images/shoot4.jpeg",  // 3
+    "/images/shoot3.jpeg",  // 4
+    "/images/shoot5.jpeg",  // 5
+    "/images/shoot6.jpeg",  // 6
+    "/images/shoot8.jpeg",  // 7
+    "/images/shoot7.jpeg",  // 8
   ];
 
   // Featured collection images - using actual product photos
   const featuredImages = [
-    "/images/shoot1.jpeg",
-    "/images/shoot2.jpeg",
-    "/images/shoot3.jpeg",
-    "/images/shoot4.jpeg",
-    "/images/shoot5.jpeg",
-    "/images/shoot6.jpeg",
-    "/images/shoot7.jpeg",
-    "/images/shoot8.jpeg",
+    "/images/shoot1.jpeg",  // 1
+    "/images/shoot2.jpeg",  // 2
+    "/images/shoot4.jpeg",  // 3
+    "/images/shoot3.jpeg",  // 4
+    "/images/shoot5.jpeg",  // 5
+    "/images/shoot6.jpeg",  // 6
+    "/images/shoot8.jpeg",  // 7
+    "/images/shoot7.jpeg",  // 8
   ];
 
   const [products, setProducts] = useState([]);
