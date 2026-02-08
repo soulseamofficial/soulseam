@@ -15,7 +15,7 @@ import { connectDB } from "@/app/lib/db";
 import Order from "@/app/models/Order";
 import User from "@/app/models/User";
 import Coupon from "@/app/models/coupon";
-import { sendOrderToDelhivery, isOrderSentToDelhivery, logVerificationInstructions } from "@/app/lib/delhivery";
+// Shipment creation moved to admin panel - removed from webhook
 
 /**
  * Verifies Razorpay webhook signature
@@ -104,13 +104,6 @@ export async function POST(req) {
       // Check if order is already processed
       if (order.paymentStatus === "PAID" && order.orderStatus === "CONFIRMED") {
         console.log("✅ Order already confirmed:", order._id);
-        
-        // If not sent to Delhivery yet, send it now
-        if (!isOrderSentToDelhivery(order) && order.orderStatus === "CONFIRMED") {
-          console.log("📦 Order confirmed but not sent to Delhivery, sending now...");
-          await sendOrderToDelhiveryAndUpdate(order);
-        }
-        
         return NextResponse.json({ received: true, message: "Order already processed" });
       }
 
@@ -150,11 +143,7 @@ export async function POST(req) {
         }
       }
 
-      // Send order to Delhivery if not already sent
-      const updatedOrder = await Order.findById(order._id);
-      if (!isOrderSentToDelhivery(updatedOrder)) {
-        await sendOrderToDelhiveryAndUpdate(updatedOrder);
-      }
+      // Shipment creation is now handled by admin - removed from webhook flow
 
       return NextResponse.json({ received: true, orderId: order._id.toString() });
     }
@@ -192,92 +181,4 @@ export async function POST(req) {
   }
 }
 
-/**
- * Helper function to send order to Delhivery and update order document
- */
-async function sendOrderToDelhiveryAndUpdate(order) {
-  try {
-    const shippingAddress = order.shippingAddress;
-    const fullName = shippingAddress?.fullName || "";
-    const [firstName, ...rest] = fullName.split(" ").filter(Boolean);
-    const lastName = rest.join(" ");
-
-    const delhiveryResponse = await sendOrderToDelhivery({
-      orderId: order._id.toString(),
-      shippingAddress: {
-        fullName: fullName,
-        firstName: firstName || "",
-        lastName: lastName || "",
-        phone: shippingAddress?.phone || "",
-        addressLine1: shippingAddress?.addressLine1 || "",
-        addressLine2: shippingAddress?.addressLine2 || "",
-        city: shippingAddress?.city || "",
-        state: shippingAddress?.state || "",
-        pincode: shippingAddress?.pincode || "",
-        country: shippingAddress?.country || "India",
-      },
-      paymentMethod: order.paymentMethod,
-      items: order.items.map(item => ({
-        name: item.name,
-        quantity: item.quantity,
-      })),
-      totalAmount: order.totalAmount,
-    });
-
-    const updateData = {};
-
-    if (delhiveryResponse?.success) {
-      updateData.delhiveryWaybill = delhiveryResponse.waybill;
-      updateData.delhiveryCourierName = delhiveryResponse.courier_name;
-      updateData.delhiveryDeliveryStatus = delhiveryResponse.delivery_status;
-      updateData.delhiveryTrackingUrl = delhiveryResponse.tracking_url;
-      updateData.delhiverySent = true;
-      updateData.delhiveryError = null;
-      
-      // Standardized delivery fields
-      updateData.delivery_provider = "DELHIVERY";
-      updateData.delivery_status = delhiveryResponse.delivery_status || "CREATED";
-      
-      // Legacy fields
-      updateData.delhiveryAWB = delhiveryResponse.waybill;
-      updateData.delhiveryTrackingId = delhiveryResponse.waybill;
-      updateData.delhiveryPartner = delhiveryResponse.courier_name;
-      
-      // Log verification instructions if real waybill (not mock)
-      if (!delhiveryResponse.isMock && delhiveryResponse.waybill) {
-        logVerificationInstructions(delhiveryResponse.waybill);
-      }
-      
-      console.log("✅ Order sent to Delhivery via webhook:", {
-        orderId: order._id,
-        waybill: delhiveryResponse.waybill,
-        isMock: delhiveryResponse.isMock || false,
-      });
-    } else {
-      updateData.delhiverySent = false;
-      updateData.delhiveryError = delhiveryResponse?.error || "Unknown error";
-      updateData.delhiveryDeliveryStatus = "PENDING";
-      updateData.delivery_provider = "DELHIVERY"; // Still mark provider even on failure
-      updateData.delivery_status = "PENDING"; // Changed to PENDING as per requirements
-      
-      console.error("❌ Failed to send order to Delhivery via webhook (status: PENDING):", {
-        orderId: order._id,
-        error: updateData.delhiveryError,
-      });
-    }
-
-    await Order.findByIdAndUpdate(order._id, { $set: updateData });
-  } catch (error) {
-    console.error("❌ Error sending order to Delhivery via webhook:", error);
-    await Order.findByIdAndUpdate(order._id, {
-      $set: {
-        delhiverySent: false,
-        delhiveryError: error.message || "Unknown error",
-        delhiveryDeliveryStatus: "PENDING",
-        delivery_provider: "DELHIVERY",
-        delivery_status: "PENDING",
-        shipment_status: "PENDING", // Set shipment_status to PENDING on error
-      },
-    });
-  }
-}
+// Shipment creation helper removed - now handled by admin panel

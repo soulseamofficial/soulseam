@@ -38,6 +38,20 @@ function logDelhiveryConfig() {
 }
 
 /**
+ * Sanitizes text by removing unicode characters (non-ASCII) to prevent Delhivery API errors
+ * Replaces unicode characters with "-" and trims the result
+ * 
+ * @param {string} text - Text to sanitize
+ * @returns {string} - Sanitized text with only ASCII characters
+ */
+export function sanitizeText(text) {
+  if (!text || typeof text !== "string") return text || "";
+  return text
+    .replace(/[^\x00-\x7F]/g, "-") // Remove unicode characters (replace with "-")
+    .trim();
+}
+
+/**
  * Validates if a waybill number is real (numeric, not MOCK prefixed)
  * 
  * @param {string} waybill - Waybill number to validate
@@ -408,37 +422,36 @@ export async function sendOrderToDelhivery(orderData) {
     const defaultHeight = 10;
     const defaultWeight = 0.5; // kg
 
-    // CRITICAL: products_desc MUST be an ARRAY of objects, not a string
-    // Delhivery's Python backend expects products_desc as array and calls .get() on each product object
-    // Sending as string causes: "'unicode' object has no attribute 'get'" error
-    // Each product object must have: name, quantity, and value fields
+    // CRITICAL: products_desc MUST be a STRING (comma-separated), not an array
+    // Delhivery's Python backend expects products_desc as a string
+    // Sending as array/object causes: "'unicode' object has no attribute 'get'" error
     const totalQuantity = Number(orderData.items.reduce((sum, item) => sum + (item.quantity || 1), 0));
     const totalAmount = Number(orderData.totalAmount || 0);
     const productsDesc = Array.isArray(orderData.items) && orderData.items.length > 0
-      ? orderData.items.map(item => ({
-          name: String(item.name || item.title || item.productName || item.product?.name || "Item").substring(0, 100), // Max 100 chars
-          quantity: Number(item.quantity || 1),
-          value: Number(item.price || item.amount || item.value || item.totalPrice || 0)
-        }))
-      : [{
-          name: "Item",
-          quantity: totalQuantity || 1,
-          value: isCOD ? totalAmount : 0
-        }];
+      ? orderData.items
+          .map(item => {
+            // Sanitize product name to remove unicode characters
+            const rawItemName = String(item.name || item.title || item.productName || item.product?.name || "Item").substring(0, 100);
+            const itemName = sanitizeText(rawItemName);
+            const itemQuantity = Number(item.quantity || 1);
+            return `${itemName} x${itemQuantity}`;
+          })
+          .join(", ")
+      : `Item x${totalQuantity || 1}`;
 
     const shipment = {
-      name: fullName || "Customer",
-      add: normalizedAddress, // Use normalized address
-      city: normalizedCity, // Use normalized city
-      state: shippingAddress.state || "",
+      name: sanitizeText(fullName || "Customer"), // Sanitize customer name
+      add: sanitizeText(normalizedAddress), // Sanitize address
+      city: sanitizeText(normalizedCity), // Sanitize city
+      state: sanitizeText(shippingAddress.state || ""), // Sanitize state
       pin: String(shippingAddress.pincode || shippingAddress.pin || ""), // MUST be string
       country: "India",
       phone: String(shippingAddress.phone || ""), // MUST be string
       order: String(orderData.orderId), // MUST be string
       payment_mode: isCOD ? "COD" : "Prepaid",
-      // CRITICAL: products_desc MUST be an ARRAY of product objects (not a string)
-      // Delhivery's Python backend calls .get() on each product object in the array
-      products_desc: productsDesc, // MUST be array of objects with name, quantity, value
+      // CRITICAL: products_desc MUST be a STRING (comma-separated), not an array
+      // Delhivery's Python backend expects products_desc as a string
+      products_desc: sanitizeText(productsDesc), // Sanitize products_desc
       quantity: totalQuantity, // MUST be number
       weight: Number(orderData.weight || defaultWeight), // MUST be number (kg)
       shipment_length: Number(orderData.shipment_length || defaultLength), // MUST be number (cm)
@@ -577,62 +590,29 @@ export async function sendOrderToDelhivery(orderData) {
       }
     }
     
-    // CRITICAL: Ensure products_desc is always present and is an array (mandatory for Delhivery CMU)
-    if (!sanitizedShipment.products_desc || !Array.isArray(sanitizedShipment.products_desc)) {
-      sanitizedShipment.products_desc = [{
-        name: "Item",
-        quantity: sanitizedShipment.quantity || 1,
-        value: isCOD ? totalAmount : 0
-      }];
+    // CRITICAL: Ensure products_desc is always present and is a string (mandatory for Delhivery CMU)
+    if (!sanitizedShipment.products_desc || typeof sanitizedShipment.products_desc !== 'string') {
+      sanitizedShipment.products_desc = sanitizeText(`Item x${sanitizedShipment.quantity || 1}`);
     }
     
-    // Validate products_desc array structure
-    if (!Array.isArray(sanitizedShipment.products_desc) || sanitizedShipment.products_desc.length === 0) {
-      console.error("❌ Invalid products_desc (must be non-empty array):", {
+    // Validate products_desc is a string
+    if (typeof sanitizedShipment.products_desc !== 'string' || sanitizedShipment.products_desc.trim().length === 0) {
+      console.error("❌ Invalid products_desc (must be non-empty string):", {
         orderId: orderData.orderId,
         products_desc: sanitizedShipment.products_desc,
         type: typeof sanitizedShipment.products_desc,
-        isArray: Array.isArray(sanitizedShipment.products_desc),
       });
       return {
         success: false,
-        error: "products_desc must be a non-empty array of product objects",
+        error: "products_desc must be a non-empty string",
         deliveryStatus: "PENDING",
         shipment_status: "PENDING",
         isMock: false,
       };
     }
     
-    // Ensure each product object has required fields with correct types
-    for (let i = 0; i < sanitizedShipment.products_desc.length; i++) {
-      const product = sanitizedShipment.products_desc[i];
-      if (!product || typeof product !== 'object') {
-        console.error(`❌ Invalid products_desc[${i}] (must be object):`, {
-          orderId: orderData.orderId,
-          product,
-          type: typeof product,
-        });
-        return {
-          success: false,
-          error: `products_desc[${i}] must be an object with name, quantity, and value fields`,
-          deliveryStatus: "PENDING",
-          shipment_status: "PENDING",
-          isMock: false,
-        };
-      }
-      // Ensure name is a string
-      if (!product.name || typeof product.name !== 'string') {
-        sanitizedShipment.products_desc[i].name = "Item";
-      }
-      // Ensure quantity is a number
-      if (typeof product.quantity !== 'number' || isNaN(product.quantity)) {
-        sanitizedShipment.products_desc[i].quantity = 1;
-      }
-      // Ensure value is a number
-      if (typeof product.value !== 'number' || isNaN(product.value)) {
-        sanitizedShipment.products_desc[i].value = 0;
-      }
-    }
+    // Validate payload before sending - ensure products_desc is a string
+    console.log(typeof sanitizedShipment.products_desc);
     
     // Validate that 'add' key exists (not 'address')
     if (!sanitizedShipment.add) {
@@ -905,14 +885,16 @@ export async function sendOrderToDelhivery(orderData) {
     const response = lastResponse;
     const responseData = lastResponseData;
 
-
     // Parse Delhivery response
     // Delhivery API returns: { packages: [{ waybill, ... }] } or { success: true, packages: [...] }
     // IMPORTANT: Delhivery sometimes returns success=false but still creates package (half-success scenario)
     // We should treat responses with upload_wbn OR package_count > 0 as SUCCESS
+    
+    // Safely extract all values from response with optional chaining
+    const rmkValue = responseData?.rmk || null;
+    const uploadWbn = responseData?.upload_wbn || null;
+    const packageCount = responseData?.package_count || 0;
     const packages = responseData?.packages || responseData?.package || [];
-    const uploadWbn = responseData?.upload_wbn;
-    const packageCount = responseData?.package_count || packages?.length || 0;
     const hasWaybill = packages?.[0]?.waybill;
     
     // CRITICAL: Treat as SUCCESS if:
@@ -926,9 +908,12 @@ export async function sendOrderToDelhivery(orderData) {
     
     if (!isSuccess) {
       // True failure case: No package created, no upload_wbn, no package_count
-      // FIX: Use responseData.rmk safely (only if it's a string)
-      const rmkValue = typeof responseData?.rmk === "string" ? responseData.rmk : (responseData?.rmk ? String(responseData.rmk) : "");
-      const errorMessage = responseData?.error || responseData?.message || rmkValue || "Delhivery order creation failed";
+      // Extract error message with priority: rmk > message > fallback
+      const errorMessage = 
+        responseData?.rmk ||
+        responseData?.message ||
+        responseData?.error ||
+        "Shipment creation failed";
       
       console.error("❌ Delhivery response indicates failure (no package created):", {
         success: responseData?.success,
@@ -967,88 +952,102 @@ export async function sendOrderToDelhivery(orderData) {
     
     // SUCCESS CASE: Package was created (even if success=false in response)
     // This handles the half-success scenario where Delhivery creates package but returns success=false
-    if (uploadWbn && !hasWaybill) {
-      // If we have upload_wbn but no waybill in packages, use upload_wbn as waybill
-      console.log("⚠️ Delhivery returned upload_wbn but no waybill in packages. Using upload_wbn as waybill:", uploadWbn);
-      const waybill = String(uploadWbn).trim();
-      if (isValidWaybill(waybill)) {
-        const trackingUrl = `https://www.delhivery.com/track/${waybill}`;
-        console.log("✅ Delhivery order created successfully (using upload_wbn):", {
-          orderId: orderData.orderId,
-          waybill: waybill,
-          trackingUrl: trackingUrl,
-          note: "Delhivery returned success=false but created package (half-success scenario)",
-        });
+    // Wrap courier parsing in try/catch to prevent crashes from shipment errors
+    try {
+      if (uploadWbn && !hasWaybill) {
+        // If we have upload_wbn but no waybill in packages, use upload_wbn as waybill
+        console.log("⚠️ Delhivery returned upload_wbn but no waybill in packages. Using upload_wbn as waybill:", uploadWbn);
+        const waybill = String(uploadWbn).trim();
+        if (isValidWaybill(waybill)) {
+          const trackingUrl = `https://www.delhivery.com/track/${waybill}`;
+          console.log("✅ Delhivery order created successfully (using upload_wbn):", {
+            orderId: orderData.orderId,
+            waybill: waybill,
+            trackingUrl: trackingUrl,
+            note: "Delhivery returned success=false but created package (half-success scenario)",
+          });
+          return {
+            success: true,
+            waybill: waybill,
+            courier_name: "Delhivery",
+            delivery_status: "CREATED",
+            tracking_url: trackingUrl,
+            deliveryStatus: "SENT",
+            shipment_status: "SHIPPED",
+            isMock: false,
+            rawResponse: responseData,
+          };
+        }
+      }
+      
+      // Extract waybill from response (reached if package was created, even if success=false)
+      const packageData = packages?.[0] || {};
+      const waybill = String(packageData?.waybill || "").trim();
+
+      // Validate waybill is real (numeric, not MOCK)
+      if (!isValidWaybill(waybill)) {
+        console.error("❌ Invalid waybill format (expected numeric):", waybill);
         return {
-          success: true,
-          waybill: waybill,
-          courier_name: "Delhivery",
-          delivery_status: "CREATED",
-          tracking_url: trackingUrl,
-          deliveryStatus: "SENT",
-          shipment_status: "SHIPPED",
+          success: false,
+          error: `Invalid waybill format: ${waybill}`,
+          deliveryStatus: "PENDING",
+          shipment_status: "PENDING",
           isMock: false,
           rawResponse: responseData,
         };
       }
-    }
-    
-    // Extract waybill from response (reached if package was created, even if success=false)
-    const packageData = packages[0];
-    const waybill = String(packageData.waybill || "").trim();
 
-    // Validate waybill is real (numeric, not MOCK)
-    if (!isValidWaybill(waybill)) {
-      console.error("❌ Invalid waybill format (expected numeric):", waybill);
+      // Construct tracking URL
+      const trackingUrl = `https://www.delhivery.com/track/${waybill}`;
+
+      // Log success (even if Delhivery returned success=false but created package)
+      const wasHalfSuccess = responseData?.success === false && (uploadWbn || packageCount > 0);
+      console.log(`✅ Delhivery order created successfully (REAL${wasHalfSuccess ? " - half-success scenario" : ""}):`, {
+        orderId: orderData.orderId,
+        waybill: waybill,
+        courierName: packageData?.courier_name || "Delhivery",
+        trackingUrl: trackingUrl,
+        delhiverySuccess: responseData?.success,
+        upload_wbn: uploadWbn || "N/A",
+        package_count: packageCount,
+        note: wasHalfSuccess ? "Delhivery returned success=false but created package. Treating as success." : "Normal success response",
+      });
+
+      // Log response summary (safe, no secrets)
+      console.log("📋 Delhivery Response Summary:", {
+        success: true,
+        waybill: waybill,
+        hasWaybill: !!waybill,
+        packageCount: packages?.length || 0,
+        pickup_location_used: pickupLocationName,
+        order_id: orderData.orderId,
+        form_keys_used: ["data", "format"], // Confirms we used both 'data' and 'format' keys in request
+      });
+
+      // Success: Save waybill and set shipment_status = "SHIPPED"
+      return {
+        success: true,
+        waybill: waybill,
+        courier_name: packageData?.courier_name || "Delhivery",
+        delivery_status: packageData?.status || "CREATED",
+        tracking_url: trackingUrl,
+        deliveryStatus: "SENT",
+        shipment_status: "SHIPPED", // Set shipment_status to SHIPPED on success
+        isMock: false,
+        rawResponse: responseData,
+      };
+    } catch (parseError) {
+      // Catch any errors during courier parsing to prevent API crashes
+      console.error("❌ Error parsing Delhivery courier response:", parseError);
       return {
         success: false,
-        error: `Invalid waybill format: ${waybill}`,
+        error: `Failed to parse courier response: ${parseError?.message || "Unknown error"}`,
         deliveryStatus: "PENDING",
         shipment_status: "PENDING",
         isMock: false,
         rawResponse: responseData,
       };
     }
-
-    // Construct tracking URL
-    const trackingUrl = `https://www.delhivery.com/track/${waybill}`;
-
-    // Log success (even if Delhivery returned success=false but created package)
-    const wasHalfSuccess = responseData?.success === false && (uploadWbn || packageCount > 0);
-    console.log(`✅ Delhivery order created successfully (REAL${wasHalfSuccess ? " - half-success scenario" : ""}):`, {
-      orderId: orderData.orderId,
-      waybill: waybill,
-      courierName: packageData.courier_name || "Delhivery",
-      trackingUrl: trackingUrl,
-      delhiverySuccess: responseData?.success,
-      upload_wbn: uploadWbn || "N/A",
-      package_count: packageCount,
-      note: wasHalfSuccess ? "Delhivery returned success=false but created package. Treating as success." : "Normal success response",
-    });
-
-    // Log response summary (safe, no secrets)
-    console.log("📋 Delhivery Response Summary:", {
-      success: true,
-      waybill: waybill,
-      hasWaybill: !!waybill,
-      packageCount: packages.length,
-      pickup_location_used: pickupLocationName,
-      order_id: orderData.orderId,
-      form_keys_used: ["data", "format"], // Confirms we used both 'data' and 'format' keys in request
-    });
-
-    // Success: Save waybill and set shipment_status = "SHIPPED"
-    return {
-      success: true,
-      waybill: waybill,
-      courier_name: packageData.courier_name || "Delhivery",
-      delivery_status: packageData.status || "CREATED",
-      tracking_url: trackingUrl,
-      deliveryStatus: "SENT",
-      shipment_status: "SHIPPED", // Set shipment_status to SHIPPED on success
-      isMock: false,
-      rawResponse: responseData,
-    };
   } catch (error) {
     console.error("❌ Delhivery service error:", error);
     return {

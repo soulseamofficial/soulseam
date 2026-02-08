@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { sanitizeText } from "@/app/lib/delhivery";
 
 export async function POST(req) {
   try {
@@ -59,37 +60,39 @@ export async function POST(req) {
       );
     }
     
-    // CRITICAL: products_desc MUST be an ARRAY of objects, not a string
-    // Delhivery's Python backend expects products_desc as array and calls .get() on each product object
-    // Sending as string causes: "'unicode' object has no attribute 'get'" error
-    // Each product object must have: name, quantity, and value fields
+    // CRITICAL: products_desc MUST be a STRING (comma-separated), not an array
+    // Delhivery's Python backend expects products_desc as a string
+    // Sending as array/object causes: "'unicode' object has no attribute 'get'" error
     const totalQuantity = items.reduce((s, i) => s + (i.quantity || 1), 0);
     const productsDesc = Array.isArray(items) && items.length > 0
-      ? items.map(item => ({
-          name: String(item.name || item.title || item.productName || "Item").substring(0, 100), // Max 100 chars
-          quantity: Number(item.quantity || 1),
-          value: Number(item.price || item.amount || item.value || 0)
-        }))
-      : [{
-          name: "Item",
-          quantity: totalQuantity || 1,
-          value: isCOD ? codAmount : 0
-        }];
+      ? items
+          .map(item => {
+            // Sanitize product name to remove unicode characters
+            const rawItemName = String(item.name || item.title || item.productName || "Item").substring(0, 100);
+            const itemName = sanitizeText(rawItemName);
+            const itemQuantity = Number(item.quantity || 1);
+            return `${itemName} x${itemQuantity}`;
+          })
+          .join(", ")
+      : `Item x${totalQuantity || 1}`;
+
+    // Sanitize customer name
+    const customerName = (shippingAddress.firstName || "") + " " + (shippingAddress.lastName || "").trim() || "Customer";
 
     const shipment = {
       order: String(orderId),
       payment_mode: isCOD ? "COD" : "Prepaid",
-      name: (shippingAddress.firstName || "") + " " + (shippingAddress.lastName || "").trim() || "Customer",
+      name: sanitizeText(customerName), // Sanitize customer name
       weight: 0.5, // MUST be number (kg)
       phone: String(shippingAddress.phone || ""),
-      add: String(shippingAddress.address || shippingAddress.addressLine1 || ""), // MUST be "add", not "address"
+      add: sanitizeText(String(shippingAddress.address || shippingAddress.addressLine1 || "")), // Sanitize address
       pin: String(shippingAddress.pin || shippingAddress.pincode || ""),
-      city: String(shippingAddress.city || ""),
-      state: String(shippingAddress.state || ""),
+      city: sanitizeText(String(shippingAddress.city || "")), // Sanitize city
+      state: sanitizeText(String(shippingAddress.state || "")), // Sanitize state
       country: "India",
-      // CRITICAL: products_desc MUST be an ARRAY of product objects (not a string)
-      // Delhivery's Python backend calls .get() on each product object in the array
-      products_desc: productsDesc, // MUST be array of objects with name, quantity, value
+      // CRITICAL: products_desc MUST be a STRING (comma-separated), not an array
+      // Delhivery's Python backend expects products_desc as a string
+      products_desc: sanitizeText(productsDesc), // Sanitize products_desc
       quantity: totalQuantity, // MUST be number
       shipment_length: 20, // MUST be number (cm)
       shipment_breadth: 15, // MUST be number (cm)
@@ -117,42 +120,21 @@ export async function POST(req) {
       }
     }
     
-    // CRITICAL: Ensure products_desc is always present and is an array (mandatory for Delhivery CMU)
-    if (!sanitizedShipment.products_desc || !Array.isArray(sanitizedShipment.products_desc)) {
-      sanitizedShipment.products_desc = [{
-        name: "Item",
-        quantity: sanitizedShipment.quantity || 1,
-        value: isCOD ? codAmount : 0
-      }];
+    // CRITICAL: Ensure products_desc is always present and is a string (mandatory for Delhivery CMU)
+    if (!sanitizedShipment.products_desc || typeof sanitizedShipment.products_desc !== 'string') {
+      sanitizedShipment.products_desc = sanitizeText(`Item x${sanitizedShipment.quantity || 1}`);
     }
     
-    // Validate products_desc array structure
-    if (!Array.isArray(sanitizedShipment.products_desc) || sanitizedShipment.products_desc.length === 0) {
+    // Validate products_desc is a string
+    if (typeof sanitizedShipment.products_desc !== 'string' || sanitizedShipment.products_desc.trim().length === 0) {
       return NextResponse.json(
-        { success: false, message: "products_desc must be a non-empty array of product objects" },
+        { success: false, message: "products_desc must be a non-empty string" },
         { status: 400 }
       );
     }
     
-    // Ensure each product object has required fields
-    for (let i = 0; i < sanitizedShipment.products_desc.length; i++) {
-      const product = sanitizedShipment.products_desc[i];
-      if (!product || typeof product !== 'object') {
-        return NextResponse.json(
-          { success: false, message: `products_desc[${i}] must be an object with name, quantity, and value fields` },
-          { status: 400 }
-        );
-      }
-      if (!product.name || typeof product.name !== 'string') {
-        sanitizedShipment.products_desc[i].name = "Item";
-      }
-      if (typeof product.quantity !== 'number' || isNaN(product.quantity)) {
-        sanitizedShipment.products_desc[i].quantity = 1;
-      }
-      if (typeof product.value !== 'number' || isNaN(product.value)) {
-        sanitizedShipment.products_desc[i].value = 0;
-      }
-    }
+    // Validate payload before sending - ensure products_desc is a string
+    console.log(typeof sanitizedShipment.products_desc);
     
     const payload = {
       // Optional: Add client name if configured
