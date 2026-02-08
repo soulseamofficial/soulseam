@@ -2091,19 +2091,32 @@ export default function CheckoutPage() {
         description: "Order Payment",
         order_id: data.orderId,
         handler: async function (response) {
-          const shippingAddressSnapshot = {
-            fullName: [form.firstName, form.lastName].filter(Boolean).join(" "),
-            phone: form.phone,
-            addressLine1: form.address,
-            addressLine2: form.apt,
-            city: form.city,
-            state: form.state,
-            pincode: form.pin,
-            country: form.country,
-          };
+          console.log("🚀 PAYMENT SUCCESS HIT - Razorpay payment handler called", {
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_signature: response.razorpay_signature ? "present" : "missing",
+          });
+          
+          try {
+            const shippingAddressSnapshot = {
+              fullName: [form.firstName, form.lastName].filter(Boolean).join(" "),
+              phone: form.phone,
+              addressLine1: form.address,
+              addressLine2: form.apt,
+              city: form.city,
+              state: form.state,
+              pincode: form.pin,
+              country: form.country,
+            };
 
-          // Ensure guest user exists if not logged in
-          const gId = await upsertGuestUser(shippingAddressSnapshot);
+            console.log("📦 CREATING ORDER - Preparing order data", {
+              shippingAddress: shippingAddressSnapshot,
+              itemsCount: itemsWithFinalPrice.length || cartItems.length,
+            });
+
+            // Ensure guest user exists if not logged in
+            const gId = await upsertGuestUser(shippingAddressSnapshot);
+            console.log("👤 Guest user ID:", gId || "User is logged in");
 
           // Ensure items are available - use cartItems directly if itemsWithFinalPrice is empty
           let itemsToSend = [];
@@ -2134,9 +2147,16 @@ export default function CheckoutPage() {
           });
 
           if (itemsToSend.length === 0) {
+            console.error("❌ Cart is empty - cannot create order");
             window?.alert?.("Your cart is empty. Please add items before placing an order.");
             return;
           }
+
+          console.log("📤 CREATING ORDER - Sending request to /api/checkout", {
+            itemsCount: itemsToSend.length,
+            paymentMethod: "ONLINE",
+            hasRazorpayDetails: !!(response.razorpay_payment_id && response.razorpay_signature),
+          });
 
           // Create order directly via checkout API with payment verification
           const checkoutRes = await fetch("/api/checkout", {
@@ -2158,11 +2178,34 @@ export default function CheckoutPage() {
             }),
           });
 
-          const checkoutData = await checkoutRes.json().catch(() => ({}));
+          const checkoutData = await checkoutRes.json().catch((err) => {
+            console.error("❌ Failed to parse checkout response:", err);
+            return {};
+          });
+          
+          console.log("📥 Checkout API response received", {
+            ok: checkoutRes.ok,
+            status: checkoutRes.status,
+            orderId: checkoutData?.orderId,
+            success: checkoutData?.success,
+            message: checkoutData?.message,
+          });
+          
           if (!checkoutRes.ok) {
+            console.error("❌ ORDER CREATION FAILED", {
+              status: checkoutRes.status,
+              message: checkoutData?.message,
+              errors: checkoutData?.stockErrors,
+            });
             window?.alert?.(checkoutData?.message || "Payment verified but order creation failed.");
             return;
           }
+
+          console.log("✅ ORDER CREATED - Order successfully created in database", {
+            orderId: checkoutData?.orderId,
+            orderStatus: checkoutData?.orderStatus,
+            paymentStatus: checkoutData?.paymentStatus,
+          });
 
           // Order successfully created in database - trigger premium success animation
           // This is payment-agnostic and order-status driven only
@@ -2180,6 +2223,14 @@ export default function CheckoutPage() {
           setCouponDiscount(0);
           setCouponError("");
           setShowCouponSuccess(false);
+          } catch (handlerError) {
+            console.error("❌ PAYMENT HANDLER ERROR - Error in Razorpay payment handler", {
+              error: handlerError.message,
+              stack: handlerError.stack,
+              response: response,
+            });
+            window?.alert?.("Payment succeeded but an error occurred while creating your order. Please contact support with payment ID: " + response.razorpay_payment_id);
+          }
         },
         prefill: {
           name: form.firstName + " " + form.lastName,

@@ -91,15 +91,31 @@ export async function POST(req) {
       }
 
       // Find order by Razorpay order ID
+      console.log("🔍 WEBHOOK: Searching for order", {
+        razorpayOrderId: razorpayOrderId,
+        paymentMethod: "ONLINE",
+      });
+      
       const order = await Order.findOne({
         razorpayOrderId: razorpayOrderId,
         paymentMethod: "ONLINE",
       });
 
       if (!order) {
-        console.warn("⚠️ Order not found for Razorpay order ID:", razorpayOrderId);
+        console.error("❌ WEBHOOK: Order not found for Razorpay order ID - This indicates order creation failed!", {
+          razorpayOrderId: razorpayOrderId,
+          razorpayPaymentId: razorpayPaymentId,
+          paymentStatus: paymentStatus,
+          message: "CRITICAL: Payment succeeded but order was never created. Check checkout API logs.",
+        });
         return NextResponse.json({ received: true, message: "Order not found" });
       }
+      
+      console.log("✅ WEBHOOK: Order found", {
+        orderId: order._id.toString(),
+        currentPaymentStatus: order.paymentStatus,
+        currentOrderStatus: order.orderStatus,
+      });
 
       // Check if order is already processed
       if (order.paymentStatus === "PAID" && order.orderStatus === "CONFIRMED") {
