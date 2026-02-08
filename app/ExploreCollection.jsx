@@ -386,12 +386,12 @@ const ExploreCollection = () => {
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white/10 border border-white/20 text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-white/50 touch-manipulation"
+                  className="appearance-none px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-black border border-white/20 text-white text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-white/50 touch-manipulation"
                 >
-                  <option value="featured">Featured</option>
-                  <option value="price-low">Price: Low to High</option>
-                  <option value="price-high">Price: High to Low</option>
-                  <option value="rating">Top Rated</option>
+                  <option value="featured" className="bg-black text-white">Featured</option>
+                  <option value="price-low" className="bg-black text-white">Price: Low to High</option>
+                  <option value="price-high" className="bg-black text-white">Price: High to Low</option>
+                  <option value="rating" className="bg-black text-white">Top Rated</option>
                 </select>
               </div>
 
@@ -407,9 +407,6 @@ const ExploreCollection = () => {
                     }`}
                   >
                     <span className="font-medium">{category.name}</span>
-                    <span className="ml-1 sm:ml-2 text-[10px] sm:text-xs opacity-80">
-                      ({category.count})
-                    </span>
                   </button>
                 ))}
               </div>
