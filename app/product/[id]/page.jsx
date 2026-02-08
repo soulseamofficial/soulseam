@@ -868,14 +868,12 @@ export default function ProductPage() {
               </LuxuryAccordion>
               <LuxuryAccordion title="Fit Guide" accordionKey="fit">
                 <div>
-                  <div>Model is 6'1" (186cm) and wears size L. Fits true to size — for a relaxed fit, size up.</div>
-                  <div className="mt-2 text-white/60">A tailored shoulder, elevated neckline, and a slightly elongated hem.</div>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       setIsSizeGuideOpen(true);
                     }}
-                    className="mt-4 px-4 py-2 rounded-xl text-white/90 hover:text-white bg-white/10 hover:bg-white/15 border border-white/20 hover:border-white/30 transition-all duration-300 text-sm font-medium"
+                    className="px-4 py-2 rounded-xl text-white/90 hover:text-white bg-white/10 hover:bg-white/15 border border-white/20 hover:border-white/30 transition-all duration-300 text-sm font-medium"
                   >
                     View Size Guide →
                   </button>
@@ -883,10 +881,7 @@ export default function ProductPage() {
               </LuxuryAccordion>
               <LuxuryAccordion title="Delivery & Returns" accordionKey="delivery">
                 <div>
-                  <strong className="block mb-1 text-white/85">Express delivery: Next business day.</strong>
-                  90-day easy returns. <br />
-                  Orders ship from our atelier in LA. Packaged in signature FSC-certified gift box. <br />
-                  <span className="inline-block mt-1 text-white/55 text-sm">Questions? <a href="/contact" className="underline text-white/60 hover:text-white">Contact us</a></span>
+                  <span className="font-semibold text-amber-300/90">3-day exchange only. No returns.</span>
                 </div>
               </LuxuryAccordion>
             </AccordionGroup>
@@ -1178,14 +1173,12 @@ export default function ProductPage() {
                 </LuxuryAccordion>
                 <LuxuryAccordion title="Fit Guide" accordionKey="fit">
                   <div>
-                    <div>Model is 6'1" (186cm) and wears size L. Fits true to size — for a relaxed fit, size up.</div>
-                    <div className="mt-2 text-white/60">A tailored shoulder, elevated neckline, and a slightly elongated hem.</div>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         setIsSizeGuideOpen(true);
                       }}
-                      className="mt-4 px-4 py-2 rounded-xl text-white/90 hover:text-white bg-white/10 hover:bg-white/15 border border-white/20 hover:border-white/30 transition-all duration-300 text-sm font-medium"
+                      className="px-4 py-2 rounded-xl text-white/90 hover:text-white bg-white/10 hover:bg-white/15 border border-white/20 hover:border-white/30 transition-all duration-300 text-sm font-medium"
                     >
                       View Size Guide →
                     </button>
@@ -1194,9 +1187,7 @@ export default function ProductPage() {
                 <LuxuryAccordion title="Delivery & Returns" accordionKey="delivery">
                   <div>
                     <strong className="block mb-1 text-white/85">Express delivery: Next business day.</strong>
-                    90-day easy returns. <br />
-                    Orders ship from our atelier in LA. Packaged in signature FSC-certified gift box. <br />
-                    <span className="inline-block mt-1 text-white/55 text-sm">Questions? <a href="/contact" className="underline text-white/60 hover:text-white">Contact us</a></span>
+                    <span className="font-semibold text-amber-300/90">3-day exchange only. No returns.</span>
                   </div>
                 </LuxuryAccordion>
               </AccordionGroup>

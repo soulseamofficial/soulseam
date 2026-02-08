@@ -272,8 +272,8 @@ function CouponDropdown({
             <div className="mt-3 p-3 rounded-lg bg-amber-500/5 border border-amber-400/20">
               <p className="text-amber-300/90 text-xs font-medium leading-relaxed">
                 <span className="font-semibold">Note:</span><br />
-                Orders placed using coupons are NOT eligible for returns.
-                Exchanges are allowed only with a valid reason and mandatory unboxing video proof.
+                Our policy: 3-day exchange only. No returns.<br />
+                Orders placed using coupons require a valid reason and mandatory unboxing video proof for exchanges.
               </p>
             </div>
           </div>
@@ -368,8 +368,8 @@ function CouponDropdown({
           <div className="mt-3 p-3 rounded-lg bg-amber-500/5 border border-amber-400/20">
             <p className="text-amber-300/90 text-xs font-medium leading-relaxed">
               <span className="font-semibold">Note:</span><br />
-              Orders placed using coupons are NOT eligible for returns.
-              Exchanges are allowed only with a valid reason and mandatory unboxing video proof.
+              Our policy: 3-day exchange only. No returns.<br />
+              Orders placed using coupons require a valid reason and mandatory unboxing video proof for exchanges.
             </p>
           </div>
         </div>
