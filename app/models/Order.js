@@ -184,6 +184,14 @@ const OrderSchema = new mongoose.Schema(
       trim: true,
       maxlength: 250,
     },
+
+    // Order source tracking
+    orderSource: {
+      type: String,
+      enum: ["WEBSITE", "ADMIN", null],
+      default: null,
+      index: true,
+    },
   },
   { timestamps: true }
 );

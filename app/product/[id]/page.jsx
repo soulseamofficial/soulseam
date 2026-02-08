@@ -380,6 +380,9 @@ export default function ProductPage() {
   // Accordion group for product description
   const [openAccordionKey, setOpenAccordionKey] = useState(null);
 
+  // Size guide modal state
+  const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
+
   // SCROLL REFS FOR MOBILE FLOW
   const detailsRef = useRef(null);
 
@@ -391,6 +394,44 @@ export default function ProductPage() {
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
   }, []);
+
+  // Determine which size guide image to show based on product name
+  const getSizeGuideImage = useMemo(() => {
+    if (!product?.name) return "/images/sizechart1.jpeg";
+    const name = product.name.toLowerCase();
+    // Check for AmorFly Infinite Bloom - Royal Blue
+    if (name.includes("amorfly") || name.includes("infinite bloom")) {
+      return "/images/sizechart2.jpeg";
+    }
+    // Check for SOUL – Dual Rose Emblem Tee
+    if (name.includes("soul") && name.includes("dual rose")) {
+      return "/images/sizechart1.jpeg";
+    }
+    // Default to sizechart1
+    return "/images/sizechart1.jpeg";
+  }, [product?.name]);
+
+  // Prevent body scroll when size guide modal is open and handle Escape key
+  useEffect(() => {
+    if (isSizeGuideOpen) {
+      document.body.style.overflow = "hidden";
+      const handleEscape = (e) => {
+        if (e.key === "Escape") {
+          setIsSizeGuideOpen(false);
+        }
+      };
+      window.addEventListener("keydown", handleEscape);
+      return () => {
+        document.body.style.overflow = "unset";
+        window.removeEventListener("keydown", handleEscape);
+      };
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isSizeGuideOpen]);
 
   // Product data fetch
   useEffect(() => {
@@ -695,7 +736,10 @@ export default function ProductPage() {
                   </div>
                 )}
                 <div className="mt-1 text-xs text-white/35 text-center">
-                  View <span className="underline hover:text-white/65 cursor-pointer">Size Guide</span>
+                  View <span 
+                    className="underline hover:text-white/65 cursor-pointer"
+                    onClick={() => setIsSizeGuideOpen(true)}
+                  >Size Guide</span>
                 </div>
               </>
             ) : (
@@ -824,8 +868,17 @@ export default function ProductPage() {
               </LuxuryAccordion>
               <LuxuryAccordion title="Fit Guide" accordionKey="fit">
                 <div>
-                  <div>Model is 6’1” (186cm) and wears size L. Fits true to size — for a relaxed fit, size up.</div>
+                  <div>Model is 6'1" (186cm) and wears size L. Fits true to size — for a relaxed fit, size up.</div>
                   <div className="mt-2 text-white/60">A tailored shoulder, elevated neckline, and a slightly elongated hem.</div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsSizeGuideOpen(true);
+                    }}
+                    className="mt-4 px-4 py-2 rounded-xl text-white/90 hover:text-white bg-white/10 hover:bg-white/15 border border-white/20 hover:border-white/30 transition-all duration-300 text-sm font-medium"
+                  >
+                    View Size Guide →
+                  </button>
                 </div>
               </LuxuryAccordion>
               <LuxuryAccordion title="Delivery & Returns" accordionKey="delivery">
@@ -1012,7 +1065,10 @@ export default function ProductPage() {
                       </div>
                     )}
                     <div className="mt-1 text-xs text-white/35 text-center">
-                      View <span className="underline hover:text-white/65 cursor-pointer">Size Guide</span>
+                      View <span 
+                        className="underline hover:text-white/65 cursor-pointer"
+                        onClick={() => setIsSizeGuideOpen(true)}
+                      >Size Guide</span>
                     </div>
                   </>
                 ) : (
@@ -1122,8 +1178,17 @@ export default function ProductPage() {
                 </LuxuryAccordion>
                 <LuxuryAccordion title="Fit Guide" accordionKey="fit">
                   <div>
-                    <div>Model is 6’1” (186cm) and wears size L. Fits true to size — for a relaxed fit, size up.</div>
+                    <div>Model is 6'1" (186cm) and wears size L. Fits true to size — for a relaxed fit, size up.</div>
                     <div className="mt-2 text-white/60">A tailored shoulder, elevated neckline, and a slightly elongated hem.</div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsSizeGuideOpen(true);
+                      }}
+                      className="mt-4 px-4 py-2 rounded-xl text-white/90 hover:text-white bg-white/10 hover:bg-white/15 border border-white/20 hover:border-white/30 transition-all duration-300 text-sm font-medium"
+                    >
+                      View Size Guide →
+                    </button>
                   </div>
                 </LuxuryAccordion>
                 <LuxuryAccordion title="Delivery & Returns" accordionKey="delivery">
@@ -1139,6 +1204,51 @@ export default function ProductPage() {
           </div>
         </section>
       </div>
+      {/* Size Guide Modal */}
+      {isSizeGuideOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-sm p-4"
+          onClick={() => setIsSizeGuideOpen(false)}
+        >
+          <div
+            className="relative max-w-5xl max-h-[95vh] w-full bg-black/90 rounded-3xl border border-white/20 shadow-[0_20px_80px_rgba(255,255,255,0.15)] overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header with close button */}
+            <div className="flex items-center justify-between p-4 border-b border-white/10">
+              <h2 className="text-lg font-semibold text-white">Size Guide</h2>
+              <button
+                onClick={() => setIsSizeGuideOpen(false)}
+                className="p-2 rounded-full bg-black/60 border border-white/20 text-white hover:bg-black/80 hover:border-white/40 transition-all duration-300"
+                aria-label="Close size guide"
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            {/* Image container */}
+            <div className="relative w-full flex-1 overflow-auto">
+              <img
+                src={getSizeGuideImage}
+                alt="Size Guide"
+                className="w-full h-auto object-contain"
+                draggable={false}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Global CSS for checkout-style hover effects */}
       <style jsx global>{`
         /* Premium summary hover effect - matching checkout page */
