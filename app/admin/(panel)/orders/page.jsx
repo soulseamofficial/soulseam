@@ -2,6 +2,108 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+// Reusable Address Accordion Component
+function AddressAccordion({ address }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  if (!address) {
+    return (
+      <div className="mb-4 p-4 rounded-xl bg-white/5 border border-white/10">
+        <p className="text-sm text-white/50 italic">No address available</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-4 rounded-xl bg-white/5 border border-white/10 overflow-hidden transition-all duration-300">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full px-4 py-3 flex items-center justify-between hover:bg-white/5 transition-colors duration-200"
+      >
+        <span className="text-sm font-semibold text-white/90">Customer Address</span>
+        <span className="text-xs font-medium text-white/70 flex items-center gap-2">
+          {isExpanded ? "Hide Address" : "View Address"}
+          <span className={`transform transition-transform duration-300 ${isExpanded ? "rotate-180" : ""}`}>
+            ▼
+          </span>
+        </span>
+      </button>
+      
+      <div
+        className={`overflow-hidden transition-all duration-300 ease-in-out ${
+          isExpanded ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+        }`}
+      >
+        <div className="px-4 pb-4 pt-2 space-y-3">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs text-white/50 mb-1">Full Name</p>
+              <p className="text-sm font-semibold text-white/90">
+                {address.fullName || "N/A"}
+              </p>
+            </div>
+            
+            <div>
+              <p className="text-xs text-white/50 mb-1">Phone</p>
+              <p className="text-sm font-semibold text-white/90">
+                {address.phone || "N/A"}
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs text-white/50 mb-1">Address Line 1</p>
+            <p className="text-sm font-semibold text-white/90">
+              {address.addressLine1 || "N/A"}
+            </p>
+          </div>
+
+          {address.addressLine2 && (
+            <div>
+              <p className="text-xs text-white/50 mb-1">Address Line 2</p>
+              <p className="text-sm font-semibold text-white/90">
+                {address.addressLine2}
+              </p>
+            </div>
+          )}
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs text-white/50 mb-1">City</p>
+              <p className="text-sm font-semibold text-white/90">
+                {address.city || "N/A"}
+              </p>
+            </div>
+            
+            <div>
+              <p className="text-xs text-white/50 mb-1">State</p>
+              <p className="text-sm font-semibold text-white/90">
+                {address.state || "N/A"}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs text-white/50 mb-1">Pincode</p>
+              <p className="text-sm font-semibold text-white/90">
+                {address.pincode || "N/A"}
+              </p>
+            </div>
+            
+            <div>
+              <p className="text-xs text-white/50 mb-1">Country</p>
+              <p className="text-sm font-semibold text-white/90">
+                {address.country || "N/A"}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -78,42 +180,78 @@ export default function AdminOrdersPage() {
     return arr;
   }, [orders, sortBy]);
 
+  /* ---------- ADDRESS FORMATTER ---------- */
+  function formatAddress(address) {
+    if (!address) return "";
+
+    const parts = [];
+    
+    if (address.addressLine1) parts.push(address.addressLine1);
+    if (address.addressLine2) parts.push(address.addressLine2);
+    if (address.city) parts.push(address.city);
+    
+    // Format: State - Pincode (only if both exist, or individually if one is missing)
+    if (address.state && address.pincode) {
+      parts.push(`${address.state} - ${address.pincode}`);
+    } else if (address.state) {
+      parts.push(address.state);
+    } else if (address.pincode) {
+      parts.push(address.pincode);
+    }
+    
+    if (address.country) parts.push(address.country);
+    
+    return parts.join(", ");
+  }
+
   /* ---------- EXPORT CSV ---------- */
   function exportCSV() {
     if (orders.length === 0) return;
 
+    // Format orders with address
+    const formattedOrders = orders.map(order => ({
+      OrderID: order._id,
+      CustomerName: `${order.customer?.firstName || ""} ${order.customer?.lastName || ""}`.trim() || "N/A",
+      Phone: order.customer?.phone || order.shippingAddress?.phone || "",
+      Email: order.customer?.email || "",
+      FullAddress: formatAddress(order.shippingAddress),
+      PaymentMethod: order.paymentMethod || order.payment?.method || "N/A",
+      OrderStatus: order.orderStatus || order.status || "N/A",
+      PaymentStatus: order.paymentStatus || order.payment?.status || "N/A",
+      TotalAmount: order.totalAmount || order.finalTotal || order.total || 0,
+      CreatedAt: order.createdAt ? new Date(order.createdAt).toLocaleString() : "N/A"
+    }));
+
     const headers = [
       "Order ID",
-      "Name",
+      "Customer Name",
       "Phone",
       "Email",
+      "Full Address",
       "Payment Method",
-      "Advance Paid",
-      "Remaining COD",
-      "Final Total",
       "Order Status",
       "Payment Status",
-      "Date",
+      "Total Amount",
+      "Created At",
     ];
 
-    const rows = orders.map(o => [
-      o._id,
-      `${o.customer?.firstName || ""} ${o.customer?.lastName || ""}`,
-      o.customer?.phone || "",
-      o.customer?.email || "",
-      o.paymentMethod || o.payment?.method || "N/A",
-      o.paymentMethod === "COD" ? (o.advancePaid || 0) : (o.paymentStatus === "PAID" ? (o.totalAmount || o.total || 0) : 0),
-      o.paymentMethod === "COD" ? (o.remainingCOD || (o.totalAmount || o.total || 0)) : 0,
-      o.totalAmount || o.finalTotal || o.total || 0,
-      o.orderStatus,
-      o.paymentStatus || o.payment?.status || "N/A",
-      new Date(o.createdAt).toLocaleString(),
+    const rows = formattedOrders.map(o => [
+      o.OrderID,
+      o.CustomerName,
+      o.Phone,
+      o.Email,
+      o.FullAddress,
+      o.PaymentMethod,
+      o.OrderStatus,
+      o.PaymentStatus,
+      o.TotalAmount,
+      o.CreatedAt,
     ]);
 
     const csv =
       headers.join(",") +
       "\n" +
-      rows.map(r => r.map(v => `"${v}"`).join(",")).join("\n");
+      rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
 
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -314,6 +452,9 @@ export default function AdminOrdersPage() {
                         )}
                       </div>
                     </div>
+
+                    {/* Customer Address Accordion */}
+                    <AddressAccordion address={order.shippingAddress} />
 
                     <div className="grid md:grid-cols-2 gap-4 mb-4">
                       <div>

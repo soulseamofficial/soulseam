@@ -20,6 +20,7 @@ export default function ProductsPage() {
     try {
       const res = await fetch("/api/admin/products", {
         credentials: "include", // 🔑 IMPORTANT: Include cookies for authentication
+        cache: "no-store", // 🔥 Always fetch fresh data to reflect stock changes
       });
       
       if (!res.ok) {

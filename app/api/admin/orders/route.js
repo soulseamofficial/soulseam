@@ -16,6 +16,7 @@ export async function GET(req) {
 
     const orders = await Order.find({})
       .sort({ createdAt: -1 });
+    // Note: shippingAddress is included by default in Mongoose queries
 
     return NextResponse.json({
       success: true,

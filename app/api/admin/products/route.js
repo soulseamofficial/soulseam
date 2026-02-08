@@ -21,6 +21,8 @@ export async function POST(req) {
 
     const title = formData.get("title");
     const price = Number(formData.get("price"));
+    const compareAtPriceRaw = formData.get("compareAtPrice");
+    const compareAtPrice = compareAtPriceRaw ? Number(compareAtPriceRaw) : null;
     const description = formData.get("description");
     const category = formData.get("category");
 
@@ -35,6 +37,14 @@ export async function POST(req) {
     if (!title || !price || !description || !category || sizes.length === 0) {
       return Response.json(
         { error: "Missing required fields or sizes" },
+        { status: 400 }
+      );
+    }
+
+    // ✅ VALIDATION: Prevent fake discounts
+    if (compareAtPrice && compareAtPrice <= price) {
+      return Response.json(
+        { error: "Original price must be higher than selling price" },
         { status: 400 }
       );
     }
@@ -87,6 +97,7 @@ export async function POST(req) {
     const product = await Product.create({
       title: title.trim(),
       price,
+      compareAtPrice,
       description,
       category,
       images: uploadedImages, // ✅ Cloudinary URLs
@@ -125,12 +136,24 @@ export async function GET(req) {
       if (!product) {
         return NextResponse.json({ error: "Product not found" }, { status: 404 });
       }
-      return NextResponse.json(product);
+      return NextResponse.json(product, {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          "Pragma": "no-cache",
+          "Expires": "0",
+        },
+      });
     }
 
     const products = await Product.find().sort({ createdAt: -1 });
     console.log(`[Admin Products] Fetched ${products.length} products`);
-    return NextResponse.json(products);
+    return NextResponse.json(products, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+      },
+    });
   } catch (err) {
     console.error("[Admin Products] GET error:", err);
     return NextResponse.json(
@@ -164,27 +187,45 @@ export async function PUT(req) {
 
     const body = await req.json();
 
+    // Fetch existing product for validation
+    const existingProduct = await Product.findById(id);
+    if (!existingProduct) {
+      return NextResponse.json(
+        { error: "Product not found" },
+        { status: 404 }
+      );
+    }
+
     // Build update object with only provided fields
     const updateData = {};
     if (body.title !== undefined) updateData.title = body.title;
     if (body.price !== undefined) updateData.price = body.price;
+    if (body.compareAtPrice !== undefined) {
+      updateData.compareAtPrice = body.compareAtPrice || null;
+    }
     if (body.description !== undefined) updateData.description = body.description;
     if (body.category !== undefined) updateData.category = body.category;
     if (body.sizes !== undefined) updateData.sizes = body.sizes;
     if (body.isActive !== undefined) updateData.isActive = body.isActive;
+
+    // ✅ VALIDATION: Prevent fake discounts
+    const finalPrice = updateData.price !== undefined ? updateData.price : existingProduct.price;
+    const finalCompareAtPrice = updateData.compareAtPrice !== undefined 
+      ? updateData.compareAtPrice 
+      : existingProduct.compareAtPrice;
+    
+    if (finalCompareAtPrice && finalCompareAtPrice <= finalPrice) {
+      return NextResponse.json(
+        { error: "Original price must be higher than selling price" },
+        { status: 400 }
+      );
+    }
 
     const updated = await Product.findByIdAndUpdate(
       id,
       updateData,
       { new: true }
     );
-
-    if (!updated) {
-      return NextResponse.json(
-        { error: "Product not found" },
-        { status: 404 }
-      );
-    }
 
     console.log(`[Admin Products] Product updated: ${updated.title} (ID: ${updated._id})`);
     return NextResponse.json(updated);

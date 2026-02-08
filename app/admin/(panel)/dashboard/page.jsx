@@ -14,8 +14,8 @@ export default function AdminDashboardPage() {
     reels: 0,
     coupons: 0,
     users: 0,
+    orders: 0,
   });
-  const [ordersCount, setOrdersCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -27,25 +27,32 @@ export default function AdminDashboardPage() {
     router.replace("/admin/login");
   };
 
-  // ✅ FETCH STATS FROM DB
+  // ✅ FETCH STATS FROM DB - Single API call for all stats
   useEffect(() => {
     async function fetchStats() {
       try {
         const res = await fetch("/api/admin/stats", {
           credentials: "include",
+          cache: "no-store",
         });
-        if (!res.ok) throw new Error("Failed to fetch");
+        
+        if (!res.ok) {
+          throw new Error("Failed to fetch stats");
+        }
 
         const data = await res.json();
-        setStats(data);
-
-        const ordersRes = await fetch("/api/admin/orders/count");
-        const ordersData = await ordersRes.json();
-        if (ordersData.success) {
-          setOrdersCount(ordersData.count);
-        }
+        // Set stats with fallback values to prevent crashes
+        setStats({
+          products: data?.products ?? 0,
+          reels: data?.reels ?? 0,
+          coupons: data?.coupons ?? 0,
+          users: data?.users ?? 0,
+          orders: data?.orders ?? 0,
+        });
       } catch (err) {
+        console.error("[Dashboard] Failed to load stats:", err);
         setError("Failed to load dashboard stats");
+        // Keep default values (0) on error to prevent UI crash
       } finally {
         setLoading(false);
       }
@@ -87,10 +94,10 @@ export default function AdminDashboardPage() {
           </div>
         ) : (
           <>
-            <StatCard label="Products" value={stats.products} icon="🛍️" />
-            <StatCard label="Reels" value={stats.reels} icon="🎬" />
-            <StatCard label="Coupons" value={stats.coupons} icon="🏷️" />
-            <StatCard label="Users" value={stats.users} icon="👤" />
+            <StatCard label="Products" value={stats?.products ?? 0} icon="🛍️" />
+            <StatCard label="Reels" value={stats?.reels ?? 0} icon="🎬" />
+            <StatCard label="Coupons" value={stats?.coupons ?? 0} icon="🏷️" />
+            <StatCard label="Users" value={stats?.users ?? 0} icon="👤" />
 
             {/* ✅ Orders (SUCCESS) */}
             <div
@@ -101,7 +108,7 @@ export default function AdminDashboardPage() {
               <div>
                 <p className="text-sm text-white/70">Orders</p>
                 <h2 className="text-3xl font-extrabold text-white">
-                  {ordersCount}
+                  {stats?.orders ?? 0}
                 </h2>
               </div>
             </div>

@@ -6,6 +6,7 @@ import Coupon from "@/app/models/coupon";
 import Settings from "@/app/models/Settings";
 import { getAuthUserFromCookies } from "@/app/lib/auth";
 import { sendOrderToDelhivery, isOrderSentToDelhivery, logVerificationInstructions } from "@/app/lib/delhivery";
+import { reduceStockForOrderItems } from "@/app/lib/stockManager";
 import mongoose from "mongoose";
 import crypto from "crypto";
 
@@ -28,8 +29,31 @@ function normalizeItems(items) {
 
   const normalized = items
     .map((it, index) => {
-      // Try multiple possible ID fields - prioritize id (from cart) then productId, then _id
-      const productId = String(it.id || it.productId || it._id || `item-${index}`);
+      // 🔥 FIX: Try multiple possible ID fields - prioritize productId, then _id, then id
+      // DO NOT create fallback IDs like "item-0" - reject invalid items instead
+      const rawProductId = it.productId || it._id || it.id;
+      
+      // Validate that we have a productId
+      if (!rawProductId) {
+        console.error("normalizeItems: Item missing productId/_id/id", {
+          index,
+          item: it,
+        });
+        return null; // Return null to filter out
+      }
+
+      const productId = String(rawProductId);
+      
+      // 🔥 CRITICAL: Validate ObjectId format BEFORE processing
+      if (!mongoose.Types.ObjectId.isValid(productId)) {
+        console.error("normalizeItems: Invalid ObjectId format", {
+          index,
+          productId,
+          originalItem: it,
+        });
+        return null; // Return null to filter out
+      }
+
       const name = String(it.name || "");
       const price = Number(it.finalPrice ?? it.price ?? 0);
       
@@ -44,7 +68,7 @@ function normalizeItems(items) {
       };
       
       // Log if critical fields are missing
-      if (!productId || productId === `item-${index}` || !name || price <= 0) {
+      if (!name || price <= 0) {
         console.warn("normalizeItems: Item missing required fields", {
           index,
           productId,
@@ -57,9 +81,12 @@ function normalizeItems(items) {
       
       return normalizedItem;
     })
-    .filter((it, index) => {
-      // More lenient validation - allow generated IDs if name and price are valid
-      const hasValidId = it.productId && it.productId !== "";
+    .filter((it) => {
+      // Filter out null items (invalid productIds)
+      if (!it) return false;
+      
+      // Validate required fields
+      const hasValidId = it.productId && mongoose.Types.ObjectId.isValid(it.productId);
       const hasValidName = it.name && it.name.trim() !== "";
       const hasValidPrice = it.price > 0;
       
@@ -67,7 +94,6 @@ function normalizeItems(items) {
       
       if (!isValid) {
         console.warn("normalizeItems: Filtered out invalid item", {
-          index,
           item: it,
           reasons: {
             hasValidId,
@@ -161,18 +187,34 @@ export async function POST(req) {
     }
 
     // Validate items
-    console.log("Checkout API: Received items", {
+    console.log("🔍 Checkout API: Received items", {
       itemsCount: body?.items?.length || 0,
       items: body?.items,
       itemsType: typeof body?.items,
       isArray: Array.isArray(body?.items),
+      // 🔥 DEBUG: Log product IDs to verify they're valid ObjectIds
+      productIds: body?.items?.map((it, idx) => ({
+        index: idx,
+        id: it.id,
+        productId: it.productId,
+        _id: it._id,
+        isValid: it.id ? mongoose.Types.ObjectId.isValid(it.id) : 
+                 it.productId ? mongoose.Types.ObjectId.isValid(it.productId) :
+                 it._id ? mongoose.Types.ObjectId.isValid(it._id) : false,
+      })),
     });
     
     const items = normalizeItems(body?.items);
     
-    console.log("Checkout API: Normalized items", {
+    console.log("✅ Checkout API: Normalized items", {
       normalizedCount: items.length,
       normalizedItems: items,
+      // 🔥 DEBUG: Verify all productIds are valid ObjectIds
+      productIds: items.map((it) => ({
+        productId: it.productId,
+        isValid: mongoose.Types.ObjectId.isValid(it.productId),
+        name: it.name,
+      })),
     });
     
     if (items.length === 0) {
@@ -322,8 +364,134 @@ export async function POST(req) {
       ? body.orderMessage.trim().substring(0, 250)
       : null;
 
-    // Create order directly
-    const order = await Order.create({
+    // 🔥 STOCK REDUCTION: Prepare items for stock reduction
+    const stockReductionItems = items.map((item) => ({
+      productId: item.productId,
+      size: item.size || "",
+      quantity: item.quantity || 1,
+    }));
+
+    // 🔥 CRITICAL: Validate ObjectIds BEFORE attempting stock reduction
+    const invalidItems = stockReductionItems.filter((item) => {
+      if (!item.productId || !item.size) return true;
+      // Validate ObjectId format
+      if (!mongoose.Types.ObjectId.isValid(item.productId)) {
+        console.error("Checkout API: Invalid ObjectId in stock reduction item", {
+          productId: item.productId,
+          item,
+        });
+        return true;
+      }
+      return false;
+    });
+
+    if (invalidItems.length > 0) {
+      console.error("Checkout API: Invalid items for stock reduction", {
+        invalidItems,
+        allItems: stockReductionItems,
+      });
+      return NextResponse.json(
+        { 
+          success: false,
+          message: "Invalid product IDs detected. Please refresh and try again.",
+          error: "Invalid product ID format",
+        },
+        { status: 400 }
+      );
+    }
+
+    // 🔥 MONGODB TRANSACTION: Ensure atomic order creation and stock reduction
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    let order = null;
+    try {
+      // Create order within transaction
+      order = await Order.create([{
+        userId: userId || null,
+        guestUserId: guestUserId || null,
+        items,
+        shippingAddress,
+        paymentMethod,
+        paymentStatus,
+        orderStatus,
+        coupon: coupon?.code ? coupon : null,
+        subtotal,
+        discount,
+        discountAmount: discount, // Alias for clarity
+        shipping: 0,
+        totalAmount,
+        finalTotal: totalAmount, // Alias for clarity
+        advancePaid,
+        remainingCOD,
+        razorpayOrderId,
+        razorpayPaymentId,
+        razorpaySignature,
+        orderMessage: orderMessage || null,
+
+        // Legacy fields for backward compatibility
+        customer: {
+          email: authed?.email || "",
+          firstName: firstName || "",
+          lastName: lastName || "",
+          phone: shippingAddress.phone || "",
+        },
+        shippingAddressLegacy: {
+          address: shippingAddress.addressLine1 || "",
+          apt: shippingAddress.addressLine2 || "",
+          city: shippingAddress.city || "",
+          state: shippingAddress.state || "",
+          pin: shippingAddress.pincode || "",
+          country: shippingAddress.country || "",
+        },
+        payment: {
+          method: paymentMethod === "COD" ? "COD" : "Razorpay",
+          status: paymentStatus === "PAID" ? "paid" : "pending",
+          razorpayPaymentId: razorpayPaymentId || undefined,
+        },
+        legacyOrderStatus: orderStatus === "CONFIRMED" ? "paid" : "created",
+      }], { session });
+
+      order = order[0]; // Create returns an array when using session
+
+      // 🔥 REDUCE STOCK: After order creation, reduce stock atomically (within transaction)
+      const stockResult = await reduceStockForOrderItems(stockReductionItems, session);
+      
+      if (!stockResult.success) {
+        // Stock reduction failed - rollback transaction
+        await session.abortTransaction();
+        await session.endSession();
+        
+        const errorMessage = stockResult.errors?.join(", ") || "Selected size is out of stock";
+        return NextResponse.json(
+          { 
+            success: false,
+            message: errorMessage,
+            stockErrors: stockResult.errors,
+          },
+          { status: 400 }
+        );
+      }
+
+      // ✅ All operations successful - commit transaction
+      await session.commitTransaction();
+      await session.endSession();
+      
+      console.log("✅ Order created and stock reduced successfully:", {
+        orderId: order._id,
+        itemsCount: items.length,
+      });
+    } catch (transactionError) {
+      // Rollback on any error
+      await session.abortTransaction();
+      await session.endSession();
+      
+      console.error("❌ Transaction error:", transactionError);
+      throw transactionError;
+    }
+
+    // Create order directly (OLD CODE - REMOVED, using transaction above)
+    /* const order = await Order.create({
       userId: userId || null,
       guestUserId: guestUserId || null,
       items,
@@ -366,7 +534,7 @@ export async function POST(req) {
         razorpayPaymentId: razorpayPaymentId || undefined,
       },
       legacyOrderStatus: orderStatus === "CONFIRMED" ? "paid" : "created",
-    });
+    }); */
 
     // Update user orderCount and firstOrderCouponUsed when order is confirmed (logged-in users only)
     if (orderStatus === "CONFIRMED" && userId) {

@@ -10,6 +10,7 @@ export default function EditProductPage() {
   const [form, setForm] = useState({
     title: "",
     price: "",
+    compareAtPrice: "",
     description: "",
     category: "",
     sizes: { S: 0, M: 0, L: 0, XL: 0 },
@@ -29,6 +30,7 @@ export default function EditProductPage() {
         setForm({
           title: data.title,
           price: data.price,
+          compareAtPrice: data.compareAtPrice || "",
           description: data.description,
           category: data.category,
           sizes: sizeMap,
@@ -49,6 +51,7 @@ export default function EditProductPage() {
       body: JSON.stringify({
         title: form.title,
         price: form.price,
+        compareAtPrice: form.compareAtPrice || null,
         description: form.description,
         category: form.category,
         sizes: sizesArray,
@@ -77,21 +80,29 @@ export default function EditProductPage() {
         </h1>
 
         {/* INPUT STYLE */}
-        {[
-          { placeholder: "Title", key: "title" },
-          { placeholder: "Price", key: "price", type: "number" },
-          { placeholder: "Category", key: "category" },
-        ].map((field) => (
+        <input
+          type="text"
+          placeholder="Title"
+          value={form.title}
+          onChange={e => setForm({ ...form, title: e.target.value })}
+          className="
+            w-full mb-4 p-3 rounded-xl
+            bg-black/40 text-white
+            border border-white/10
+            transition-all duration-300
+            focus:outline-none focus:ring-2 focus:ring-white/30
+            focus:scale-[1.02]
+          "
+        />
+
+        <div className="flex gap-4 mb-4">
           <input
-            key={field.key}
-            type={field.type || "text"}
-            placeholder={field.placeholder}
-            value={form[field.key]}
-            onChange={e =>
-              setForm({ ...form, [field.key]: e.target.value })
-            }
+            type="number"
+            placeholder="Selling Price"
+            value={form.price}
+            onChange={e => setForm({ ...form, price: e.target.value })}
             className="
-              w-full mb-4 p-3 rounded-xl
+              flex-1 p-3 rounded-xl
               bg-black/40 text-white
               border border-white/10
               transition-all duration-300
@@ -99,7 +110,36 @@ export default function EditProductPage() {
               focus:scale-[1.02]
             "
           />
-        ))}
+          <input
+            type="number"
+            placeholder="Original Price (MRP) - Optional"
+            value={form.compareAtPrice}
+            onChange={e => setForm({ ...form, compareAtPrice: e.target.value })}
+            className="
+              flex-1 p-3 rounded-xl
+              bg-black/40 text-white
+              border border-white/10
+              transition-all duration-300
+              focus:outline-none focus:ring-2 focus:ring-white/30
+              focus:scale-[1.02]
+            "
+          />
+        </div>
+
+        <input
+          type="text"
+          placeholder="Category"
+          value={form.category}
+          onChange={e => setForm({ ...form, category: e.target.value })}
+          className="
+            w-full mb-4 p-3 rounded-xl
+            bg-black/40 text-white
+            border border-white/10
+            transition-all duration-300
+            focus:outline-none focus:ring-2 focus:ring-white/30
+            focus:scale-[1.02]
+          "
+        />
 
         <textarea
           placeholder="Description"

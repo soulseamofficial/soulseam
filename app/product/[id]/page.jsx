@@ -317,12 +317,25 @@ function LuxuryAccordion({ title, children, defaultOpen, accordionKey }) {
 }
 
 // Back Button: Matching Coupons Page Style - Moved outside component to avoid render-time creation
-function LuxuryBackButton({ fixed, isMobile, router }) {
+function LuxuryBackButton({ fixed, isMobile }) {
+  const router = useRouter();
+  
+  const handleBack = () => {
+    // Check if there's history to go back to
+    // Use document.referrer as a more reliable check for navigation history
+    if (typeof window !== 'undefined' && (window.history.length > 1 || document.referrer)) {
+      router.back();
+    } else {
+      // If no history, redirect to /products
+      router.push('/products');
+    }
+  };
+
   // Always visible, z-50, never pointer-events-none
   return (
     <button
       type="button"
-      onClick={() => router.back()}
+      onClick={handleBack}
       aria-label="Back"
       className={[
         fixed ? "absolute" : "fixed",
@@ -337,8 +350,10 @@ function LuxuryBackButton({ fixed, isMobile, router }) {
         "shadow-[0_10px_45px_rgba(255,255,255,0.12)]",
         "transition-all duration-300",
         "hover:bg-black/50 hover:border-white/25 hover:scale-[1.02] hover:shadow-[0_15px_60px_rgba(255,255,255,0.16)]",
+        "cursor-pointer",
         focusRing,
       ].join(" ")}
+      style={{ pointerEvents: 'auto' }}
     >
       <IconArrowLeft className="text-white/75 w-5 h-5 mr-0.5" />
       <span className="block pr-1 !text-base font-medium" style={{fontWeight: 500, letterSpacing: 0.01}}>Back</span>
@@ -413,6 +428,25 @@ export default function ProductPage() {
     };
   }, [mainImgIdx]);
 
+  // Filter available sizes (stock > 0)
+  const availableSizes = useMemo(() => {
+    if (!product?.sizes) return [];
+    return product.sizes.filter((sz) => sz.stock > 0);
+  }, [product]);
+
+  // Check if any sizes are available
+  const hasAvailableSizes = availableSizes.length > 0;
+
+  // Prevent manual selection of out-of-stock sizes
+  useEffect(() => {
+    if (!product?.sizes || !selectedSize) return;
+    const selectedSizeObj = product.sizes.find((s) => s.size === selectedSize);
+    if (selectedSizeObj && selectedSizeObj.stock <= 0) {
+      setSelectedSize(null);
+      setSizeTouched(false);
+    }
+  }, [product, selectedSize]);
+
   // Whenever selectedSize or product changes, reset quantity and reset add-to-cart state
   useEffect(() => {
     // Use setTimeout to avoid synchronous setState in effect
@@ -423,16 +457,21 @@ export default function ProductPage() {
     return () => clearTimeout(timer);
   }, [selectedSize, product]);
 
-  // Price and selection logic
-  const originalPrice = useMemo(
-    () => (product && product.price ? Math.round(product.price * 1.2) : null),
-    [product]
-  );
+  // Price and selection logic - use compareAtPrice from product
+  const compareAtPrice = product?.compareAtPrice || null;
+  
+  // Calculate discount percentage
+  const discountPercentage = useMemo(() => {
+    if (compareAtPrice && compareAtPrice > product?.price) {
+      return Math.round(((compareAtPrice - product.price) / compareAtPrice) * 100);
+    }
+    return null;
+  }, [compareAtPrice, product?.price]);
 
   const selectedSizeObj = product?.sizes?.find((s) => s.size === selectedSize);
   const maxQty = selectedSizeObj?.stock || 1;
   const isSizeValid = !!selectedSize && selectedSizeObj && selectedSizeObj.stock > 0;
-  const canAddToCart = isSizeValid && maxQty > 0;
+  const canAddToCart = isSizeValid && maxQty > 0 && hasAvailableSizes;
   const canBuyNow = canAddToCart;
 
   // Core Cart Logic
@@ -469,11 +508,11 @@ export default function ProductPage() {
         {/* Top image loader */}
         <div className="relative w-full h-[75vh] md:hidden">
           <div className={"absolute inset-0 rounded-b-3xl " + shimmer}></div>
-          <LuxuryBackButton fixed isMobile={isMobile} router={router} />
+          <LuxuryBackButton fixed isMobile={isMobile} />
         </div>
         {/* Desktop: fallback desktop skeleton */}
         <div className="hidden md:flex items-center justify-center min-h-[60vh] w-full">
-          <LuxuryBackButton isMobile={isMobile} router={router} />
+          <LuxuryBackButton isMobile={isMobile} />
           <div className="flex flex-col md:flex-row items-center gap-10 md:gap-20 w-full max-w-6xl px-3">
             <div className={"aspect-[4/5] w-full max-w-lg rounded-3xl mb-4 " + shimmer}></div>
             <div className="w-full max-w-xl space-y-8">
@@ -526,7 +565,7 @@ export default function ProductPage() {
       <div className="md:hidden w-full relative" style={{ minHeight: "75vh" }}>
         <div className="w-full h-[75vh] relative rounded-b-3xl overflow-hidden bg-black">
           {/* Mobile Back Button (absolute, overlays image) */}
-          <LuxuryBackButton fixed isMobile={isMobile} router={router} />
+          <LuxuryBackButton fixed isMobile={isMobile} />
           {/* Swiper for mobile image sliding */}
           <Swiper
             modules={[Pagination]}
@@ -595,10 +634,17 @@ export default function ProductPage() {
             </h1>
             <div className="flex flex-row items-center justify-center gap-3 mb-2">
               <span className="text-white text-2xl font-black">{formatPrice(product.price)}</span>
-              {originalPrice > product.price && (
-                <span className="text-white/35 line-through text-lg font-normal">{formatPrice(originalPrice)}</span>
+              {compareAtPrice && compareAtPrice > product.price && (
+                <span className="text-white/35 line-through text-lg font-normal">{formatPrice(compareAtPrice)}</span>
               )}
             </div>
+            {discountPercentage && (
+              <div className="flex items-center justify-center mb-2">
+                <span className="text-emerald-400 font-bold text-sm">
+                  {discountPercentage}% OFF
+                </span>
+              </div>
+            )}
             <div className="flex items-center justify-center gap-2 mb-3">
               <span className={badge}>
                 {product.totalStock > 0 ? <><IconCheck/> In Stock</> : "Sold Out"}
@@ -616,43 +662,48 @@ export default function ProductPage() {
           {/* Size selector */}
           <div className="my-4">
             <div className="font-semibold text-white/80 text-lg mb-3 text-center">Select Size</div>
-            <div className="flex flex-wrap gap-2 mb-1 justify-center">
-              {product.sizes.map((sz) => {
-                const isDisabled = !sz.stock;
-                const isSelected = selectedSize === sz.size;
-                return (
-                  <button
-                    key={sz.size}
-                    className={[
-                      pillBtn,
-                      isSelected ? pillBtnSelected : "",
-                      isDisabled ? pillBtnDisabled : ""
-                    ].join(" ")}
-                    type="button"
-                    disabled={isDisabled}
-                    onClick={() => {
-                      setSelectedSize(sz.size);
-                      setSizeTouched(true);
-                    }}
-                    aria-pressed={isSelected}
-                    style={{
-                      cursor: isDisabled ? "not-allowed" : "pointer"
-                    }}
-                  >
-                    {sz.size}
-                    {!sz.stock && <span className="ml-1 text-white/35 text-xs">(Sold Out)</span>}
-                  </button>
-                );
-              })}
-            </div>
-            {!isSizeValid && sizeTouched && (
-              <div className="mt-1 text-xs text-red-400 font-medium text-center">
-                Please select a valid size before continuing.
+            {hasAvailableSizes ? (
+              <>
+                <div className="flex flex-wrap gap-2 mb-1 justify-center">
+                  {availableSizes.map((sz) => {
+                    const isSelected = selectedSize === sz.size;
+                    return (
+                      <button
+                        key={sz.size}
+                        className={[
+                          pillBtn,
+                          isSelected ? pillBtnSelected : ""
+                        ].join(" ")}
+                        type="button"
+                        onClick={() => {
+                          setSelectedSize(sz.size);
+                          setSizeTouched(true);
+                        }}
+                        aria-pressed={isSelected}
+                        style={{
+                          cursor: "pointer"
+                        }}
+                      >
+                        {sz.size}
+                      </button>
+                    );
+                  })}
+                </div>
+                {!isSizeValid && sizeTouched && (
+                  <div className="mt-1 text-xs text-red-400 font-medium text-center">
+                    Please select a valid size before continuing.
+                  </div>
+                )}
+                <div className="mt-1 text-xs text-white/35 text-center">
+                  View <span className="underline hover:text-white/65 cursor-pointer">Size Guide</span>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-4">
+                <div className="text-red-400 font-semibold text-lg mb-2">Out of Stock</div>
+                <div className="text-white/50 text-sm">This product is currently unavailable in all sizes.</div>
               </div>
             )}
-            <div className="mt-1 text-xs text-white/35 text-center">
-              View <span className="underline hover:text-white/65 cursor-pointer">Size Guide</span>
-            </div>
           </div>
           {/* Quantity Selector */}
           <div className="flex items-center gap-4 justify-center mt-4 mb-4">
@@ -690,7 +741,9 @@ export default function ProductPage() {
               ariaLabel="Buy Now"
               tabIndex={0}
             >
-              {maxQty === 0
+              {!hasAvailableSizes
+                ? "Out of Stock"
+                : maxQty === 0
                 ? "Sold Out"
                 : !isSizeValid
                 ? "Select Size First"
@@ -702,7 +755,9 @@ export default function ProductPage() {
               ariaLabel={isAddedToCart ? "View Cart" : "Add to Cart"}
               tabIndex={0}
             >
-              {maxQty === 0
+              {!hasAvailableSizes
+                ? "Out of Stock"
+                : maxQty === 0
                 ? "Out of Stock"
                 : !isSizeValid
                 ? "Select Size"
@@ -873,12 +928,19 @@ export default function ProductPage() {
               </h1>
               <div className="flex flex-row items-center justify-center gap-3 mb-3">
                 <span className="text-white text-2xl md:text-3xl font-black">{formatPrice(product.price)}</span>
-                {originalPrice > product.price && (
+                {compareAtPrice && compareAtPrice > product.price && (
                   <span className="text-white/35 line-through text-lg font-normal">
-                    {formatPrice(originalPrice)}
+                    {formatPrice(compareAtPrice)}
                   </span>
                 )}
               </div>
+              {discountPercentage && (
+                <div className="flex items-center justify-center mb-3">
+                  <span className="text-emerald-400 font-bold text-base">
+                    {discountPercentage}% OFF
+                  </span>
+                </div>
+              )}
               <div className="flex items-center justify-center gap-3 mb-3">
                 <span className={badge}>
                   {product.totalStock > 0 ? <><IconCheck/> In Stock</> : "Sold Out"}
@@ -917,43 +979,48 @@ export default function ProductPage() {
             <div className="flex flex-col gap-6 w-full">
               <div>
                 <div className="font-semibold text-white/80 text-lg mb-3 text-center">Select Size</div>
-                <div className="flex flex-wrap gap-2 mb-1 justify-center">
-                  {product.sizes.map((sz) => {
-                    const isDisabled = !sz.stock;
-                    const isSelected = selectedSize === sz.size;
-                    return (
-                      <button
-                        key={sz.size}
-                        className={[
-                          pillBtn,
-                          isSelected ? pillBtnSelected : "",
-                          isDisabled ? pillBtnDisabled : ""
-                        ].join(" ")}
-                        type="button"
-                        disabled={isDisabled}
-                        onClick={() => {
-                          setSelectedSize(sz.size);
-                          setSizeTouched(true);
-                        }}
-                        aria-pressed={isSelected}
-                        style={{
-                          cursor: isDisabled ? "not-allowed" : "pointer"
-                        }}
-                      >
-                        {sz.size}
-                        {!sz.stock && <span className="ml-1 text-white/35 text-xs">(Sold Out)</span>}
-                      </button>
-                    );
-                  })}
-                </div>
-                {!isSizeValid && sizeTouched && (
-                  <div className="mt-1 text-xs text-red-400 font-medium">
-                    Please select a valid size before continuing.
+                {hasAvailableSizes ? (
+                  <>
+                    <div className="flex flex-wrap gap-2 mb-1 justify-center">
+                      {availableSizes.map((sz) => {
+                        const isSelected = selectedSize === sz.size;
+                        return (
+                          <button
+                            key={sz.size}
+                            className={[
+                              pillBtn,
+                              isSelected ? pillBtnSelected : ""
+                            ].join(" ")}
+                            type="button"
+                            onClick={() => {
+                              setSelectedSize(sz.size);
+                              setSizeTouched(true);
+                            }}
+                            aria-pressed={isSelected}
+                            style={{
+                              cursor: "pointer"
+                            }}
+                          >
+                            {sz.size}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {!isSizeValid && sizeTouched && (
+                      <div className="mt-1 text-xs text-red-400 font-medium">
+                        Please select a valid size before continuing.
+                      </div>
+                    )}
+                    <div className="mt-1 text-xs text-white/35 text-center">
+                      View <span className="underline hover:text-white/65 cursor-pointer">Size Guide</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-4">
+                    <div className="text-red-400 font-semibold text-lg mb-2">Out of Stock</div>
+                    <div className="text-white/50 text-sm">This product is currently unavailable in all sizes.</div>
                   </div>
                 )}
-                <div className="mt-1 text-xs text-white/35 text-center">
-                  View <span className="underline hover:text-white/65 cursor-pointer">Size Guide</span>
-                </div>
               </div>
               <div className="flex items-center gap-4 mt-1 justify-center">
                 <span className="font-medium text-white/85 text-lg">Quantity</span>
@@ -990,7 +1057,9 @@ export default function ProductPage() {
                   ariaLabel="Buy Now"
                   tabIndex={0}
                 >
-                  {maxQty === 0
+                  {!hasAvailableSizes
+                    ? "Out of Stock"
+                    : maxQty === 0
                     ? "Sold Out"
                     : !isSizeValid
                     ? "Select Size First"
@@ -1002,7 +1071,9 @@ export default function ProductPage() {
                   ariaLabel={isAddedToCart ? "View Cart" : "Add to Cart"}
                   tabIndex={0}
                 >
-                  {maxQty === 0
+                  {!hasAvailableSizes
+                    ? "Out of Stock"
+                    : maxQty === 0
                     ? "Out of Stock"
                     : !isSizeValid
                     ? "Select Size"

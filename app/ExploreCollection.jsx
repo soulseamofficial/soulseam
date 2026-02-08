@@ -77,7 +77,7 @@ const ExploreCollection = () => {
           name: prod?.name ?? "Unnamed Product",
           category: prod?.category ?? "misc",
           price: typeof prod?.price === "number" ? prod.price : 0,
-          originalPrice: typeof prod?.originalPrice === "number" ? prod.originalPrice : (typeof prod?.price === "number" ? prod.price : 0),
+          compareAtPrice: typeof prod?.compareAtPrice === "number" ? prod.compareAtPrice : null,
           rating: typeof prod?.rating === "number" ? prod.rating : 4.5,
           reviewCount: typeof prod?.reviewCount === "number" ? prod.reviewCount : 0,
           tags: Array.isArray(prod?.tags) ? prod.tags : [],
@@ -271,10 +271,15 @@ const ExploreCollection = () => {
             <span className="text-lg sm:text-xl font-bold text-white">
               ₹{product.price.toLocaleString()}
             </span>
-            {product.originalPrice > product.price && (
-              <span className="text-sm text-white/50 line-through">
-                ₹{product.originalPrice.toLocaleString()}
-              </span>
+            {product.compareAtPrice && product.compareAtPrice > product.price && (
+              <>
+                <span className="text-sm text-white/50 line-through">
+                  ₹{product.compareAtPrice.toLocaleString()}
+                </span>
+                <span className="text-xs text-emerald-400 font-semibold">
+                  {Math.round(((product.compareAtPrice - product.price) / product.compareAtPrice) * 100)}% OFF
+                </span>
+              </>
             )}
           </div>
         </div>

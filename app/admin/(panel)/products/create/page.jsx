@@ -18,6 +18,7 @@ export default function CreateProduct() {
   const [form, setForm] = useState({
     title: "",
     price: "",
+    compareAtPrice: "",
     description: "",
     category: "",
     stock_S: "",
@@ -94,6 +95,9 @@ export default function CreateProduct() {
       const formData = new FormData();
       formData.append("title", form.title);
       formData.append("price", Number(form.price));
+      if (form.compareAtPrice) {
+        formData.append("compareAtPrice", Number(form.compareAtPrice));
+      }
       formData.append("description", form.description);
       formData.append("category", form.category);
 
@@ -126,6 +130,7 @@ export default function CreateProduct() {
       setForm({
         title: "",
         price: "",
+        compareAtPrice: "",
         description: "",
         category: "",
         stock_S: "",
@@ -176,17 +181,29 @@ export default function CreateProduct() {
               className="w-full px-4 py-3 rounded-xl bg-black/40 border border-white/15 text-white placeholder-white/40 focus:outline-none focus:border-white/30"
             />
 
-            <input
-              name="price"
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="Price"
-              value={form.price}
-              onChange={handleChange}
-              required
-              className="w-48 px-4 py-3 rounded-xl bg-black/40 border border-white/15 text-white placeholder-white/40 focus:outline-none focus:border-white/30"
-            />
+            <div className="flex gap-4">
+              <input
+                name="price"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Selling Price"
+                value={form.price}
+                onChange={handleChange}
+                required
+                className="flex-1 px-4 py-3 rounded-xl bg-black/40 border border-white/15 text-white placeholder-white/40 focus:outline-none focus:border-white/30"
+              />
+              <input
+                name="compareAtPrice"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Original Price (MRP) - Optional"
+                value={form.compareAtPrice}
+                onChange={handleChange}
+                className="flex-1 px-4 py-3 rounded-xl bg-black/40 border border-white/15 text-white placeholder-white/40 focus:outline-none focus:border-white/30"
+              />
+            </div>
 
             <textarea
               name="description"

@@ -18,6 +18,7 @@ export async function GET() {
         _id: p._id,
         name: p.title,
         price: p.price,
+        compareAtPrice: p.compareAtPrice || null,
         description: p.description,
         category: p.category,
         images: p.images, // Cloudinary URLs

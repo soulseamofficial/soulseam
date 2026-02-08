@@ -84,9 +84,17 @@ export const CartProvider = ({ children }) => {
   const addToCart = (product, size = "M", quantity = 1, color = "Black") => {
     if (!product || typeof product !== "object") return;
 
+    // 🔥 FIX: Use _id (MongoDB ObjectId) instead of id
+    // Support both _id and id for backward compatibility
+    const productId = product._id || product.id;
+    if (!productId) {
+      console.error("addToCart: Product missing _id or id", product);
+      return;
+    }
+
     setCartItems((prevItems) => {
       const idx = prevItems.findIndex(
-        (item) => item.id === product.id && item.size === size
+        (item) => (item.id || item._id || item.productId) === productId && item.size === size
       );
 
       if (idx !== -1) {
@@ -100,8 +108,9 @@ export const CartProvider = ({ children }) => {
       return [
         ...prevItems,
         {
-          id: product.id,
-          name: product.name,
+          id: String(productId), // Store as string for localStorage compatibility
+          productId: String(productId), // Also store as productId for clarity
+          name: product.name || product.title || "",
           price: product.price,
           image:
             (Array.isArray(product.images) && product.images[0]) ||
