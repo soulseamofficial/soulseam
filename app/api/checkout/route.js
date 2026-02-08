@@ -144,9 +144,17 @@ function verifyRazorpaySignature({ razorpay_order_id, razorpay_payment_id, razor
 }
 
 export async function POST(req) {
+  console.log("🚀 PAYMENT SUCCESS HIT - Checkout API called");
   try {
     await connectDB();
     const body = await req.json();
+    console.log("📦 Checkout API: Request body received", {
+      paymentMethod: body?.paymentMethod,
+      hasRazorpayDetails: !!(body?.razorpay_order_id && body?.razorpay_payment_id),
+      itemsCount: body?.items?.length || 0,
+      userId: body?.userId,
+      guestUserId: body?.guestUserId,
+    });
 
     // Get authenticated user
     const authed = await getAuthUserFromCookies();
@@ -293,17 +301,23 @@ export async function POST(req) {
       });
 
       if (!isValid) {
+        console.error("❌ Payment verification failed", {
+          razorpayOrderId: razorpayOrderId,
+          razorpayPaymentId: razorpayPaymentId,
+        });
         return NextResponse.json(
           { message: "Payment verification failed" },
           { status: 400 }
         );
       }
 
+      console.log("✅ Payment signature verified successfully");
       // ONLINE payment verified: Mark as PAID and CONFIRMED
       paymentStatus = "PAID";
       orderStatus = "CONFIRMED";
       advancePaid = totalAmount;
       remainingCOD = 0;
+      console.log("💰 Payment status set to PAID, order status set to CONFIRMED");
     } else {
       // COD: Check if advance payment is required
       const settings = await Settings.getSettings();
@@ -400,11 +414,20 @@ export async function POST(req) {
     }
 
     // 🔥 MONGODB TRANSACTION: Ensure atomic order creation and stock reduction
+    console.log("🔄 CREATING ORDER - Starting transaction");
     const session = await mongoose.startSession();
     session.startTransaction();
 
     let order = null;
     try {
+      console.log("📝 CREATING ORDER - Creating order document", {
+        userId: userId?.toString() || null,
+        guestUserId: guestUserId?.toString() || null,
+        itemsCount: items.length,
+        paymentStatus,
+        orderStatus,
+        totalAmount,
+      });
       // Create order within transaction
       order = await Order.create([{
         userId: userId || null,
@@ -452,12 +475,59 @@ export async function POST(req) {
       }], { session });
 
       order = order[0]; // Create returns an array when using session
+      console.log("✅ ORDER CREATED - Order document created successfully", {
+        orderId: order._id.toString(),
+        orderStatus: order.orderStatus,
+        paymentStatus: order.paymentStatus,
+      });
 
       // 🔥 REDUCE STOCK: After order creation, reduce stock atomically (within transaction)
+      console.log("📉 REDUCING STOCK - Starting stock reduction", {
+        itemsCount: stockReductionItems.length,
+        items: stockReductionItems,
+      });
       const stockResult = await reduceStockForOrderItems(stockReductionItems, session);
       
       if (!stockResult.success) {
-        // Stock reduction failed - rollback transaction
+        console.error("❌ STOCK REDUCTION FAILED", {
+          errors: stockResult.errors,
+          orderId: order._id.toString(),
+          paymentStatus: paymentStatus,
+        });
+        
+        // 🔥 CRITICAL: If payment already succeeded (PAID), we MUST NOT rollback the order
+        // The customer has already paid, so we need to create the order regardless
+        if (paymentStatus === "PAID") {
+          console.warn("⚠️ CRITICAL: Payment already PAID but stock reduction failed. Committing order anyway to prevent payment loss.", {
+            orderId: order._id.toString(),
+            stockErrors: stockResult.errors,
+          });
+          
+          // Commit the order even though stock reduction failed
+          // This prevents payment loss - we'll handle stock issues separately
+          await session.commitTransaction();
+          await session.endSession();
+          
+          console.log("✅ ORDER COMMITTED DESPITE STOCK ERROR - Order saved to prevent payment loss", {
+            orderId: order._id.toString(),
+          });
+          
+          // Return success but with a warning about stock
+          return NextResponse.json(
+            {
+              success: true,
+              orderId: order._id.toString(),
+              orderStatus: order.orderStatus,
+              paymentStatus: order.paymentStatus,
+              warning: "Order created but stock reduction had issues. Please check inventory.",
+              stockErrors: stockResult.errors,
+            },
+            { status: 201 }
+          );
+        }
+        
+        // For non-PAID orders (COD), we can safely rollback
+        console.log("🔄 Rolling back transaction for non-PAID order due to stock failure");
         await session.abortTransaction();
         await session.endSession();
         
@@ -471,22 +541,106 @@ export async function POST(req) {
           { status: 400 }
         );
       }
+      
+      console.log("✅ STOCK REDUCED - Stock reduction successful");
 
       // ✅ All operations successful - commit transaction
+      console.log("💾 COMMITTING TRANSACTION - All operations successful");
       await session.commitTransaction();
       await session.endSession();
       
-      console.log("✅ Order created and stock reduced successfully:", {
-        orderId: order._id,
+      console.log("✅ ORDER CREATED AND STOCK REDUCED - Transaction committed successfully", {
+        orderId: order._id.toString(),
         itemsCount: items.length,
+        paymentStatus: order.paymentStatus,
+        orderStatus: order.orderStatus,
       });
     } catch (transactionError) {
-      // Rollback on any error
-      await session.abortTransaction();
-      await session.endSession();
+      console.error("❌ TRANSACTION ERROR - Error during order creation", {
+        error: transactionError.message,
+        stack: transactionError.stack,
+        paymentStatus: paymentStatus,
+      });
       
-      console.error("❌ Transaction error:", transactionError);
-      throw transactionError;
+      // 🔥 CRITICAL: If payment already succeeded (PAID), we MUST NOT rollback
+      // Try to save the order outside the transaction to prevent payment loss
+      if (paymentStatus === "PAID") {
+        console.warn("⚠️ CRITICAL: Payment PAID but transaction failed. Attempting to save order outside transaction to prevent payment loss.");
+        
+        try {
+          // End the failed session first
+          await session.abortTransaction();
+          await session.endSession();
+          
+          // Create order without transaction as fallback
+          const fallbackOrder = await Order.create({
+            userId: userId || null,
+            guestUserId: guestUserId || null,
+            items,
+            shippingAddress,
+            paymentMethod,
+            paymentStatus,
+            orderStatus,
+            coupon: coupon?.code ? coupon : null,
+            subtotal,
+            discount,
+            discountAmount: discount,
+            shipping: 0,
+            totalAmount,
+            finalTotal: totalAmount,
+            advancePaid,
+            remainingCOD,
+            razorpayOrderId,
+            razorpayPaymentId,
+            razorpaySignature,
+            orderMessage: orderMessage || null,
+            customer: {
+              email: authed?.email || "",
+              firstName: firstName || "",
+              lastName: lastName || "",
+              phone: shippingAddress.phone || "",
+            },
+            shippingAddressLegacy: {
+              address: shippingAddress.addressLine1 || "",
+              apt: shippingAddress.addressLine2 || "",
+              city: shippingAddress.city || "",
+              state: shippingAddress.state || "",
+              pin: shippingAddress.pincode || "",
+              country: shippingAddress.country || "",
+            },
+            payment: {
+              method: paymentMethod === "COD" ? "COD" : "Razorpay",
+              status: paymentStatus === "PAID" ? "paid" : "pending",
+              razorpayPaymentId: razorpayPaymentId || undefined,
+            },
+            legacyOrderStatus: orderStatus === "CONFIRMED" ? "paid" : "created",
+          });
+          
+          console.log("✅ FALLBACK ORDER CREATED - Order saved outside transaction", {
+            orderId: fallbackOrder._id.toString(),
+          });
+          
+          // Try to reduce stock separately (non-blocking)
+          try {
+            await reduceStockForOrderItems(stockReductionItems);
+            console.log("✅ Stock reduced separately after fallback order creation");
+          } catch (stockError) {
+            console.error("❌ Stock reduction failed in fallback (non-blocking):", stockError);
+          }
+          
+          // Return success with the fallback order
+          order = fallbackOrder;
+        } catch (fallbackError) {
+          console.error("❌ FALLBACK ORDER CREATION FAILED:", fallbackError);
+          // If even fallback fails, we have a serious problem
+          throw new Error(`Critical: Payment succeeded but order creation failed. Order ID should be created manually. Error: ${fallbackError.message}`);
+        }
+      } else {
+        // For non-PAID orders, safe to rollback
+        await session.abortTransaction();
+        await session.endSession();
+        throw transactionError;
+      }
     }
 
     // Create order directly (OLD CODE - REMOVED, using transaction above)
@@ -538,6 +692,7 @@ export async function POST(req) {
     // Update user orderCount and firstOrderCouponUsed when order is confirmed (logged-in users only)
     if (orderStatus === "CONFIRMED" && userId) {
       try {
+        console.log("👤 UPDATING USER ORDER COUNT", { userId: userId.toString() });
         const userUpdate = { $inc: { orderCount: 1 } };
         
         // If first-order coupon was used, mark it as used
@@ -549,7 +704,7 @@ export async function POST(req) {
         }
         
         await User.findByIdAndUpdate(userId, userUpdate);
-        console.log("✅ Updated user orderCount and firstOrderCouponUsed:", userId);
+        console.log("✅ Updated user orderCount and firstOrderCouponUsed:", userId.toString());
       } catch (userUpdateError) {
         // Log error but don't fail the order creation
         console.error("❌ Failed to update user orderCount (non-blocking):", userUpdateError);
@@ -558,6 +713,12 @@ export async function POST(req) {
 
     // Shipment creation is now handled by admin - removed from checkout flow
 
+    console.log("🎉 CHECKOUT SUCCESS - Returning response", {
+      orderId: order._id.toString(),
+      orderStatus: order.orderStatus,
+      paymentStatus: order.paymentStatus,
+    });
+    
     return NextResponse.json(
       {
         success: true,
@@ -568,7 +729,11 @@ export async function POST(req) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("❌ Checkout error:", error);
+    console.error("❌ CHECKOUT ERROR - Top-level error handler", {
+      error: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
     return NextResponse.json(
       { success: false, message: error.message || "Failed to create order" },
       { status: 500 }

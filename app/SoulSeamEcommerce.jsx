@@ -187,10 +187,10 @@ const SoulSeamEcommerce = () => {
     "/images/shoot2.jpeg",  // 2
     "/images/shoot4.jpeg",  // 3
     "/images/shoot3.jpeg",  // 4
-    "/images/shoot5.jpeg",  // 5
-    "/images/shoot6.jpeg",  // 6
+    "/images/shoot7.jpeg",  // 5
+    "/images/shoot5.jpeg",  // 6
     "/images/shoot8.jpeg",  // 7
-    "/images/shoot7.jpeg",  // 8
+    "/images/shoot6.jpeg",  // 8
   ];
 
   // Featured collection images - using actual product photos
@@ -199,10 +199,10 @@ const SoulSeamEcommerce = () => {
     "/images/shoot2.jpeg",  // 2
     "/images/shoot4.jpeg",  // 3
     "/images/shoot3.jpeg",  // 4
-    "/images/shoot5.jpeg",  // 5
-    "/images/shoot6.jpeg",  // 6
+    "/images/shoot7.jpeg",  // 5
+    "/images/shoot5.jpeg",  // 6
     "/images/shoot8.jpeg",  // 7
-    "/images/shoot7.jpeg",  // 8
+    "/images/shoot6.jpeg",  // 8
   ];
 
   const [products, setProducts] = useState([]);
