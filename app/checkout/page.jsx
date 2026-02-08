@@ -1334,9 +1334,6 @@ export default function CheckoutPage() {
         const data = await res.json();
         const dc = {
           serviceable: !!data.serviceable,
-          eta: typeof data.eta === "number" ? data.eta : null,
-          shippingCharge: typeof data.shippingCharge === "number" ? data.shippingCharge : null,
-          codAvailable: !!data.codAvailable,
         };
         setDeliveryCheck(dc);
 
@@ -3140,36 +3137,6 @@ export default function CheckoutPage() {
                             <span className="ml-2 text-green-300/90 font-bold">✓ Delivery available</span>
                           ) : (
                             <span className="ml-2 text-rose-400/90 font-semibold">✗ Not available to this address</span>
-                          )}
-                        </div>
-                        <div className="flex items-center mb-2">
-                          <span className="text-lg font-black mr-2">Shipping Charge:</span>
-                          {deliveryCheck.shippingCharge !== null ? (
-                            <span className="ml-2">
-                              {deliveryCheck.shippingCharge === 0 ? (
-                                <span className="text-green-200/95 font-bold">Free</span>
-                              ) : (
-                                <span className="text-white/95 font-bold">₹{deliveryCheck.shippingCharge}</span>
-                              )}
-                            </span>
-                          ) : (
-                            <span className="ml-2 text-white/55">Unknown</span>
-                          )}
-                        </div>
-                        <div className="flex items-center mb-2">
-                          <span className="text-lg font-black mr-2">Estimated Delivery:</span>
-                          {deliveryCheck.eta != null ? (
-                            <span className="ml-2 text-white/95 font-semibold">{deliveryCheck.eta} {deliveryCheck.eta === 1 ? "day" : "days"}</span>
-                          ) : (
-                            <span className="ml-2 text-white/55">Unknown</span>
-                          )}
-                        </div>
-                        <div className="flex items-center mb-1">
-                          <span className="text-lg font-black mr-2">COD:</span>
-                          {deliveryCheck.codAvailable ? (
-                            <span className="ml-2 text-green-300/90 font-semibold">Available</span>
-                          ) : (
-                            <span className="ml-2 text-white/60 font-semibold">Not Available</span>
                           )}
                         </div>
                       </div>
