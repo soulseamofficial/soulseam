@@ -84,6 +84,8 @@ const OrderSchema = new mongoose.Schema(
     delhiveryTrackingUrl: { type: String, default: null },
     delhiverySent: { type: Boolean, default: false },
     delhiveryError: { type: String, default: null },
+    isShipmentCreated: { type: Boolean, default: false, index: true },
+    courierResponse: { type: mongoose.Schema.Types.Mixed, default: null },
     
     // Delivery provider and status (standardized fields)
     delivery_provider: { 

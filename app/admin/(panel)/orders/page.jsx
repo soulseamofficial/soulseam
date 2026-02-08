@@ -110,6 +110,7 @@ export default function AdminOrdersPage() {
   const [expandedOrderId, setExpandedOrderId] = useState(null);
   const [sortBy, setSortBy] = useState("latest");
   const [updatingStatus, setUpdatingStatus] = useState({});
+  const [creatingShipment, setCreatingShipment] = useState({});
 
   useEffect(() => {
     async function fetchOrders() {
@@ -165,6 +166,48 @@ export default function AdminOrdersPage() {
       alert("An error occurred while updating order status");
     } finally {
       setUpdatingStatus(prev => ({ ...prev, [orderId]: false }));
+    }
+  }
+
+  async function createShipment(orderId) {
+    if (creatingShipment[orderId]) return;
+    
+    setCreatingShipment(prev => ({ ...prev, [orderId]: true }));
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/create-shipment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        // Refresh orders
+        const refreshRes = await fetch("/api/admin/orders", {
+          credentials: "include",
+        });
+        const refreshData = await refreshRes.json();
+        if (refreshData.success) {
+          setOrders(refreshData.orders);
+        }
+        alert(`Shipment created successfully!\nAWB: ${data.shipment?.waybill || "N/A"}\nCourier: ${data.shipment?.courierName || "N/A"}`);
+      } else {
+        // Extract error message with priority: error field > fallback
+        const errorMessage = 
+          data.error ||
+          data.details?.rmk ||
+          data.details?.message ||
+          "Shipment creation failed";
+        alert(errorMessage);
+      }
+    } catch (error) {
+      console.error("Error creating shipment:", error);
+      const errorMessage = 
+        error?.message ||
+        "An error occurred while creating shipment";
+      alert(errorMessage);
+    } finally {
+      setCreatingShipment(prev => ({ ...prev, [orderId]: false }));
     }
   }
 
@@ -451,6 +494,101 @@ export default function AdminOrdersPage() {
                           </p>
                         )}
                       </div>
+                    </div>
+
+                    {/* Shipment Management */}
+                    <div className="mb-4 p-4 rounded-xl bg-gradient-to-br from-blue-900/20 to-indigo-900/20 border border-blue-500/30">
+                      <p className="text-sm font-semibold text-blue-400 mb-3">Shipment Management</p>
+                      
+                      {order.isShipmentCreated ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-1 rounded text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/30">
+                              Shipment Created
+                            </span>
+                          </div>
+                          {order.delhiveryWaybill && (
+                            <div className="grid md:grid-cols-2 gap-3 mt-3">
+                              <div>
+                                <p className="text-xs text-white/60">AWB Number</p>
+                                <p className="font-mono text-sm font-bold text-white/90 break-all">
+                                  {order.delhiveryWaybill}
+                                </p>
+                                {order.delhiveryTrackingUrl && (
+                                  <a
+                                    href={order.delhiveryTrackingUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-blue-400 hover:text-blue-300 underline mt-1 inline-block"
+                                  >
+                                    Track Shipment →
+                                  </a>
+                                )}
+                              </div>
+                              <div>
+                                <p className="text-xs text-white/60">Courier</p>
+                                <p className="text-sm font-semibold text-white/90">
+                                  {order.delhiveryCourierName || order.delhiveryPartner || "N/A"}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                          {order.delivery_status && (
+                            <div className="mt-2">
+                              <p className="text-xs text-white/60">Delivery Status</p>
+                              <span className={`text-xs font-semibold ${
+                                order.delivery_status === "DELIVERED" ? "text-green-400" :
+                                order.delivery_status === "IN_TRANSIT" ? "text-blue-400" :
+                                order.delivery_status === "SENT" ? "text-yellow-400" :
+                                "text-white/70"
+                              }`}>
+                                {order.delivery_status}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {order.orderStatus === "CONFIRMED" ? (
+                            <div>
+                              <p className="text-xs text-white/60 mb-2">No shipment created yet</p>
+                              <button
+                                onClick={() => createShipment(order._id)}
+                                disabled={creatingShipment[order._id]}
+                                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                              >
+                                {creatingShipment[order._id] ? (
+                                  <>
+                                    <span className="animate-spin">⏳</span>
+                                    Creating Shipment...
+                                  </>
+                                ) : (
+                                  <>
+                                    📦 Create Shipment
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          ) : (
+                            <div>
+                              <p className="text-xs text-amber-400">
+                                ⚠️ Order must be CONFIRMED to create shipment. Current status: {order.orderStatus}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {order.delhiveryError && !order.isShipmentCreated && (
+                        <div className="mt-3 p-3 rounded-lg bg-red-900/20 border border-red-500/30">
+                          <p className="text-xs text-red-400 font-semibold mb-1">Last Error</p>
+                          <p className="text-xs text-white/70 break-all">
+                            {typeof order.delhiveryError === 'string' 
+                              ? order.delhiveryError 
+                              : String(order.delhiveryError || "Unknown error")}
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     {/* Customer Address Accordion */}

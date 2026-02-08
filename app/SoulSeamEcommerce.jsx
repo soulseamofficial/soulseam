@@ -181,7 +181,29 @@ const SoulSeamEcommerce = () => {
     "Future Proof Your Closet",
   ];
 
-  const fashionImages = Array(19).fill("/coming-soon.jpg");
+  // Horizontal scrolling gallery images - using actual product photos
+  const fashionImages = [
+    "/images/shoot1.jpeg",
+    "/images/shoot2.jpeg",
+    "/images/shoot3.jpeg",
+    "/images/shoot4.jpeg",
+    "/images/shoot5.jpeg",
+    "/images/shoot6.jpeg",
+    "/images/shoot7.jpeg",
+    "/images/shoot8.jpeg",
+  ];
+
+  // Featured collection images - using actual product photos
+  const featuredImages = [
+    "/images/shoot1.jpeg",
+    "/images/shoot2.jpeg",
+    "/images/shoot3.jpeg",
+    "/images/shoot4.jpeg",
+    "/images/shoot5.jpeg",
+    "/images/shoot6.jpeg",
+    "/images/shoot7.jpeg",
+    "/images/shoot8.jpeg",
+  ];
 
   const [products, setProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
@@ -1005,79 +1027,33 @@ const SoulSeamEcommerce = () => {
         id="story"
         className="py-20 px-4 sm:px-6 lg:px-8 bg-black text-white"
       >
-        <div className="max-w-6xl mx-auto space-y-20">
-          <div className="animate-reveal grid grid-cols-2 gap-6 sm:gap-12 items-center rounded-3xl p-5 sm:p-10 bg-gradient-to-br from-white/10 to-white/0 border border-white/20 shadow-[0_30px_120px_rgba(255,255,255,0.15)]">
-
-            <div className="relative overflow-hidden rounded-2xl">
-              <img
-                src="/coming-soon.jpg"
-                alt="Screen Printed T-Shirts"
-                className="w-full aspect-square object-cover scale-[1.08] transition-transform duration-[2000ms] ease-out sm:hover:scale-[1.18]"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
-            </div>
-            <div className="space-y-4 sm:space-y-6">
-              <h2 className="text-xl sm:text-3xl font-bold tracking-wide">
-                SCREEN PRINTED T-SHIRTS
-              </h2>
-              <p className="text-gray-300 text-xs sm:text-base leading-relaxed">
-                Stylish, sustainable, and crafted to make a statement. Each tee is
-                printed with eco-friendly inks for a premium look.
-              </p>
-              <button className="group relative overflow-hidden px-6 py-3 rounded-full bg-white text-black text-xs sm:text-sm font-semibold transition-all duration-300 ease-in-out cursor-pointer">
-                <span className="relative z-10 flex items-center gap-2 transition-colors duration-300 ease-in-out group-hover:text-white">
-                  SHOP NOW
-                  <span className="transition-transform duration-300 ease-in-out group-hover:translate-x-2">→</span>
-                </span>
-                {/* Premium dark glass hover overlay */}
-                <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out">
-                  {/* Dark gradient background (charcoal → black) */}
-                  <span className="absolute inset-0 bg-gradient-to-b from-[#2a2a2a] via-[#1a1a1a] to-[#0a0a0a] rounded-full"></span>
-                  {/* Inner highlight (top) */}
-                  <span className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-transparent rounded-full"></span>
-                  {/* Outer glow */}
-                  <span className="absolute inset-0 rounded-full" style={{
-                    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.15), 0 0 20px rgba(0,0,0,0.6), 0 0 40px rgba(0,0,0,0.4)'
-                  }}></span>
-                </span>
-              </button>
-            </div>
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-12 sm:mb-16 text-center">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">
+              SOULSEAM COLLECTION
+            </h2>
+            <p className="text-gray-300 text-base sm:text-lg max-w-2xl mx-auto">
+              Discover our premium fashion collection featuring authentic designs and timeless style
+            </p>
           </div>
-          <div className="animate-reveal delay-200 grid grid-cols-2 gap-6 sm:gap-12 items-center rounded-3xl p-5 sm:p-10 bg-gradient-to-br from-white/10 to-white/0 border border-white/20 shadow-[0_30px_120px_rgba(255,255,255,0.15)]">
-            <div className="space-y-4 sm:space-y-6">
-              <h2 className="text-xl sm:text-3xl font-bold tracking-wide">
-                100% COTTON T-SHIRTS
-              </h2>
-              <p className="text-gray-300 text-xs sm:text-base leading-relaxed">
-                Soft, breathable, and effortlessly cool. Designed for everyday comfort
-                with timeless style.
-              </p>
-              <button className="group relative overflow-hidden px-6 py-3 rounded-full bg-white text-black text-xs sm:text-sm font-semibold transition-all duration-300 ease-in-out cursor-pointer">
-                <span className="relative z-10 flex items-center gap-2 transition-colors duration-300 ease-in-out group-hover:text-white">
-                  SHOP NOW
-                  <span className="transition-transform duration-300 ease-in-out group-hover:translate-x-2">→</span>
-                </span>
-                {/* Premium dark glass hover overlay */}
-                <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out">
-                  {/* Dark gradient background (charcoal → black) */}
-                  <span className="absolute inset-0 bg-gradient-to-b from-[#2a2a2a] via-[#1a1a1a] to-[#0a0a0a] rounded-full"></span>
-                  {/* Inner highlight (top) */}
-                  <span className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-transparent rounded-full"></span>
-                  {/* Outer glow */}
-                  <span className="absolute inset-0 rounded-full" style={{
-                    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.15), 0 0 20px rgba(0,0,0,0.6), 0 0 40px rgba(0,0,0,0.4)'
-                  }}></span>
-                </span>
-              </button>
-            </div>
-            <div className="relative overflow-hidden rounded-2xl">
-              <img
-                src="/coming-soon.jpg"
-                alt="100% Cotton T-Shirts"
-                className="w-full aspect-square object-cover scale-[1.08] transition-transform duration-[2000ms] ease-out sm:hover:scale-[1.18]"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
-            </div>
+          
+          {/* Premium Gallery Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+            {featuredImages.map((img, i) => (
+              <div key={i} className="group relative overflow-hidden rounded-2xl">
+                <img
+                  src={img}
+                  alt={`SOULSEAM Collection ${i + 1}`}
+                  className="h-[420px] w-full object-cover transition-all duration-500 group-hover:scale-110"
+                  loading={i < 3 ? "eager" : "lazy"}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500">
+                  <p className="absolute bottom-5 left-5 text-white text-xl font-semibold">
+                    SOULSEAM COLLECTION
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>

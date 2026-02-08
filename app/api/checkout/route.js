@@ -5,7 +5,6 @@ import User from "@/app/models/User";
 import Coupon from "@/app/models/coupon";
 import Settings from "@/app/models/Settings";
 import { getAuthUserFromCookies } from "@/app/lib/auth";
-import { sendOrderToDelhivery, isOrderSentToDelhivery, logVerificationInstructions } from "@/app/lib/delhivery";
 import { reduceStockForOrderItems } from "@/app/lib/stockManager";
 import mongoose from "mongoose";
 import crypto from "crypto";
@@ -557,106 +556,7 @@ export async function POST(req) {
       }
     }
 
-    // Send order to Delhivery ONLY when orderStatus is CONFIRMED
-    let delhiveryResponse = null;
-    if (orderStatus === "CONFIRMED") {
-      try {
-        // Check if order was already sent to Delhivery (idempotent check)
-        if (isOrderSentToDelhivery(order)) {
-          console.log("⚠️ Order already sent to Delhivery, skipping:", order._id);
-        } else {
-          // Prepare order data for Delhivery
-          delhiveryResponse = await sendOrderToDelhivery({
-            orderId: order._id.toString(),
-            shippingAddress: {
-              fullName: shippingAddress.fullName || "",
-              firstName: firstName || "",
-              lastName: lastName || "",
-              phone: shippingAddress.phone || "",
-              addressLine1: shippingAddress.addressLine1 || "",
-              addressLine2: shippingAddress.addressLine2 || "",
-              city: shippingAddress.city || "",
-              state: shippingAddress.state || "",
-              pincode: shippingAddress.pincode || "",
-              country: shippingAddress.country || "India",
-            },
-            paymentMethod: paymentMethod,
-            items: items.map(item => ({
-              name: item.name,
-              quantity: item.quantity,
-            })),
-            totalAmount: totalAmount,
-          });
-
-          // Update order with Delhivery response
-          const updateData = {};
-          
-          if (delhiveryResponse?.success) {
-            // Success: Store Delhivery tracking details
-            updateData.delhiveryWaybill = delhiveryResponse.waybill;
-            updateData.delhiveryCourierName = delhiveryResponse.courier_name;
-            updateData.delhiveryDeliveryStatus = delhiveryResponse.delivery_status;
-            updateData.delhiveryTrackingUrl = delhiveryResponse.tracking_url;
-            updateData.delhiverySent = true;
-            updateData.delhiveryError = null;
-            
-            // Standardized delivery fields
-            updateData.delivery_provider = "DELHIVERY";
-            updateData.delivery_status = delhiveryResponse.delivery_status || "CREATED";
-            updateData.shipment_status = delhiveryResponse.shipment_status || "SHIPPED"; // Set to SHIPPED on success
-            
-            // Legacy fields for backward compatibility
-            updateData.delhiveryAWB = delhiveryResponse.waybill;
-            updateData.delhiveryTrackingId = delhiveryResponse.waybill;
-            updateData.delhiveryPartner = delhiveryResponse.courier_name;
-            
-            // Log verification instructions if real waybill (not mock)
-            if (!delhiveryResponse.isMock && delhiveryResponse.waybill) {
-              logVerificationInstructions(delhiveryResponse.waybill);
-            }
-            
-            console.log("✅ Order sent to Delhivery successfully:", {
-              orderId: order._id,
-              waybill: delhiveryResponse.waybill,
-              isMock: delhiveryResponse.isMock || false,
-            });
-          } else {
-            // Failure: Mark as PENDING but keep order as CONFIRMED (order doesn't fail)
-            updateData.delhiverySent = false;
-            updateData.delhiveryError = delhiveryResponse?.error || "Unknown error";
-            updateData.delhiveryDeliveryStatus = "PENDING";
-            updateData.delivery_provider = "DELHIVERY"; // Still mark provider even on failure
-            updateData.delivery_status = "PENDING";
-            updateData.shipment_status = delhiveryResponse?.shipment_status || "PENDING"; // Set to PENDING on failure
-            
-            // Log full Delhivery response for debugging
-            console.error("❌ Failed to send order to Delhivery (order still confirmed, status: PENDING):", {
-              orderId: order._id,
-              error: updateData.delhiveryError,
-              delhiveryResponse: delhiveryResponse?.rawResponse || delhiveryResponse,
-            });
-          }
-
-          // Update order with Delhivery response
-          await Order.findByIdAndUpdate(order._id, { $set: updateData });
-        }
-      } catch (delhiveryError) {
-        // Log error but don't fail the order creation
-        console.error("❌ Delhivery creation error (non-blocking):", delhiveryError);
-        
-        // Mark order as PENDING (order doesn't fail, shipment status is PENDING)
-        await Order.findByIdAndUpdate(order._id, {
-          $set: {
-            delhiverySent: false,
-            delhiveryError: delhiveryError.message || "Unknown error",
-            delhiveryDeliveryStatus: "PENDING",
-            delivery_provider: "DELHIVERY",
-            delivery_status: "PENDING",
-            shipment_status: "PENDING", // Set shipment_status to PENDING on error
-          },
-        });
-      }
-    }
+    // Shipment creation is now handled by admin - removed from checkout flow
 
     return NextResponse.json(
       {
@@ -664,13 +564,6 @@ export async function POST(req) {
         orderId: order._id.toString(),
         orderStatus: order.orderStatus,
         paymentStatus: order.paymentStatus,
-        delhivery: delhiveryResponse?.success
-          ? {
-              waybill: delhiveryResponse.waybill,
-              trackingUrl: delhiveryResponse.tracking_url,
-              courierName: delhiveryResponse.courier_name,
-            }
-          : null,
       },
       { status: 201 }
     );
