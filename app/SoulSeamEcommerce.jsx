@@ -167,6 +167,8 @@ const SoulSeamEcommerce = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isTrackOrderModalOpen, setIsTrackOrderModalOpen] = useState(false);
+  const [isAmorFlyExpanded, setIsAmorFlyExpanded] = useState(false);
+  const [isSoulSovereignExpanded, setIsSoulSovereignExpanded] = useState(false);
 
   // Removed all quick view related state
   const scrollContainerRef = useRef(null);
@@ -194,16 +196,7 @@ const SoulSeamEcommerce = () => {
   ];
 
   // Featured collection images - using actual product photos
-  const featuredImages = [
-    "/images/shoot1.jpeg",  // 1
-    "/images/shoot2.jpeg",  // 2
-    "/images/shoot4.jpeg",  // 3
-    "/images/shoot3.jpeg",  // 4
-    "/images/shoot7.jpeg",  // 5
-    "/images/shoot5.jpeg",  // 6
-    "/images/shoot8.jpeg",  // 7
-    "/images/shoot6.jpeg",  // 8
-  ];
+  const featuredImages = [];
 
   const [products, setProducts] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
@@ -1025,10 +1018,10 @@ const SoulSeamEcommerce = () => {
 
       <section
         id="story"
-        className="py-20 px-4 sm:px-6 lg:px-8 bg-black text-white"
+        className="py-10 sm:py-12 px-4 sm:px-6 lg:px-8 bg-black text-white"
       >
         <div className="max-w-7xl mx-auto">
-          <div className="mb-12 sm:mb-16 text-center">
+          <div className="mb-6 sm:mb-8 text-center">
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">
               SOULSEAM COLLECTION
             </h2>
@@ -1054,6 +1047,132 @@ const SoulSeamEcommerce = () => {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Alternating Layout Section */}
+      <section className="py-10 sm:py-12 md:py-14 px-4 sm:px-6 lg:px-8 bg-black text-white">
+        <div className="max-w-7xl mx-auto">
+          {/* First Row: Image Left, Text Right */}
+          <div className="flex flex-col lg:flex-row items-center gap-6 lg:gap-8 mb-12 lg:mb-16">
+            {/* Image Container */}
+            <div className="w-full lg:w-1/2 h-[400px] sm:h-[500px] lg:h-[600px] relative overflow-hidden rounded-2xl">
+              <img
+                src="/images/shoot7.jpeg"
+                alt="AmorFly Infinite Bloom – Royal Blue"
+                className="w-full h-full object-cover transition-all duration-500 hover:scale-110"
+                loading="eager"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent"></div>
+            </div>
+            {/* Text Content */}
+            <div className="w-full lg:w-1/2 flex flex-col justify-center px-4 lg:px-8">
+              <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4">
+                AmorFly Infinite Bloom – Royal Blue
+              </h3>
+              <div className="text-white/80 text-base sm:text-lg leading-relaxed mb-6 space-y-4">
+                <p>
+                  AmorFly Infinite Bloom – Royal Blue is a reflection of evolution — the quiet, powerful journey from fragmentation to wholeness.
+                </p>
+                <p>
+                  The design brings together two opposing yet connected forms: one side intense, raw, and layered with emotion; the other blooming with florals, light, and grace. Together, they shape a heart that subtly transforms into a butterfly — symbolizing renewal, growth, and becoming.
+                </p>
+                {isAmorFlyExpanded && (
+                  <>
+                    <p>
+                      At the center rests the infinity symbol — a reminder that growth is not a destination, but a continuous unfolding. Love, healing, strength, self-discovery — they are not moments. They are cycles.
+                    </p>
+                    <p>
+                      The royal blue base represents depth and composure. It speaks of inner strength — the kind that does not need to be loud to be powerful. Above it sits the crown, symbolizing self-worth. Not superiority, but sovereignty — the understanding that your story, in all its complexity, has value.
+                    </p>
+                    <p>
+                      For couples, this piece represents choosing each other through imperfection — growing, healing, and evolving side by side.
+                    </p>
+                    <p>
+                      For individuals, it stands as a tribute to self-love — the courage to embrace every version of yourself and bloom anyway.
+                    </p>
+                    <p className="font-semibold">
+                      This is not just a graphic.<br />
+                      It is a narrative of transformation.
+                    </p>
+                    <p className="text-xl font-bold mt-6">
+                      AmorFly Infinite Bloom – Royal Blue<br />
+                      <span className="text-lg font-normal">Wear your evolution.</span>
+                    </p>
+                  </>
+                )}
+              </div>
+              <button
+                onClick={() => setIsAmorFlyExpanded(!isAmorFlyExpanded)}
+                className="self-start bg-white text-black px-6 py-3 rounded-full font-semibold text-sm sm:text-base hover:bg-gray-200 transition-all duration-300 transform hover:scale-105"
+              >
+                {isAmorFlyExpanded ? "Read Less" : "Read More"}
+              </button>
+            </div>
+          </div>
+
+          {/* Second Row: Text Left, Image Right */}
+          <div className="flex flex-col lg:flex-row-reverse items-center gap-6 lg:gap-8">
+            {/* Image Container */}
+            <div className="w-full lg:w-1/2 h-[400px] sm:h-[500px] lg:h-[600px] relative overflow-hidden rounded-2xl">
+              <img
+                src={featuredImages[1] || "/images/shoot2.jpeg"}
+                alt="Featured Collection 2"
+                className="w-full h-full object-cover transition-all duration-500 hover:scale-110"
+                loading="lazy"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent"></div>
+            </div>
+            {/* Text Content */}
+            <div className="w-full lg:w-1/2 flex flex-col justify-center px-4 lg:px-8">
+              <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4">
+                Soul Sovereign – Ivory Bloom Edition
+              </h3>
+              <div className="text-white/80 text-base sm:text-lg leading-relaxed mb-6 space-y-4">
+                <p className="font-semibold">
+                  True strength is not declared.<br />
+                  It is carried.
+                </p>
+                <p>
+                  Soul Sovereign – Ivory Bloom Edition is a study in quiet authority — a balance of composure, depth, and emotional maturity.
+                </p>
+                <p>
+                  Set against a clean ivory-white canvas, the design speaks through restraint. White represents clarity of mind and steadiness of spirit — a foundation untouched by noise. Across the shoulders, twin rose clusters bloom with intention. They are not decorative. They are symbolic.
+                </p>
+                {isSoulSovereignExpanded && (
+                  <>
+                    <p>
+                      The shoulders carry weight — responsibility, growth, experience.
+                      The roses bloom there deliberately, signifying strength shaped by struggle and grace formed through pressure.
+                    </p>
+                    <p>
+                      At the center, the word SOUL stands minimal and grounded. No excess. No distraction. Just identity.
+                    </p>
+                    <p>
+                      For couples, it represents emotional symmetry — two individuals rooted in their own strength, choosing to bloom together.
+                    </p>
+                    <p>
+                      For individuals, it is a reminder that sovereignty begins within. Your soul is your foundation — unseen, yet unshakable.
+                    </p>
+                    <p className="font-semibold">
+                      This piece does not seek attention.<br />
+                      It commands presence through restraint.
+                    </p>
+                    <p className="text-xl font-bold mt-6">
+                      Soul Sovereign – Ivory Bloom Edition<br />
+                      <span className="text-lg font-normal">Composure, worn with intention.</span>
+                    </p>
+                  </>
+                )}
+              </div>
+              <button
+                onClick={() => setIsSoulSovereignExpanded(!isSoulSovereignExpanded)}
+                className="self-start bg-white text-black px-6 py-3 rounded-full font-semibold text-sm sm:text-base hover:bg-gray-200 transition-all duration-300 transform hover:scale-105"
+              >
+                {isSoulSovereignExpanded ? "Read Less" : "Read More"}
+              </button>
+            </div>
           </div>
         </div>
       </section>
