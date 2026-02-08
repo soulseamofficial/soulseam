@@ -1967,9 +1967,11 @@ export default function CheckoutPage() {
       if (itemsWithFinalPrice.length > 0) {
         itemsToSend = itemsWithFinalPrice;
       } else if (cartItems.length > 0) {
-        // Map cartItems to ensure they have all required fields
+        // 🔥 FIX: Map cartItems to ensure they have all required fields
+        // Prioritize productId (MongoDB ObjectId) over id
         itemsToSend = cartItems.map(item => ({
-          id: item.id || item._id || item.productId || "",
+          productId: item.productId || item._id || item.id || "",
+          id: item.productId || item._id || item.id || "", // Also include id for backward compatibility
           name: item.name || "",
           image: item.image || "",
           size: item.size || "",
@@ -2112,9 +2114,11 @@ export default function CheckoutPage() {
           if (itemsWithFinalPrice.length > 0) {
             itemsToSend = itemsWithFinalPrice;
           } else if (cartItems.length > 0) {
-            // Map cartItems to ensure they have all required fields
+            // 🔥 FIX: Map cartItems to ensure they have all required fields
+            // Prioritize productId (MongoDB ObjectId) over id
             itemsToSend = cartItems.map(item => ({
-              id: item.id || item._id || item.productId || "",
+              productId: item.productId || item._id || item.id || "",
+              id: item.productId || item._id || item.id || "", // Also include id for backward compatibility
               name: item.name || "",
               image: item.image || "",
               size: item.size || "",

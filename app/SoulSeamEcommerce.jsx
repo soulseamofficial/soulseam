@@ -130,10 +130,15 @@ const SearchProductCard = ({ product, router, onClose }) => {
           <span className="text-lg font-bold text-white">
             Rs. {Number(product.price).toLocaleString()}
           </span>
-          {product.originalPrice > product.price && (
-            <span className="text-sm text-white/50 line-through">
-              Rs. {Number(product.originalPrice).toLocaleString()}
-            </span>
+          {product.compareAtPrice && product.compareAtPrice > product.price && (
+            <>
+              <span className="text-sm text-white/50 line-through">
+                Rs. {Number(product.compareAtPrice).toLocaleString()}
+              </span>
+              <span className="text-xs text-emerald-400 font-semibold">
+                {Math.round(((product.compareAtPrice - product.price) / product.compareAtPrice) * 100)}% OFF
+              </span>
+            </>
           )}
         </div>
       </div>
@@ -200,9 +205,7 @@ const SoulSeamEcommerce = () => {
             _id: p._id,
             name: p.name || p.title || "Unnamed Product",
             price: typeof p.price === "number" ? p.price : Number(p.price) || 0,
-            originalPrice: typeof p.originalPrice === "number"
-              ? p.originalPrice
-              : Number(p.originalPrice) || Number(p.price) || 0,
+            compareAtPrice: typeof p.compareAtPrice === "number" ? p.compareAtPrice : null,
             images,
             image: images?.[0] || "/coming-soon.jpg",
             hoverImage: images?.[1] || images?.[0] || "/coming-soon.jpg",
@@ -564,9 +567,16 @@ const SoulSeamEcommerce = () => {
             <span className="text-lg sm:text-xl font-bold text-white">
               Rs. {Number(product.price).toLocaleString()}
             </span>
-            <span className="text-xs sm:text-sm text-white/50 line-through">
-              Rs. {Number(product.originalPrice).toLocaleString()}
-            </span>
+            {product.compareAtPrice && product.compareAtPrice > product.price && (
+              <>
+                <span className="text-xs sm:text-sm text-white/50 line-through">
+                  Rs. {Number(product.compareAtPrice).toLocaleString()}
+                </span>
+                <span className="text-[10px] sm:text-xs text-emerald-400 font-semibold">
+                  {Math.round(((product.compareAtPrice - product.price) / product.compareAtPrice) * 100)}% OFF
+                </span>
+              </>
+            )}
           </div>
         </div>
       </div>

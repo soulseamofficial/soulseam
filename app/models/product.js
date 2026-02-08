@@ -30,6 +30,11 @@ const ProductSchema = new mongoose.Schema(
       required: true,
     },
 
+    compareAtPrice: {
+      type: Number,
+      default: null,
+    },
+
     description: {
       type: String,
       required: true,
@@ -48,6 +53,13 @@ const ProductSchema = new mongoose.Schema(
       required: true,
     },
 
+    // 🔥 TOTAL STOCK - Cached for atomic updates
+    totalStock: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
     // 🔥 ACTIVE STATUS - Hide products without deleting them
     isActive: {
       type: Boolean,
@@ -56,6 +68,17 @@ const ProductSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// 🔥 PRE-SAVE HOOK: Calculate totalStock from sizes array
+ProductSchema.pre("save", function (next) {
+  if (this.isModified("sizes") || this.isNew) {
+    this.totalStock = this.sizes.reduce(
+      (sum, size) => sum + (size.stock || 0),
+      0
+    );
+  }
+  next();
+});
 
 export default mongoose.models.Product ||
   mongoose.model("Product", ProductSchema);
