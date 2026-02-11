@@ -13,6 +13,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { connectDB } from "@/app/lib/db";
 import Order from "@/app/models/Order";
+import OrphanPayment from "@/app/models/OrphanPayment";
 import User from "@/app/models/User";
 import Coupon from "@/app/models/coupon";
 // Shipment creation moved to admin panel - removed from webhook
@@ -84,6 +85,8 @@ export async function POST(req) {
       const razorpayOrderId = paymentEntity.order_id;
       const razorpayPaymentId = paymentEntity.id;
       const paymentStatus = paymentEntity.status;
+      const amount = paymentEntity.amount || 0; // Amount in paise
+      const amountInRupees = amount / 100;
 
       if (paymentStatus !== "captured") {
         console.log("⚠️ Payment not captured, status:", paymentStatus);
@@ -98,48 +101,90 @@ export async function POST(req) {
       
       const order = await Order.findOne({
         razorpayOrderId: razorpayOrderId,
-        paymentMethod: "ONLINE",
       });
 
+      // STEP 6: SAFETY NET - Handle orphan payments
       if (!order) {
-        console.error("❌ WEBHOOK: Order not found for Razorpay order ID - This indicates order creation failed!", {
+        console.error("❌ WEBHOOK: Order not found for Razorpay order ID - Saving as orphan payment", {
           razorpayOrderId: razorpayOrderId,
           razorpayPaymentId: razorpayPaymentId,
           paymentStatus: paymentStatus,
-          message: "CRITICAL: Payment succeeded but order was never created. Check checkout API logs.",
+          amount: amountInRupees,
         });
-        return NextResponse.json({ received: true, message: "Order not found" });
+
+        // Save to orphan_payments collection to prevent revenue loss
+        try {
+          await OrphanPayment.create({
+            razorpayOrderId: razorpayOrderId,
+            razorpayPaymentId: razorpayPaymentId,
+            amount: amountInRupees,
+            amountInPaise: amount,
+            currency: paymentEntity.currency || "INR",
+            event: event,
+            paymentStatus: paymentStatus,
+            rawPayload: paymentEntity,
+            notes: "Order not found when webhook arrived. Payment captured but order was never created in DB.",
+          });
+
+          console.log("✅ Orphan payment saved to prevent revenue loss:", {
+            razorpayOrderId: razorpayOrderId,
+            razorpayPaymentId: razorpayPaymentId,
+          });
+        } catch (orphanError) {
+          console.error("❌ Failed to save orphan payment:", orphanError);
+        }
+
+        return NextResponse.json({ 
+          received: true, 
+          message: "Order not found - saved as orphan payment" 
+        });
       }
       
       console.log("✅ WEBHOOK: Order found", {
         orderId: order._id.toString(),
+        orderNumber: order.orderNumber,
         currentPaymentStatus: order.paymentStatus,
         currentOrderStatus: order.orderStatus,
       });
 
-      // Check if order is already processed
-      if (order.paymentStatus === "PAID" && order.orderStatus === "CONFIRMED") {
-        console.log("✅ Order already confirmed:", order._id);
-        return NextResponse.json({ received: true, message: "Order already processed" });
+      // STEP 5: IDEMPOTENCY CHECK - Prevent duplicate webhook updates
+      if (order.paymentStatus === "PAID") {
+        console.log("✅ Order already paid (idempotency check):", {
+          orderId: order._id.toString(),
+          orderNumber: order.orderNumber,
+          paymentStatus: order.paymentStatus,
+        });
+        return NextResponse.json({ 
+          received: true, 
+          message: "Order already paid - duplicate webhook ignored",
+          orderId: order._id.toString(),
+        });
       }
 
-      // Update order: payment PAID, order CONFIRMED
+      // Update order: payment PAID, order CONFIRMED, add payment details and timestamp
       await Order.findByIdAndUpdate(order._id, {
         $set: {
           paymentStatus: "PAID",
-          orderStatus: "CONFIRMED",
+          orderStatus: "CONFIRMED", // State machine: CREATED → CONFIRMED (not directly to "paid")
           razorpayPaymentId: razorpayPaymentId,
           razorpaySignature: paymentEntity.signature || null,
+          paidAt: new Date(), // Payment timestamp
           // Legacy fields
           "payment.status": "paid",
+          "payment.razorpayPaymentId": razorpayPaymentId,
           legacyOrderStatus: "paid",
         },
       });
 
-      console.log("✅ Order updated to CONFIRMED:", order._id);
+      console.log("✅ Order updated to PAID and CONFIRMED:", {
+        orderId: order._id.toString(),
+        orderNumber: order.orderNumber,
+        paymentId: razorpayPaymentId,
+      });
 
       // Update user orderCount and firstOrderCouponUsed when order is confirmed (logged-in users only)
-      if (order.userId) {
+      // Only update if this is the first time the order is being confirmed
+      if (order.userId && order.orderStatus !== "CONFIRMED") {
         try {
           const userUpdate = { $inc: { orderCount: 1 } };
           
@@ -160,8 +205,13 @@ export async function POST(req) {
       }
 
       // Shipment creation is now handled by admin - removed from webhook flow
+      // Order status: CONFIRMED → will be moved to PROCESSING by admin/worker later
 
-      return NextResponse.json({ received: true, orderId: order._id.toString() });
+      return NextResponse.json({ 
+        received: true, 
+        orderId: order._id.toString(),
+        orderNumber: order.orderNumber,
+      });
     }
 
     // Handle payment.failed event
