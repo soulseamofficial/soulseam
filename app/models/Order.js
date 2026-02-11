@@ -72,10 +72,16 @@ const OrderSchema = new mongoose.Schema(
     advancePaid: { type: Number, default: 0, min: 0 },
     remainingCOD: { type: Number, default: 0, min: 0 },
 
+    // Order number (unique identifier like SS0001, SS0002, etc.)
+    orderNumber: { type: String, default: null, unique: true, sparse: true, index: true },
+
     // Razorpay payment details (for ONLINE payments and COD advance)
-    razorpayOrderId: { type: String, default: null },
+    razorpayOrderId: { type: String, default: null, unique: true, sparse: true, index: true },
     razorpayPaymentId: { type: String, default: null },
     razorpaySignature: { type: String, default: null },
+    
+    // Payment timestamp
+    paidAt: { type: Date, default: null },
 
     // Delhivery tracking details
     delhiveryWaybill: { type: String, default: null, index: true },

@@ -2076,141 +2076,119 @@ export default function CheckoutPage() {
     if (paymentButtonRef.current) paymentButtonRef.current.disabled = true;
 
     try {
-      const res = await fetch("/api/razorpay", {
+      // Prepare shipping address
+      const shippingAddressSnapshot = {
+        fullName: [form.firstName, form.lastName].filter(Boolean).join(" "),
+        phone: form.phone,
+        addressLine1: form.address,
+        addressLine2: form.apt,
+        city: form.city,
+        state: form.state,
+        pincode: form.pin,
+        country: form.country,
+      };
+
+      // Ensure guest user exists if not logged in
+      const gId = await upsertGuestUser(shippingAddressSnapshot);
+      console.log("👤 Guest user ID:", gId || "User is logged in");
+
+      // Ensure items are available - use cartItems directly if itemsWithFinalPrice is empty
+      let itemsToSend = [];
+      
+      if (itemsWithFinalPrice.length > 0) {
+        itemsToSend = itemsWithFinalPrice;
+      } else if (cartItems.length > 0) {
+        // Map cartItems to ensure they have all required fields
+        itemsToSend = cartItems.map(item => ({
+          productId: item.productId || item._id || item.id || "",
+          id: item.productId || item._id || item.id || "", // Also include id for backward compatibility
+          name: item.name || "",
+          image: item.image || "",
+          size: item.size || "",
+          color: item.color || "",
+          price: item.price || 0,
+          finalPrice: item.finalPrice ?? item.price ?? 0,
+          quantity: item.quantity || 1,
+        }));
+      }
+
+      if (itemsToSend.length === 0) {
+        console.error("❌ Cart is empty - cannot create order");
+        window?.alert?.("Your cart is empty. Please add items before placing an order.");
+        setRazorpayLoading(false);
+        if (paymentButtonRef.current) paymentButtonRef.current.disabled = false;
+        return;
+      }
+
+      console.log("📦 CREATING ORDER - Sending request to /api/orders/create", {
+        itemsCount: itemsToSend.length,
+        paymentMethod: "ONLINE",
+      });
+
+      // STEP 1 & 2: Create order in DB and get Razorpay order details
+      const createOrderRes = await fetch("/api/orders/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: total }),
+        body: JSON.stringify({
+          guestUserId: gId || undefined,
+          shippingAddress: shippingAddressSnapshot,
+          items: itemsToSend,
+          coupon: appliedCoupon && appliedCouponCode ? { code: appliedCouponCode, discount } : null,
+          subtotal,
+          discount,
+          total,
+          paymentMethod: "ONLINE",
+          orderMessage: orderMessage || undefined,
+        }),
       });
-      const data = await res.json();
+
+      const createOrderData = await createOrderRes.json().catch((err) => {
+        console.error("❌ Failed to parse create order response:", err);
+        return {};
+      });
+
+      if (!createOrderRes.ok) {
+        console.error("❌ ORDER CREATION FAILED", {
+          status: createOrderRes.status,
+          message: createOrderData?.message,
+        });
+        window?.alert?.(createOrderData?.message || "Failed to create order. Please try again.");
+        setRazorpayLoading(false);
+        if (paymentButtonRef.current) paymentButtonRef.current.disabled = false;
+        return;
+      }
+
+      console.log("✅ ORDER CREATED IN DB - Order created before payment", {
+        orderId: createOrderData?.order_id,
+        orderNumber: createOrderData?.order_number,
+        razorpayOrderId: createOrderData?.razorpay_order_id,
+      });
+
+      // Store order details for success handler
+      const orderId = createOrderData?.order_id;
+      const orderNumber = createOrderData?.order_number;
+
       if (typeof window === "undefined") return;
+
+      // STEP 3: Open Razorpay checkout using the returned razorpay_order_id
       const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: data.amount,
+        key: createOrderData?.key || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: createOrderData?.amount, // Amount in paise
         currency: "INR",
         name: "SOULSEAM",
-        description: "Order Payment",
-        order_id: data.orderId,
+        description: `Order ${orderNumber || "Payment"}`,
+        order_id: createOrderData?.razorpay_order_id,
         handler: async function (response) {
-          console.log("🚀 PAYMENT SUCCESS HIT - Razorpay payment handler called", {
+          console.log("🚀 PAYMENT SUCCESS - Razorpay payment completed", {
             razorpay_payment_id: response.razorpay_payment_id,
             razorpay_order_id: response.razorpay_order_id,
-            razorpay_signature: response.razorpay_signature ? "present" : "missing",
-          });
-          
-          try {
-            const shippingAddressSnapshot = {
-              fullName: [form.firstName, form.lastName].filter(Boolean).join(" "),
-              phone: form.phone,
-              addressLine1: form.address,
-              addressLine2: form.apt,
-              city: form.city,
-              state: form.state,
-              pincode: form.pin,
-              country: form.country,
-            };
-
-            console.log("📦 CREATING ORDER - Preparing order data", {
-              shippingAddress: shippingAddressSnapshot,
-              itemsCount: itemsWithFinalPrice.length || cartItems.length,
-            });
-
-            // Ensure guest user exists if not logged in
-            const gId = await upsertGuestUser(shippingAddressSnapshot);
-            console.log("👤 Guest user ID:", gId || "User is logged in");
-
-          // Ensure items are available - use cartItems directly if itemsWithFinalPrice is empty
-          let itemsToSend = [];
-          
-          if (itemsWithFinalPrice.length > 0) {
-            itemsToSend = itemsWithFinalPrice;
-          } else if (cartItems.length > 0) {
-            // 🔥 FIX: Map cartItems to ensure they have all required fields
-            // Prioritize productId (MongoDB ObjectId) over id
-            itemsToSend = cartItems.map(item => ({
-              productId: item.productId || item._id || item.id || "",
-              id: item.productId || item._id || item.id || "", // Also include id for backward compatibility
-              name: item.name || "",
-              image: item.image || "",
-              size: item.size || "",
-              color: item.color || "",
-              price: item.price || 0,
-              finalPrice: item.finalPrice ?? item.price ?? 0,
-              quantity: item.quantity || 1,
-            }));
-          }
-
-          console.log("handlePayment: Items to send", {
-            itemsWithFinalPriceCount: itemsWithFinalPrice.length,
-            cartItemsCount: cartItems.length,
-            itemsToSendCount: itemsToSend.length,
-            itemsToSend,
+            orderId: orderId,
+            orderNumber: orderNumber,
           });
 
-          if (itemsToSend.length === 0) {
-            console.error("❌ Cart is empty - cannot create order");
-            window?.alert?.("Your cart is empty. Please add items before placing an order.");
-            return;
-          }
-
-          console.log("📤 CREATING ORDER - Sending request to /api/checkout", {
-            itemsCount: itemsToSend.length,
-            paymentMethod: "ONLINE",
-            hasRazorpayDetails: !!(response.razorpay_payment_id && response.razorpay_signature),
-          });
-
-          // Create order directly via checkout API with payment verification
-          const checkoutRes = await fetch("/api/checkout", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              guestUserId: gId || undefined,
-              shippingAddress: shippingAddressSnapshot,
-              items: itemsToSend,
-              coupon: appliedCoupon && appliedCouponCode ? { code: appliedCouponCode, discount } : null,
-              subtotal,
-              discount,
-              total,
-              paymentMethod: "ONLINE",
-              razorpay_order_id: data.orderId,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              orderMessage: orderMessage || undefined,
-            }),
-          });
-
-          const checkoutData = await checkoutRes.json().catch((err) => {
-            console.error("❌ Failed to parse checkout response:", err);
-            return {};
-          });
-          
-          console.log("📥 Checkout API response received", {
-            ok: checkoutRes.ok,
-            status: checkoutRes.status,
-            orderId: checkoutData?.orderId,
-            success: checkoutData?.success,
-            message: checkoutData?.message,
-          });
-          
-          if (!checkoutRes.ok) {
-            console.error("❌ ORDER CREATION FAILED", {
-              status: checkoutRes.status,
-              message: checkoutData?.message,
-              errors: checkoutData?.stockErrors,
-            });
-            window?.alert?.(checkoutData?.message || "Payment verified but order creation failed.");
-            return;
-          }
-
-          console.log("✅ ORDER CREATED - Order successfully created in database", {
-            orderId: checkoutData?.orderId,
-            orderStatus: checkoutData?.orderStatus,
-            paymentStatus: checkoutData?.paymentStatus,
-          });
-
-          // Order successfully created in database - trigger premium success animation
-          // This is payment-agnostic and order-status driven only
-          // Animation triggers after order is saved, not tied to payment success
-          setOrderId(checkoutData?.orderId || null);
+          // Order already exists in DB - webhook will update it to "paid"
+          // Just show success to user
+          setOrderId(orderId || null);
           setSuccessPaymentMethod("ONLINE");
           setOrderSuccess(true);
           
@@ -2223,14 +2201,6 @@ export default function CheckoutPage() {
           setCouponDiscount(0);
           setCouponError("");
           setShowCouponSuccess(false);
-          } catch (handlerError) {
-            console.error("❌ PAYMENT HANDLER ERROR - Error in Razorpay payment handler", {
-              error: handlerError.message,
-              stack: handlerError.stack,
-              response: response,
-            });
-            window?.alert?.("Payment succeeded but an error occurred while creating your order. Please contact support with payment ID: " + response.razorpay_payment_id);
-          }
         },
         prefill: {
           name: form.firstName + " " + form.lastName,
@@ -2239,6 +2209,7 @@ export default function CheckoutPage() {
         },
         theme: { color: "#000000" },
       };
+
       if (!window.Razorpay) {
         const script = document.createElement("script");
         script.src = "https://checkout.razorpay.com/v1/checkout.js";
@@ -2250,6 +2221,12 @@ export default function CheckoutPage() {
       } else {
         new window.Razorpay(options).open();
       }
+    } catch (error) {
+      console.error("❌ PAYMENT INITIALIZATION ERROR", {
+        error: error.message,
+        stack: error.stack,
+      });
+      window?.alert?.("Failed to initialize payment. Please try again.");
     } finally {
       setTimeout(() => {
         if (paymentButtonRef.current) paymentButtonRef.current.disabled = false;
