@@ -70,14 +70,13 @@ const ProductSchema = new mongoose.Schema(
 );
 
 // 🔥 PRE-SAVE HOOK: Calculate totalStock from sizes array
-ProductSchema.pre("save", function (next) {
+ProductSchema.pre("save", async function () {
   if (this.isModified("sizes") || this.isNew) {
     this.totalStock = this.sizes.reduce(
       (sum, size) => sum + (size.stock || 0),
       0
     );
   }
-  next();
 });
 
 export default mongoose.models.Product ||
