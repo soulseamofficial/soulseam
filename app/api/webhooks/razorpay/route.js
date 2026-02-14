@@ -42,6 +42,7 @@ export async function POST(req) {
     //---------------------------------------
 
     if (event.event === "payment.captured") {
+      // ✅ STEP 2: EXTRACT PAYMENT DATA FROM PAYLOAD
       const payment = event.payload.payment.entity;
 
       const razorpay_order_id = payment.order_id;
@@ -51,15 +52,20 @@ export async function POST(req) {
       const paymentAmountInPaise = payment.amount || null;
       const paymentAmount = paymentAmountInPaise ? paymentAmountInPaise / 100 : null;
 
+      // ✅ STEP 2: EXTRACT SIGNATURE FROM HEADER
+      // Note: This is the webhook verification signature, not the payment signature
+      // Payment signatures are only available from frontend verify calls
+      const signatureFromHeader = signature; // Already extracted from x-razorpay-signature header
+
       // Connect to database
       await connectDB();
 
-      // ✅ USE SAME FUNCTION AS VERIFY ENDPOINT
-      // This ensures idempotency, atomic updates, and prevents duplicate shipments
+      // ✅ STEP 2: CALL IDEMPOTENT HELPER WITH FULL PAYMENT DATA
+      // Webhook is the SINGLE SOURCE OF TRUTH for payment persistence
       const result = await markOrderAsPaid(
         razorpay_order_id,
         razorpay_payment_id,
-        null, // Webhooks don't have signatures
+        signatureFromHeader, // Pass webhook signature for audit trail
         {
           isWebhook: true,
           paymentAmount,

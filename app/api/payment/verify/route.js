@@ -1,8 +1,5 @@
 import { NextResponse } from "next/server";
-import { connectDB } from "@/app/lib/db";
-import { verifyRazorpaySignature, markOrderAsPaid } from "@/app/lib/razorpay";
-import Order from "@/app/models/Order";
-import Razorpay from "razorpay";
+import { verifyRazorpaySignature } from "@/app/lib/razorpay";
 
 /**
  * Structured logger for verify endpoint
@@ -33,15 +30,15 @@ function logVerify(level, message, context = {}) {
 /**
  * POST /api/payment/verify
  * 
- * PRIMARY payment verification endpoint (called immediately after payment success on frontend).
- * The webhook acts as a backup only.
+ * Payment verification endpoint (called immediately after payment success on frontend).
+ * 
+ * CRITICAL: This endpoint does NOT write to the database.
+ * Webhook is the SINGLE SOURCE OF TRUTH for payment persistence.
  * 
  * Flow:
  * 1. Validates required fields
  * 2. Verifies Razorpay payment signature
- * 3. Connects to database
- * 4. Marks order as PAID using atomic update (idempotent)
- * 5. Returns order status
+ * 3. Returns success to UI
  * 
  * Request body:
  * {
@@ -101,149 +98,20 @@ export async function POST(req) {
       razorpayPaymentId: razorpay_payment_id,
     });
 
-    // Connect to database (service functions assume DB is already connected)
-    await connectDB();
-
-    // CRITICAL FRAUD PROTECTION: Fetch payment details from Razorpay to validate amount
-    let paymentAmount = null;
-    let paymentAmountInPaise = null;
-    
-    if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
-      try {
-        const razorpay = new Razorpay({
-          key_id: process.env.RAZORPAY_KEY_ID,
-          key_secret: process.env.RAZORPAY_KEY_SECRET,
-        });
-        
-        // Fetch payment details from Razorpay
-        const payment = await razorpay.payments.fetch(razorpay_payment_id);
-        
-        if (payment && payment.amount) {
-          paymentAmountInPaise = payment.amount;
-          paymentAmount = payment.amount / 100; // Convert to rupees
-          
-          logVerify("info", "Payment amount fetched from Razorpay", {
-            orderNumber: null,
-            razorpayPaymentId: razorpay_payment_id,
-            paymentAmountInPaise,
-            paymentAmount,
-          });
-        } else {
-          logVerify("warn", "Payment amount not found in Razorpay response", {
-            orderNumber: null,
-            razorpayPaymentId: razorpay_payment_id,
-          });
-        }
-      } catch (error) {
-        // Log error but continue - amount validation will be skipped if fetch fails
-        logVerify("warn", "Failed to fetch payment details from Razorpay", {
-          orderNumber: null,
-          razorpayPaymentId: razorpay_payment_id,
-          error: error.message,
-        });
-      }
-    }
-
-    // Mark order as paid with idempotency protection and amount validation
-    // This uses atomic findOneAndUpdate to prevent race conditions
-    const result = await markOrderAsPaid(
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
-      { 
-        isWebhook: false,
-        paymentAmount,
-        paymentAmountInPaise,
-      }
-    );
-
-    if (!result.success) {
-      if (result.error === "ORDER_NOT_FOUND") {
-        logVerify("error", "Order not found", {
-          orderNumber: null,
-          razorpayPaymentId: razorpay_payment_id,
-        });
-        return NextResponse.json(
-          {
-            success: false,
-            error: result.error,
-            message: "Order not found",
-          },
-          { status: 404 }
-        );
-      }
-
-      if (result.error === "PAYMENT_ID_MISMATCH") {
-        logVerify("warn", "Payment ID mismatch", {
-          orderNumber: result.order?.orderNumber || null,
-          razorpayPaymentId: razorpay_payment_id,
-        });
-        return NextResponse.json(
-          {
-            success: false,
-            error: result.error,
-            message: "Order already paid with a different payment ID",
-          },
-          { status: 409 }
-        );
-      }
-
-      if (result.error === "AMOUNT_MISMATCH") {
-        logVerify("error", "CRITICAL FRAUD ALERT: Payment amount mismatch", {
-          orderNumber: result.order?.orderNumber || null,
-          razorpayPaymentId: razorpay_payment_id,
-          orderAmount: result.order?.totalAmount,
-          paymentAmount,
-          paymentAmountInPaise,
-        });
-        return NextResponse.json(
-          {
-            success: false,
-            error: result.error,
-            message: "Payment amount does not match order amount. Fraud attempt detected.",
-          },
-          { status: 400 }
-        );
-      }
-
-      logVerify("error", "Failed to update order payment status", {
-        orderNumber: result.order?.orderNumber || null,
-        razorpayPaymentId: razorpay_payment_id,
-        error: result.error,
-      });
-      return NextResponse.json(
-        {
-          success: false,
-          error: result.error || "PAYMENT_UPDATE_FAILED",
-          message: "Failed to update order payment status",
-        },
-        { status: 500 }
-      );
-    }
+    // ✅ STEP 4: VERIFY ROUTE DOES ZERO DB WRITES
+    // Webhook is the SINGLE SOURCE OF TRUTH for payment persistence
+    // This endpoint only validates signature and returns success to UI
 
     const responseTime = Date.now() - startTime;
-    logVerify("info", "Payment verified successfully", {
-      orderNumber: result.order.orderNumber,
+    logVerify("info", "Payment signature verified successfully (no DB write)", {
       razorpayPaymentId: razorpay_payment_id,
-      alreadyProcessed: result.alreadyProcessed,
       responseTime: `${responseTime}ms`,
     });
 
-    // Return success response
+    // Return success response - webhook will handle persistence
     return NextResponse.json({
       success: true,
-      alreadyProcessed: result.alreadyProcessed,
-      message: result.alreadyProcessed
-        ? "Payment already verified"
-        : "Payment verified and order confirmed",
-      order: {
-        orderId: result.order._id.toString(),
-        orderNumber: result.order.orderNumber,
-        paymentStatus: result.order.paymentStatus,
-        orderStatus: result.order.orderStatus,
-        razorpayPaymentId: result.order.razorpayPaymentId,
-        paidAt: result.order.paidAt,
-      },
+      message: "Payment signature verified successfully. Order will be confirmed by webhook.",
     });
   } catch (error) {
     const responseTime = Date.now() - startTime;
