@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useRef, useCallback, useContext, createContext } from "react";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import ExchangeRequestModal from "../components/ExchangeRequestModal";
 import GlobalModal from "../components/GlobalModal";
 
@@ -116,6 +117,221 @@ function emptyAddress() {
   };
 }
 
+// Exchange Success Modal Component
+function ExchangeSuccessModal({ isOpen, onClose }) {
+  const [showContent, setShowContent] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+      const frameId = requestAnimationFrame(() => {
+        setShowContent(true);
+      });
+      return () => {
+        cancelAnimationFrame(frameId);
+        document.body.style.overflow = "";
+        setShowContent(false);
+      };
+    } else {
+      document.body.style.overflow = "";
+      const timeoutId = setTimeout(() => {
+        setShowContent(false);
+      }, 200);
+      return () => {
+        clearTimeout(timeoutId);
+      };
+    }
+  }, [isOpen]);
+
+  const handleWhatsAppRedirect = () => {
+    if (typeof window !== "undefined") {
+      window.open(
+        "https://wa.me/917794003793?text=Hi%20SoulSeam%20Team,%20I%20would%20like%20to%20request%20an%20exchange%20for%20my%20product.%20I%20am%20sharing%20the%20required%20video%20proof%20for%20verification.%20Please%20assist%20me%20with%20the%20next%20steps.%20Thank%20you.",
+        "_blank"
+      );
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          className="fixed inset-0 z-[9999] flex items-center justify-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          {/* Premium Dark Background with Gradient */}
+          <motion.div
+            className="absolute inset-0 bg-gradient-to-br from-black via-zinc-950 to-black"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          />
+          
+          {/* Subtle Radial Glow */}
+          <motion.div
+            className="absolute inset-0 bg-radial-gradient"
+            style={{
+              background: "radial-gradient(circle at center, rgba(255, 215, 0, 0.08) 0%, transparent 70%)",
+            }}
+            animate={{
+              scale: [1, 1.1, 1],
+              opacity: [0.3, 0.5, 0.3],
+            }}
+            transition={{
+              duration: 3,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+          />
+
+          {/* Glassmorphism Card */}
+          <motion.div
+            className="relative z-10 w-full max-w-md mx-4"
+            initial={{ scale: 0.8, opacity: 0, y: 50 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.8, opacity: 0, y: 50 }}
+            transition={{
+              type: "spring",
+              stiffness: 300,
+              damping: 30,
+              duration: 0.4,
+            }}
+          >
+            <div
+              className="relative backdrop-blur-xl bg-gradient-to-br from-white/10 via-white/5 to-white/0 
+                         border border-white/20 rounded-3xl p-8 sm:p-10
+                         shadow-[0_25px_80px_rgba(255,255,255,0.15)]
+                         overflow-hidden"
+            >
+              {/* Subtle inner glow */}
+              <div
+                className="absolute inset-0 rounded-3xl"
+                style={{
+                  background: "radial-gradient(circle at 50% 30%, rgba(255, 215, 0, 0.15) 0%, transparent 60%)",
+                }}
+              />
+
+              <div className="relative z-10 flex flex-col items-center text-center">
+                {/* Animated Success Icon */}
+                <motion.div
+                  className="relative mb-6"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: showContent ? 1 : 0 }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 200,
+                    damping: 15,
+                    delay: 0.1,
+                  }}
+                >
+                  {/* Pulse Glow Effect */}
+                  <motion.div
+                    className="absolute inset-0 rounded-full"
+                    style={{
+                      background: "radial-gradient(circle, rgba(34, 197, 94, 0.4) 0%, transparent 70%)",
+                    }}
+                    animate={{
+                      scale: [1, 1.5, 1],
+                      opacity: [0.5, 0, 0.5],
+                    }}
+                    transition={{
+                      duration: 2,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    }}
+                  />
+                  
+                  {/* Checkmark Circle */}
+                  <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-gradient-to-br from-green-500/20 to-emerald-600/20 border-2 border-green-400/50 flex items-center justify-center">
+                    {/* Animated SVG Checkmark */}
+                    <svg
+                      className="w-12 h-12 sm:w-14 sm:h-14 text-green-400"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <motion.path
+                        d="M5 13l4 4L19 7"
+                        initial={{ pathLength: 0, opacity: 0 }}
+                        animate={{ pathLength: 1, opacity: 1 }}
+                        transition={{
+                          duration: 0.5,
+                          delay: 0.15,
+                          ease: "easeOut",
+                        }}
+                      />
+                    </svg>
+                  </div>
+                </motion.div>
+
+                {/* Heading */}
+                <motion.h2
+                  className="text-3xl sm:text-4xl font-black uppercase tracking-wider mb-3
+                           bg-gradient-to-r from-white via-white/95 to-zinc-200/80 bg-clip-text text-transparent
+                           drop-shadow-[0_4px_20px_rgba(255,255,255,0.2)]"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: showContent ? 1 : 0, y: showContent ? 0 : 20 }}
+                  transition={{ delay: 0.2, duration: 0.4 }}
+                >
+                  Exchange Request Submitted
+                </motion.h2>
+
+                {/* Subtext */}
+                <motion.p
+                  className="text-white/80 text-base sm:text-lg font-semibold mb-2 tracking-wide"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: showContent ? 1 : 0, y: showContent ? 0 : 20 }}
+                  transition={{ delay: 0.3, duration: 0.4 }}
+                >
+                  Please send the mandatory video proof via WhatsApp to proceed with your exchange request.
+                </motion.p>
+
+                {/* WhatsApp Button */}
+                <motion.div
+                  className="flex flex-col sm:flex-row gap-3 mt-8 w-full"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: showContent ? 1 : 0, y: showContent ? 0 : 20 }}
+                  transition={{ delay: 0.5, duration: 0.4 }}
+                >
+                  <button
+                    onClick={handleWhatsAppRedirect}
+                    className="flex-1 px-6 py-3.5 rounded-xl font-bold text-sm uppercase tracking-wider
+                             bg-gradient-to-r from-[#25D366] to-[#128C7E]
+                             border border-[#25D366]/50 hover:border-[#25D366]/70
+                             text-white hover:text-white
+                             transition-all duration-200
+                             hover:shadow-[0_8px_30px_rgba(37,211,102,0.3)]
+                             hover:scale-[1.02] active:scale-[0.98]
+                             flex items-center justify-center gap-2"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                    </svg>
+                    Send Mandatory Video
+                  </button>
+                </motion.div>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 export default function ProfilePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -144,6 +360,7 @@ export default function ProfilePage() {
   const [requestingExchange, setRequestingExchange] = useState({});
   const [exchangeModalOpen, setExchangeModalOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [showExchangeSuccess, setShowExchangeSuccess] = useState(false);
 
   // Accordion state - only one section open at a time
   const [openAccordionKey, setOpenAccordionKey] = useState(null);
@@ -373,12 +590,17 @@ export default function ProfilePage() {
   async function handleExchangeSubmit(data) {
     if (!selectedOrderId) return;
     
+    // Close exchange modal first
+    setExchangeModalOpen(false);
+    setSelectedOrderId(null);
+    
     // Reload orders to get updated exchange status
     await loadOrders();
     // Refresh eligibility
     await checkExchangeEligibility(selectedOrderId);
     
-    alert("Exchange request submitted successfully!");
+    // Trigger success modal
+    setShowExchangeSuccess(true);
   }
 
   async function handlePayNow(order) {
@@ -1105,6 +1327,9 @@ export default function ProfilePage() {
         onPrimaryAction={confirmLogout}
         primaryButtonVariant="danger"
       />
+
+      {/* Exchange Success Modal */}
+      <ExchangeSuccessModal isOpen={showExchangeSuccess} onClose={() => setShowExchangeSuccess(false)} />
     </div>
   );
 }

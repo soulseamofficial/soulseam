@@ -18,6 +18,7 @@ export default function AdminLayout({ children }) {
     { name: "Guest Users", path: "/admin/guest-users" },
     { name: "Reels", path: "/admin/reels" },
     { name: "Products", path: "/admin/products" },
+    { name: "Reviews", path: "/admin/reviews" },
     { name: "Coupons", path: "/admin/coupons" },
     { name: "Settings", path: "/admin/settings" },
   ];
