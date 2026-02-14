@@ -179,8 +179,10 @@ const SoulSeamEcommerce = () => {
 
   const announcements = [
     "Free Shipping Pan-India",
-    "One Purchase = One Plant Planted",
-    "Future Proof Your Closet",
+    "Easy 3-Day Exchange",
+    "Premium Quality Guaranteed",
+    "Premium fabric",
+    "Secure Payments",
   ];
 
   // Horizontal scrolling gallery images - using actual product photos
@@ -286,6 +288,17 @@ const SoulSeamEcommerce = () => {
       }
     };
   }, []);
+
+  // Announcement rotation with smooth transitions
+  useEffect(() => {
+    if (announcements.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setAnnouncementIndex((prevIndex) => (prevIndex + 1) % announcements.length);
+    }, 5000); // Rotate every 5 seconds (between 4-6 seconds as requested)
+
+    return () => clearInterval(interval);
+  }, [announcements.length]);
 
   const createSparkles = () => {
     if (!sparkleContainerRef.current) return;
@@ -605,17 +618,22 @@ const SoulSeamEcommerce = () => {
       {/* QuickViewModal removed */}
 
       <div className="bg-black text-white py-2 overflow-hidden relative z-50">
-        <div className="relative h-6">
+        <div className="relative h-6 flex items-center justify-center">
           {announcements.map((announcement, index) => (
             <div
               key={index}
-              className={`absolute inset-0 flex items-center justify-center transition-all duration-500 ${
+              className={`absolute inset-0 flex items-center justify-center transition-all duration-700 ease-in-out ${
                 index === announcementIndex
                   ? "opacity-100 translate-y-0"
-                  : "opacity-0 -translate-y-full"
+                  : "opacity-0 -translate-y-1.5"
               }`}
             >
-              <p className="text-sm font-medium">{announcement}</p>
+              <div className="flex items-center justify-center gap-2 px-4">
+                <span className="w-1 h-1 rounded-full bg-amber-400/50 flex-shrink-0"></span>
+                <p className="text-xs sm:text-sm font-light text-white/90 tracking-wider text-center truncate max-w-full">
+                  {announcement}
+                </p>
+              </div>
             </div>
           ))}
         </div>

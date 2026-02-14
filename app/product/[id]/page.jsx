@@ -8,6 +8,8 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/pagination";
+import ReviewSection from "@/app/components/ReviewSection";
+import SocialProof from "@/app/components/SocialProof";
 
 // ICONS
 function IconCheck() {
@@ -603,7 +605,7 @@ export default function ProductPage() {
     // eslint-disable-next-line
     <main className="relative w-full min-h-screen bg-gradient-to-b from-black via-[#0a0a0a] to-black">
       {/* --- MOBILE PRODUCT IMAGE SECTION IN FLOW, 75vh, NOT FIXED, Back Btn overlays image --- */}
-      <div className="md:hidden w-full relative" style={{ minHeight: "75vh" }}>
+      <div className="md:hidden w-full relative group/image-container" style={{ minHeight: "75vh" }}>
         <div className="w-full h-[75vh] relative rounded-b-3xl overflow-hidden bg-black">
           {/* Mobile Back Button (absolute, overlays image) */}
           <LuxuryBackButton fixed isMobile={isMobile} />
@@ -641,6 +643,10 @@ export default function ProductPage() {
               </SwiperSlide>
             ))}
           </Swiper>
+          {/* SocialProof Overlay - Mobile */}
+          <div className="absolute bottom-6 left-0 right-0 z-30 px-4 flex justify-center pointer-events-none">
+            <SocialProof />
+          </div>
         </div>
       </div>
 
@@ -927,6 +933,10 @@ export default function ProductPage() {
               />
               {/* Subtle light sweep reflection on hover */}
               <div className="absolute inset-0 rounded-3xl pointer-events-none z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r from-transparent via-white/5 to-transparent"></div>
+              {/* SocialProof Overlay - Desktop */}
+              <div className="absolute bottom-8 left-0 right-0 z-30 px-6 flex justify-center pointer-events-none">
+                <SocialProof />
+              </div>
             </div>
             {/* Thumbnails */}
             <div className="flex gap-4 mt-1 z-20">
@@ -1195,6 +1205,10 @@ export default function ProductPage() {
           </div>
         </section>
       </div>
+
+      {/* Customer Reviews Section */}
+      <ReviewSection productId={id} />
+
       {/* Size Guide Modal */}
       {isSizeGuideOpen && (
         <div
