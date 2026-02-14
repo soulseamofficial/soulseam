@@ -96,8 +96,8 @@ export async function markOrderAsPaid(razorpayOrderId, razorpayPaymentId, razorp
     
     if (!existingOrder) {
       logPayment("error", "Order not found", {
-        razorpayOrderId,
-        paymentId: razorpayPaymentId,
+        orderNumber: null,
+        razorpayPaymentId: razorpayPaymentId,
         source,
       });
       return {
@@ -125,10 +125,8 @@ export async function markOrderAsPaid(razorpayOrderId, razorpayPaymentId, razorp
       if (paymentAmountToCompare !== null && paymentAmountToCompare !== orderAmountInPaise) {
         // CRITICAL FRAUD ALERT: Amount mismatch
         logPayment("error", "CRITICAL FRAUD ALERT: Payment amount mismatch", {
-          orderId: existingOrder._id.toString(),
           orderNumber: existingOrder.orderNumber,
-          razorpayOrderId,
-          paymentId: razorpayPaymentId,
+          razorpayPaymentId: razorpayPaymentId,
           orderAmountInRupees: orderAmountInRupees,
           orderAmountInPaise: orderAmountInPaise,
           paymentAmountInRupees: paymentAmount,
@@ -152,10 +150,8 @@ export async function markOrderAsPaid(razorpayOrderId, razorpayPaymentId, razorp
       // Check if paid with same payment ID (idempotent success)
       if (existingOrder.razorpayPaymentId === razorpayPaymentId) {
         logPayment("info", "Payment already processed (idempotent)", {
-          orderId: existingOrder._id.toString(),
           orderNumber: existingOrder.orderNumber,
-          razorpayOrderId,
-          paymentId: razorpayPaymentId,
+          razorpayPaymentId: razorpayPaymentId,
           source,
         });
         // Note: Revenue event already logged when payment was first processed
@@ -170,11 +166,8 @@ export async function markOrderAsPaid(razorpayOrderId, razorpayPaymentId, razorp
       // Check if paid with different payment ID (suspicious)
       if (existingOrder.razorpayPaymentId !== razorpayPaymentId) {
         logPayment("warn", "Order already paid with different payment ID", {
-          orderId: existingOrder._id.toString(),
           orderNumber: existingOrder.orderNumber,
-          razorpayOrderId,
-          existingPaymentId: existingOrder.razorpayPaymentId,
-          newPaymentId: razorpayPaymentId,
+          razorpayPaymentId: razorpayPaymentId,
           source,
         });
         return {
@@ -192,6 +185,7 @@ export async function markOrderAsPaid(razorpayOrderId, razorpayPaymentId, razorp
     const now = new Date();
     
     // Build update object
+    // CRITICAL: Always store razorpayPaymentId and razorpaySignature in the same order document
     const updateData = {
       paymentStatus: "PAID",
       orderStatus: "CONFIRMED",
@@ -203,7 +197,7 @@ export async function markOrderAsPaid(razorpayOrderId, razorpayPaymentId, razorp
       legacyOrderStatus: "paid",
     };
 
-    // Only set signature if provided (not for webhooks)
+    // Always store signature if provided (webhooks don't have signatures, but verify endpoint does)
     if (razorpaySignature) {
       updateData.razorpaySignature = razorpaySignature;
     }
@@ -231,11 +225,11 @@ export async function markOrderAsPaid(razorpayOrderId, razorpayPaymentId, razorp
       const latestOrder = await Order.findOne({ razorpayOrderId }).lean();
       
       if (!latestOrder) {
-        logPayment("error", "Order not found after update attempt", {
-          razorpayOrderId,
-          paymentId: razorpayPaymentId,
-          source,
-        });
+      logPayment("error", "Order not found after update attempt", {
+        orderNumber: null,
+        razorpayPaymentId: razorpayPaymentId,
+        source,
+      });
         return {
           success: false,
           alreadyProcessed: false,
@@ -247,13 +241,11 @@ export async function markOrderAsPaid(razorpayOrderId, razorpayPaymentId, razorp
       // Check if now paid (race condition - another request processed it)
       if (latestOrder.paymentStatus === "PAID") {
         if (latestOrder.razorpayPaymentId === razorpayPaymentId) {
-          logPayment("info", "Payment processed by concurrent request (idempotent)", {
-            orderId: latestOrder._id.toString(),
-            orderNumber: latestOrder.orderNumber,
-            razorpayOrderId,
-            paymentId: razorpayPaymentId,
-            source,
-          });
+        logPayment("info", "Payment processed by concurrent request (idempotent)", {
+          orderNumber: latestOrder.orderNumber,
+          razorpayPaymentId: razorpayPaymentId,
+          source,
+        });
           // Note: Revenue event already logged when payment was first processed
           return {
             success: true,
@@ -263,11 +255,8 @@ export async function markOrderAsPaid(razorpayOrderId, razorpayPaymentId, razorp
           };
         } else {
           logPayment("warn", "Order paid with different payment ID (race condition)", {
-            orderId: latestOrder._id.toString(),
             orderNumber: latestOrder.orderNumber,
-            razorpayOrderId,
-            existingPaymentId: latestOrder.razorpayPaymentId,
-            newPaymentId: razorpayPaymentId,
+            razorpayPaymentId: razorpayPaymentId,
             source,
           });
           return {
@@ -281,10 +270,8 @@ export async function markOrderAsPaid(razorpayOrderId, razorpayPaymentId, razorp
 
       // Order exists but in unexpected state
       logPayment("error", "Order in unexpected state after update attempt", {
-        orderId: latestOrder._id.toString(),
         orderNumber: latestOrder.orderNumber,
-        razorpayOrderId,
-        paymentId: razorpayPaymentId,
+        razorpayPaymentId: razorpayPaymentId,
         paymentStatus: latestOrder.paymentStatus,
         source,
       });
@@ -298,10 +285,8 @@ export async function markOrderAsPaid(razorpayOrderId, razorpayPaymentId, razorp
 
     // Success: Payment marked as paid atomically
     logPayment("info", "Payment marked as paid successfully", {
-      orderId: updateResult._id.toString(),
       orderNumber: updateResult.orderNumber,
-      razorpayOrderId,
-      paymentId: razorpayPaymentId,
+      razorpayPaymentId: razorpayPaymentId,
       source,
     });
 
@@ -325,8 +310,8 @@ export async function markOrderAsPaid(razorpayOrderId, razorpayPaymentId, razorp
     // Handle duplicate key error (unique index on razorpayPaymentId)
     if (error.code === 11000 && error.keyPattern?.razorpayPaymentId) {
       logPayment("warn", "Duplicate payment detected (database-level protection)", {
-        razorpayOrderId,
-        paymentId: razorpayPaymentId,
+        orderNumber: null,
+        razorpayPaymentId: razorpayPaymentId,
         source,
         error: error.message,
       });
@@ -345,8 +330,8 @@ export async function markOrderAsPaid(razorpayOrderId, razorpayPaymentId, razorp
     }
 
     logPayment("error", "Error marking order as paid", {
-      razorpayOrderId,
-      paymentId: razorpayPaymentId,
+      orderNumber: null,
+      razorpayPaymentId: razorpayPaymentId,
       source,
       error: error.message,
       stack: error.stack,

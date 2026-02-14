@@ -60,8 +60,8 @@ export async function POST(req) {
     // Validate required fields
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       logVerify("error", "Missing required fields", {
-        razorpayOrderId: razorpay_order_id,
-        paymentId: razorpay_payment_id,
+        orderNumber: null,
+        razorpayPaymentId: razorpay_payment_id || null,
         hasSignature: !!razorpay_signature,
       });
       return NextResponse.json(
@@ -83,8 +83,8 @@ export async function POST(req) {
 
     if (!isValid) {
       logVerify("error", "Payment signature verification failed", {
-        razorpayOrderId: razorpay_order_id,
-        paymentId: razorpay_payment_id,
+        orderNumber: null,
+        razorpayPaymentId: razorpay_payment_id,
       });
       return NextResponse.json(
         {
@@ -97,8 +97,8 @@ export async function POST(req) {
     }
 
     logVerify("info", "Payment signature verified", {
-      razorpayOrderId: razorpay_order_id,
-      paymentId: razorpay_payment_id,
+      orderNumber: null,
+      razorpayPaymentId: razorpay_payment_id,
     });
 
     // Connect to database (service functions assume DB is already connected)
@@ -123,22 +123,22 @@ export async function POST(req) {
           paymentAmount = payment.amount / 100; // Convert to rupees
           
           logVerify("info", "Payment amount fetched from Razorpay", {
-            razorpayOrderId: razorpay_order_id,
-            paymentId: razorpay_payment_id,
+            orderNumber: null,
+            razorpayPaymentId: razorpay_payment_id,
             paymentAmountInPaise,
             paymentAmount,
           });
         } else {
           logVerify("warn", "Payment amount not found in Razorpay response", {
-            razorpayOrderId: razorpay_order_id,
-            paymentId: razorpay_payment_id,
+            orderNumber: null,
+            razorpayPaymentId: razorpay_payment_id,
           });
         }
       } catch (error) {
         // Log error but continue - amount validation will be skipped if fetch fails
         logVerify("warn", "Failed to fetch payment details from Razorpay", {
-          razorpayOrderId: razorpay_order_id,
-          paymentId: razorpay_payment_id,
+          orderNumber: null,
+          razorpayPaymentId: razorpay_payment_id,
           error: error.message,
         });
       }
@@ -160,8 +160,8 @@ export async function POST(req) {
     if (!result.success) {
       if (result.error === "ORDER_NOT_FOUND") {
         logVerify("error", "Order not found", {
-          razorpayOrderId: razorpay_order_id,
-          paymentId: razorpay_payment_id,
+          orderNumber: null,
+          razorpayPaymentId: razorpay_payment_id,
         });
         return NextResponse.json(
           {
@@ -175,9 +175,8 @@ export async function POST(req) {
 
       if (result.error === "PAYMENT_ID_MISMATCH") {
         logVerify("warn", "Payment ID mismatch", {
-          razorpayOrderId: razorpay_order_id,
-          paymentId: razorpay_payment_id,
-          existingPaymentId: result.order?.razorpayPaymentId,
+          orderNumber: result.order?.orderNumber || null,
+          razorpayPaymentId: razorpay_payment_id,
         });
         return NextResponse.json(
           {
@@ -191,8 +190,8 @@ export async function POST(req) {
 
       if (result.error === "AMOUNT_MISMATCH") {
         logVerify("error", "CRITICAL FRAUD ALERT: Payment amount mismatch", {
-          razorpayOrderId: razorpay_order_id,
-          paymentId: razorpay_payment_id,
+          orderNumber: result.order?.orderNumber || null,
+          razorpayPaymentId: razorpay_payment_id,
           orderAmount: result.order?.totalAmount,
           paymentAmount,
           paymentAmountInPaise,
@@ -208,8 +207,8 @@ export async function POST(req) {
       }
 
       logVerify("error", "Failed to update order payment status", {
-        razorpayOrderId: razorpay_order_id,
-        paymentId: razorpay_payment_id,
+        orderNumber: result.order?.orderNumber || null,
+        razorpayPaymentId: razorpay_payment_id,
         error: result.error,
       });
       return NextResponse.json(
@@ -224,10 +223,8 @@ export async function POST(req) {
 
     const responseTime = Date.now() - startTime;
     logVerify("info", "Payment verified successfully", {
-      orderId: result.order._id.toString(),
       orderNumber: result.order.orderNumber,
-      razorpayOrderId: razorpay_order_id,
-      paymentId: razorpay_payment_id,
+      razorpayPaymentId: razorpay_payment_id,
       alreadyProcessed: result.alreadyProcessed,
       responseTime: `${responseTime}ms`,
     });
