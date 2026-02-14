@@ -80,6 +80,16 @@ const OrderSchema = new mongoose.Schema(
     // Order number (unique identifier like SS0001, SS0002, etc.)
     orderNumber: { type: String, default: null, unique: true, sparse: true, index: true },
 
+    // Payment attempt ID for idempotency (prevents duplicate orders from payment retries)
+    // Comes from razorpay_order_id OR razorpay_payment_id
+    paymentAttemptId: {
+      type: String,
+      default: null,
+      unique: true,
+      sparse: true, // Allow multiple nulls, but enforce uniqueness for non-null values
+      index: true
+    },
+
     // Razorpay payment details (for ONLINE payments and COD advance)
     // Note: razorpayOrderId is optional during creation, set after Razorpay order is created
     razorpayOrderId: {
