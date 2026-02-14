@@ -10,8 +10,9 @@ const OrphanPaymentSchema = new mongoose.Schema(
     event: { type: String, required: true },
     paymentStatus: { type: String, default: "captured" },
     rawPayload: { type: mongoose.Schema.Types.Mixed, default: null },
-    processed: { type: Boolean, default: false },
+    processed: { type: Boolean, default: false, index: true },
     processedAt: { type: Date, default: null },
+    retryCount: { type: Number, default: 0, index: true },
     notes: { type: String, default: null },
   },
   { timestamps: true }

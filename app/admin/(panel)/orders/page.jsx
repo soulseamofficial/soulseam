@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 // Reusable Address Accordion Component
 function AddressAccordion({ address }) {
@@ -107,35 +107,99 @@ function AddressAccordion({ address }) {
 
 export default function AdminOrdersPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedOrderId, setExpandedOrderId] = useState(null);
-  const [sortBy, setSortBy] = useState("latest");
   const [updatingStatus, setUpdatingStatus] = useState({});
   const [creatingShipment, setCreatingShipment] = useState({});
+  const [filterInfo, setFilterInfo] = useState(null);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    pages: 0,
+  });
+  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState("");
+  const [orderStatusFilter, setOrderStatusFilter] = useState("");
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [order, setOrder] = useState("desc");
+
+  const fetchOrders = async (page = 1, searchTerm = "", paymentStatus = "", orderStatus = "", sort = "createdAt", sortOrder = "desc") => {
+    try {
+      setLoading(true);
+      
+      // Get filter params from URL
+      const userId = searchParams?.get("userId");
+      const guestUserId = searchParams?.get("guestUserId");
+      
+      // Build query string
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: "10",
+        sortBy: sort,
+        order: sortOrder,
+      });
+      
+      if (userId) params.append("userId", userId);
+      if (guestUserId) params.append("guestUserId", guestUserId);
+      if (searchTerm) params.append("search", searchTerm);
+      if (paymentStatus) params.append("paymentStatus", paymentStatus);
+      if (orderStatus) params.append("orderStatus", orderStatus);
+      
+      const url = `/api/admin/orders?${params.toString()}`;
+      
+      const res = await fetch(url, {
+        credentials: "include",
+      });
+      
+      const data = await res.json();
+      
+      if (data.success) {
+        setOrders(Array.isArray(data.orders) ? data.orders : []);
+        setPagination(data.pagination || pagination);
+        
+        // Set filter info for display
+        if (userId || guestUserId) {
+          setFilterInfo({
+            type: userId ? "user" : "guest",
+            id: userId || guestUserId,
+          });
+        } else {
+          setFilterInfo(null);
+        }
+      } else {
+        setOrders([]);
+        setPagination({ page: 1, limit: 10, total: 0, pages: 0 });
+      }
+    } catch (err) {
+      setOrders([]);
+      setPagination({ page: 1, limit: 10, total: 0, pages: 0 });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function fetchOrders() {
-      try {
-        const res = await fetch("/api/admin/orders", {
-          credentials: "include",
-        });
-        const data = await res.json();
-        if (data.success) {
-          setOrders(data.orders);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
+    if (searchParams) {
+      fetchOrders(1, search, paymentStatusFilter, orderStatusFilter, sortBy, order);
     }
-    fetchOrders();
-  }, []);
+  }, [searchParams, search, paymentStatusFilter, orderStatusFilter, sortBy, order]);
+
+  const handleSearch = () => {
+    setSearch(searchInput);
+    fetchOrders(1, searchInput, paymentStatusFilter, orderStatusFilter, sortBy, order);
+  };
 
   function toggleOrder(id) {
     setExpandedOrderId(prev => (prev === id ? null : id));
   }
+
+  const refreshOrders = async () => {
+    await fetchOrders(pagination.page, search, paymentStatusFilter, orderStatusFilter, sortBy, order);
+  };
 
   async function updateOrderStatus(orderId, newStatus) {
     if (updatingStatus[orderId]) return;
@@ -151,14 +215,7 @@ export default function AdminOrdersPage() {
       
       const data = await res.json();
       if (data.success) {
-        // Refresh orders
-        const refreshRes = await fetch("/api/admin/orders", {
-          credentials: "include",
-        });
-        const refreshData = await refreshRes.json();
-        if (refreshData.success) {
-          setOrders(refreshData.orders);
-        }
+        await refreshOrders();
         alert(`Order status updated to ${newStatus}`);
       } else {
         alert(data.error || "Failed to update order status");
@@ -184,14 +241,7 @@ export default function AdminOrdersPage() {
       
       const data = await res.json();
       if (data.success) {
-        // Refresh orders
-        const refreshRes = await fetch("/api/admin/orders", {
-          credentials: "include",
-        });
-        const refreshData = await refreshRes.json();
-        if (refreshData.success) {
-          setOrders(refreshData.orders);
-        }
+        await refreshOrders();
         alert(`Shipment created successfully!\nAWB: ${data.shipment?.waybill || "N/A"}\nCourier: ${data.shipment?.courierName || "N/A"}`);
       } else {
         // Extract error message with priority: error field > fallback
@@ -213,17 +263,8 @@ export default function AdminOrdersPage() {
     }
   }
 
-  /* ---------- SORT ---------- */
-  const sortedOrders = useMemo(() => {
-    const arr = [...orders];
-    if (sortBy === "latest")
-      return arr.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    if (sortBy === "oldest")
-      return arr.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-    if (sortBy === "amount")
-      return arr.sort((a, b) => b.total - a.total);
-    return arr;
-  }, [orders, sortBy]);
+  // Orders are already sorted by API, no need for client-side sorting
+  const sortedOrders = orders;
 
   /* ---------- ADDRESS FORMATTER ---------- */
   function formatAddress(address) {
@@ -321,45 +362,111 @@ export default function AdminOrdersPage() {
   return (
     <div className="p-10 text-white">
       {/* ---------- HEADER ---------- */}
-      <div className="flex flex-wrap justify-between items-center mb-10 gap-6">
-        <h1 className="text-4xl font-extrabold bg-gradient-to-br from-white to-zinc-200 bg-clip-text text-transparent">
-          Orders
-        </h1>
+      <div className="mb-10">
+        <div className="flex flex-wrap justify-between items-center mb-6 gap-6">
+          <div>
+            <h1 className="text-4xl font-extrabold bg-gradient-to-br from-white to-zinc-200 bg-clip-text text-transparent">
+              Orders
+            </h1>
+            {filterInfo && (
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-sm text-white/60">
+                  Filtered by {filterInfo.type === "user" ? "User" : "Guest User"}
+                </span>
+                <button
+                  onClick={() => router.push("/admin/orders")}
+                  className="text-sm text-blue-400 hover:text-blue-300 underline"
+                >
+                  Clear filter
+                </button>
+              </div>
+            )}
+          </div>
 
-        <div className="flex items-center gap-4">
-          {/* Order Count */}
-          <span className="px-4 py-2 rounded-full bg-white/10 border border-white/15 font-bold">
-            Total: {orders.length}
-          </span>
+          <div className="flex items-center gap-4">
+            {/* Order Count */}
+            <span className="px-4 py-2 rounded-full bg-white/10 border border-white/15 font-bold">
+              Total: {pagination.total || orders.length}
+            </span>
 
-          {/* Sort */}
-          <select
-            value={sortBy}
-            onChange={e => setSortBy(e.target.value)}
-            className="bg-black/60 border border-white/15 rounded-xl px-4 py-2 text-white"
-          >
-            <option value="latest">Latest first</option>
-            <option value="oldest">Oldest first</option>
-            <option value="amount">Amount high → low</option>
-            <option value="amount">Amount high → low</option>
-            <option value="payment">Payment Status</option>
-          </select>
+            {/* Create Order */}
+            <button
+              onClick={() => router.push("/admin/orders/create")}
+              className="px-5 py-2 rounded-xl bg-white/10 border border-white/20 text-white font-extrabold hover:bg-white/15 hover:border-white/30 transition transform hover:scale-105"
+            >
+              + Create Order
+            </button>
 
-          {/* Create Order */}
-          <button
-            onClick={() => router.push("/admin/orders/create")}
-            className="px-5 py-2 rounded-xl bg-white/10 border border-white/20 text-white font-extrabold hover:bg-white/15 hover:border-white/30 transition"
-          >
-            + Create Order
-          </button>
+            {/* Export */}
+            <button
+              onClick={exportCSV}
+              className="px-5 py-2 rounded-xl bg-white text-black font-extrabold hover:scale-105 transition"
+            >
+              Export
+            </button>
+          </div>
+        </div>
 
-          {/* Export */}
-          <button
-            onClick={exportCSV}
-            className="px-5 py-2 rounded-xl bg-white text-black font-extrabold hover:scale-105 transition"
-          >
-            Export
-          </button>
+        {/* Search and Filters Row */}
+        <div className="flex flex-wrap gap-4 items-center mb-6">
+          <div className="flex-1 min-w-[200px]">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Search by order number or phone..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+                className="flex-1 px-4 py-2 rounded-xl bg-black/60 border border-white/15 text-white placeholder-white/50 focus:outline-none focus:border-white/30 transition"
+              />
+              <button
+                onClick={handleSearch}
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold transition transform hover:scale-105"
+              >
+                Search
+              </button>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <select
+              value={paymentStatusFilter}
+              onChange={(e) => setPaymentStatusFilter(e.target.value)}
+              className="px-4 py-2 rounded-xl bg-black/60 border border-white/15 text-white focus:outline-none focus:border-white/30"
+            >
+              <option value="">All Payment Status</option>
+              <option value="PAID">PAID</option>
+              <option value="PENDING">PENDING</option>
+              <option value="FAILED">FAILED</option>
+            </select>
+            <select
+              value={orderStatusFilter}
+              onChange={(e) => setOrderStatusFilter(e.target.value)}
+              className="px-4 py-2 rounded-xl bg-black/60 border border-white/15 text-white focus:outline-none focus:border-white/30"
+            >
+              <option value="">All Order Status</option>
+              <option value="CREATED">CREATED</option>
+              <option value="CONFIRMED">CONFIRMED</option>
+              <option value="SHIPPED">SHIPPED</option>
+              <option value="DELIVERED">DELIVERED</option>
+            </select>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="px-4 py-2 rounded-xl bg-black/60 border border-white/15 text-white focus:outline-none focus:border-white/30"
+            >
+              <option value="createdAt">Sort By</option>
+              <option value="createdAt">Created Date</option>
+              <option value="totalAmount">Total Amount</option>
+            </select>
+            <select
+              value={order}
+              onChange={(e) => setOrder(e.target.value)}
+              className="px-4 py-2 rounded-xl bg-black/60 border border-white/15 text-white focus:outline-none focus:border-white/30"
+            >
+              <option value="desc">Newest First</option>
+              <option value="asc">Oldest First</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -369,8 +476,9 @@ export default function AdminOrdersPage() {
           No orders found.
         </div>
       ) : (
-        <div className="space-y-4">
-          {sortedOrders.map(order => {
+        <>
+          <div className="space-y-4">
+            {sortedOrders.map(order => {
             const isOpen = expandedOrderId === order._id;
 
             return (
@@ -742,7 +850,33 @@ export default function AdminOrdersPage() {
               </div>
             );
           })}
-        </div>
+          </div>
+
+          {/* Pagination */}
+          {pagination.pages > 1 && (
+            <div className="mt-6 flex items-center justify-between">
+              <div className="text-sm text-white/70">
+                Page {pagination.page} of {pagination.pages} ({pagination.total} total)
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => fetchOrders(pagination.page - 1, search, paymentStatusFilter, orderStatusFilter, sortBy, order)}
+                  disabled={pagination.page === 1}
+                  className="px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white font-semibold hover:bg-white/15 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => fetchOrders(pagination.page + 1, search, paymentStatusFilter, orderStatusFilter, sortBy, order)}
+                  disabled={pagination.page >= pagination.pages}
+                  className="px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white font-semibold hover:bg-white/15 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* animation */}

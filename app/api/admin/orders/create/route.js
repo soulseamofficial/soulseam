@@ -42,6 +42,7 @@ export async function POST(req) {
       advancePaid,
       remainingCOD,
       orderMessage,
+      razorpayOrderId, // Optional: if provided, use it; otherwise generate placeholder for COD
     } = body;
 
     // Validate required fields
@@ -84,7 +85,30 @@ export async function POST(req) {
       );
     }
 
-    // STEP 2: Create order with userId linked
+    // STEP 2: Determine razorpayOrderId (required field)
+    // If provided, use it; otherwise create placeholder for COD orders
+    const finalPaymentMethod = paymentMethod || "COD";
+    let finalRazorpayOrderId = razorpayOrderId;
+    
+    if (!finalRazorpayOrderId) {
+      if (finalPaymentMethod === "COD") {
+        // For COD orders without Razorpay order, use placeholder
+        // Format: ADMIN_COD_<timestamp>_<random>
+        finalRazorpayOrderId = `ADMIN_COD_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+        console.log("⚠️ Admin COD order: Using placeholder razorpayOrderId:", finalRazorpayOrderId);
+      } else {
+        // For ONLINE orders, razorpayOrderId should be provided or created via Razorpay API
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: "razorpayOrderId is required for ONLINE payment method. Please create a Razorpay order first or provide razorpayOrderId." 
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    // STEP 3: Create order with userId linked
     const order = await Order.create({
       userId: user._id,
       items,
@@ -101,6 +125,7 @@ export async function POST(req) {
       finalTotal: totalAmount || 0,
       advancePaid: advancePaid || 0,
       remainingCOD: remainingCOD || 0,
+      razorpayOrderId: finalRazorpayOrderId, // Required field
       orderMessage: orderMessage || null,
       orderSource: "ADMIN",
       
