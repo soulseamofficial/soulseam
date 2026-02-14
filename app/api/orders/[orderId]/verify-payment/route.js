@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/app/lib/db";
 import { getAuthUserFromCookies } from "@/app/lib/auth";
 import Order from "@/app/models/Order";
-import { verifyRazorpaySignature, markOrderAsPaid } from "@/app/lib/razorpay";
+import { verifyRazorpaySignature } from "@/app/lib/razorpay";
 
 export async function POST(req, { params }) {
   try {
@@ -67,49 +67,19 @@ export async function POST(req, { params }) {
       );
     }
 
-    // ✅ USE SAME FUNCTION AS VERIFY ENDPOINT AND WEBHOOK
-    // This ensures idempotency, atomic updates, and prevents duplicate shipments
-    const result = await markOrderAsPaid(
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
-      {
-        isWebhook: false,
-        // Amount validation not available in this endpoint, but signature is verified
-      }
-    );
-
-    if (!result.success) {
-      if (result.error === "ORDER_NOT_FOUND") {
-        return NextResponse.json(
-          { success: false, error: "Order not found" },
-          { status: 404 }
-        );
-      }
-
-      // For other errors, return appropriate status
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: result.error || "Payment update failed",
-          message: result.error === "PAYMENT_ID_MISMATCH" 
-            ? "Order already paid with a different payment ID"
-            : "Failed to update order payment status"
-        },
-        { status: result.error === "PAYMENT_ID_MISMATCH" ? 409 : 500 }
-      );
-    }
+    // ✅ STEP 4: VERIFY ROUTE DOES ZERO DB WRITES
+    // Webhook is the SINGLE SOURCE OF TRUTH for payment persistence
+    // This endpoint only validates signature and returns success to UI
 
     // Log only orderNumber and paymentId
-    console.log("Payment verified via verify-payment route", {
-      orderNumber: result.order?.orderNumber || null,
+    console.log("Payment verified via verify-payment route (no DB write)", {
+      orderNumber: order.orderNumber || null,
       razorpayPaymentId: razorpay_payment_id,
-      alreadyProcessed: result.alreadyProcessed,
     });
 
     return NextResponse.json({ 
       success: true,
-      alreadyProcessed: result.alreadyProcessed,
+      message: "Payment signature verified successfully. Order will be confirmed by webhook.",
     });
   } catch (error) {
     console.error("[Orders Verify Payment] Error:", error);
