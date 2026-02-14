@@ -136,34 +136,83 @@ export async function POST(req) {
     // Validate payload before sending - ensure products_desc is a string
     console.log(typeof sanitizedShipment.products_desc);
     
+    // CRITICAL: pickup_location must be a plain STRING, not an object or escaped string
+    // Remove any escaped quotes
+    let pickupLocationClean = pickupLocationName;
+    if (typeof pickupLocationClean === "string") {
+      pickupLocationClean = pickupLocationClean.replace(/^["']|["']$/g, "").trim();
+    }
+
     const payload = {
-      // Optional: Add client name if configured
-      ...(process.env.DELHIVERY_CLIENT_NAME ? { client: process.env.DELHIVERY_CLIENT_NAME } : {}),
-      // CRITICAL: pickup_location must be STRING, not object
-      pickup_location: pickupLocationName,
+      // Optional: Add client name if configured (from ENV)
+      ...(process.env.DELHIVERY_CLIENT ? { client: process.env.DELHIVERY_CLIENT } : {}),
+      // CRITICAL: pickup_location must be STRING, not object, no escaped quotes
+      pickup_location: pickupLocationClean,
       shipments: [sanitizedShipment],
     };
 
     // ----------------------------
     // DELHIVERY API CALL
     // ----------------------------
-    // CRITICAL: Delhivery CMU API requires application/x-www-form-urlencoded
-    // with BOTH 'data' AND 'format' keys
+    // CRITICAL: Delhivery CMU API is a legacy form API and requires:
+    // Content-Type: application/x-www-form-urlencoded
+    // Body: format=json&data=<STRINGIFIED_JSON>
     const apiUrl = `${BASE_URL}/api/cmu/create.json`;
+    
+    // STRONG LOGGING: Before request
+    const maskApiKey = (key) => {
+      if (!key || typeof key !== "string" || key.length <= 6) return "******";
+      return key.substring(0, 6) + "*".repeat(Math.min(key.length - 6, 10));
+    };
+    
+    // Prepare form-encoded body
     const formData = new URLSearchParams();
-    formData.append("format", "json"); // STRING "json", not JSON
-    formData.append("data", JSON.stringify(payload)); // JSON stringified payload
+    formData.append("format", "json");
+    formData.append("data", JSON.stringify(payload));
+    
+    console.log("📤 Delhivery API Request - BEFORE:", {
+      orderId: orderId,
+      apiUrl,
+      headers: {
+        "Authorization": `Token ${maskApiKey(TOKEN)}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      payload: {
+        pickup_location: payload.pickup_location,
+        client: payload.client || "N/A (not configured)",
+        shipment_count: payload.shipments.length,
+        order_id: sanitizedShipment.order,
+        payment_mode: sanitizedShipment.payment_mode,
+      },
+      note: "Sending form-encoded body (format=json&data=<STRINGIFIED_JSON>)",
+    });
     
     const res = await fetch(apiUrl, {
       method: "POST",
       headers: {
+        "Authorization": `Token ${TOKEN}`,
         "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: `Token ${TOKEN}`,
       },
-      body: formData.toString(),
+      body: formData.toString(), // Form-encoded body: format=json&data=<STRINGIFIED_JSON>
+    });
+    
+    // Log headers once to confirm content-type is correct
+    console.log("✅ Request headers confirmed:", {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Authorization": `Token ${maskApiKey(TOKEN)}`,
     });
 
     const data = await res.json();
+    
+    // STRONG LOGGING: After response
+    console.log("📥 Delhivery API Response - AFTER:", {
+      orderId: orderId,
+      status: res.status,
+      statusText: res.statusText,
+      success: data?.success,
+      awb: data?.packages?.[0]?.waybill || data?.upload_wbn || "N/A",
+      fullResponse: data,
+    });
     
     // CRITICAL: Treat as SUCCESS if:
     // 1. success === true AND waybill exists
@@ -188,8 +237,17 @@ export async function POST(req) {
         package_count: packageCount,
         fullResponse: data,
       });
+      
+      // Throw structured error for Delhivery failures
       return NextResponse.json(
-        { success: false, message: errorMessage, details: data },
+        { 
+          success: false, 
+          error: errorMessage,
+          provider: "delhivery",
+          stage: "shipment_creation",
+          orderId: orderId,
+          details: data 
+        },
         { status: 500 }
       );
     }
@@ -199,15 +257,30 @@ export async function POST(req) {
     
     if (!waybill) {
       return NextResponse.json(
-        { success: false, message: "No waybill found in response" },
+        { 
+          success: false, 
+          error: "No waybill found in response",
+          provider: "delhivery",
+          stage: "shipment_creation",
+          orderId: orderId,
+        },
         { status: 500 }
       );
     }
 
+    // STRONG LOGGING: Log AWB if generated
+    console.log("✅ Delhivery shipment created successfully:", {
+      orderId: orderId,
+      awb: waybill,
+      success: true,
+      provider: "delhivery",
+    });
+
     return NextResponse.json({
       success: true,
-      deliveryPartner: "Delhivery",
       awb: waybill,
+      provider: "delhivery",
+      deliveryPartner: "Delhivery",
       trackingId: waybill,
       pickupScheduled: true,
     });
