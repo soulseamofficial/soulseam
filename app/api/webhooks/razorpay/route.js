@@ -2,8 +2,6 @@ import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { connectDB } from "@/app/lib/db";
 import { markOrderAsPaid } from "@/app/lib/razorpay";
-import Order from "@/app/models/Order";
-import { sendOrderToDelhivery } from "@/app/lib/delhivery";
 
 export async function POST(req) {
   try {
@@ -102,78 +100,13 @@ export async function POST(req) {
           orderNumber: result.order?.orderNumber || null,
           razorpayPaymentId: razorpay_payment_id,
         });
-        // SKIP shipment creation - prevents double courier booking
       } else {
         console.log("Webhook: Payment processed successfully", {
           orderNumber: result.order?.orderNumber || null,
           razorpayPaymentId: razorpay_payment_id,
         });
-
-        // STEP 6: Create shipment ONLY if payment was just processed (not already processed)
-        // This prevents double shipment creation on webhook retries
-        if (result.order && !result.alreadyProcessed) {
-          try {
-            const order = await Order.findById(result.order._id);
-            if (order && !order.isShipmentCreated && order.orderStatus === "CONFIRMED") {
-              const shippingAddress = order.shippingAddress;
-              const fullName = shippingAddress?.fullName || "";
-              const [firstName, ...rest] = fullName.split(" ").filter(Boolean);
-              const lastName = rest.join(" ");
-
-              const delhiveryResponse = await sendOrderToDelhivery({
-                orderId: order._id.toString(),
-                shippingAddress: {
-                  fullName: shippingAddress?.fullName || "",
-                  firstName: firstName || "",
-                  lastName: lastName || "",
-                  phone: shippingAddress?.phone || "",
-                  addressLine1: shippingAddress?.addressLine1 || "",
-                  addressLine2: shippingAddress?.addressLine2 || "",
-                  city: shippingAddress?.city || "",
-                  state: shippingAddress?.state || "",
-                  pincode: shippingAddress?.pincode || "",
-                  country: shippingAddress?.country || "India",
-                },
-                paymentMethod: order.paymentMethod,
-                items: order.items.map(item => ({
-                  name: item.name,
-                  quantity: item.quantity,
-                  price: item.price,
-                })),
-                totalAmount: order.totalAmount,
-              });
-
-              // Update order with shipment details if successful
-              if (delhiveryResponse?.success) {
-                const updateData = {
-                  isShipmentCreated: true,
-                  courierResponse: delhiveryResponse,
-                  delhiveryWaybill: delhiveryResponse.waybill,
-                  delhiveryCourierName: delhiveryResponse.courier_name,
-                  delhiveryDeliveryStatus: delhiveryResponse.delivery_status,
-                  delhiveryTrackingUrl: delhiveryResponse.tracking_url,
-                  delhiverySent: true,
-                  delivery_provider: "DELHIVERY",
-                  delivery_status: delhiveryResponse.delivery_status || "SENT",
-                  delhiveryAWB: delhiveryResponse.waybill,
-                  delhiveryTrackingId: delhiveryResponse.waybill,
-                  delhiveryPartner: delhiveryResponse.courier_name,
-                };
-                await Order.findByIdAndUpdate(order._id, { $set: updateData });
-                console.log("Webhook: Shipment created", {
-                  orderNumber: order.orderNumber,
-                  waybill: delhiveryResponse.waybill,
-                });
-              }
-            }
-          } catch (shipmentError) {
-            // Log error but don't fail webhook - shipment can be created manually later
-            console.error("Webhook: Shipment creation failed (non-critical)", {
-              orderNumber: result.order?.orderNumber || null,
-              error: shipmentError.message,
-            });
-          }
-        }
+        // NOTE: Shipment creation is now manual-only via Admin Dashboard
+        // Webhook ONLY marks payment as PAID - nothing else
       }
     }
 

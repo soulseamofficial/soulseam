@@ -622,15 +622,15 @@ export default function AdminOrdersPage() {
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
                             <span className="px-2 py-1 rounded text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/30">
-                              Shipment Created
+                              ✅ Shipment Created
                             </span>
                           </div>
-                          {order.delhiveryWaybill && (
+                          {(order.delhiveryAWB || order.delhiveryWaybill) && (
                             <div className="grid md:grid-cols-2 gap-3 mt-3">
                               <div>
                                 <p className="text-xs text-white/60">AWB Number</p>
                                 <p className="font-mono text-sm font-bold text-white/90 break-all">
-                                  {order.delhiveryWaybill}
+                                  {order.delhiveryAWB || order.delhiveryWaybill}
                                 </p>
                                 {order.delhiveryTrackingUrl && (
                                   <a
@@ -657,7 +657,7 @@ export default function AdminOrdersPage() {
                               <span className={`text-xs font-semibold ${
                                 order.delivery_status === "DELIVERED" ? "text-green-400" :
                                 order.delivery_status === "IN_TRANSIT" ? "text-blue-400" :
-                                order.delivery_status === "SENT" ? "text-yellow-400" :
+                                order.delivery_status === "SENT" || order.delivery_status === "CREATED" ? "text-yellow-400" :
                                 "text-white/70"
                               }`}>
                                 {order.delivery_status}
@@ -667,12 +667,12 @@ export default function AdminOrdersPage() {
                         </div>
                       ) : (
                         <div className="space-y-3">
-                          {order.orderStatus === "CONFIRMED" ? (
+                          {order.paymentStatus === "PAID" && order.orderStatus === "CONFIRMED" ? (
                             <div>
                               <p className="text-xs text-white/60 mb-2">No shipment created yet</p>
                               <button
                                 onClick={() => createShipment(order._id)}
-                                disabled={creatingShipment[order._id]}
+                                disabled={creatingShipment[order._id] || order.isShipmentCreated}
                                 className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                               >
                                 {creatingShipment[order._id] ? (
@@ -690,7 +690,9 @@ export default function AdminOrdersPage() {
                           ) : (
                             <div>
                               <p className="text-xs text-amber-400">
-                                ⚠️ Order must be CONFIRMED to create shipment. Current status: {order.orderStatus}
+                                ⚠️ Order must be PAID and CONFIRMED to create shipment. 
+                                {order.paymentStatus !== "PAID" && ` Payment: ${order.paymentStatus}`}
+                                {order.orderStatus !== "CONFIRMED" && ` Status: ${order.orderStatus}`}
                               </p>
                             </div>
                           )}
