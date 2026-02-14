@@ -20,6 +20,20 @@ function getDelhiveryApiKey() {
   return process.env.DELHIVERY_API_KEY || process.env.DELHIVERY_API_TOKEN;
 }
 
+/**
+ * Masks API key in logs for security
+ * Shows only first 6 characters, rest as asterisks
+ * 
+ * @param {string} apiKey - API key to mask
+ * @returns {string} - Masked API key (e.g., "abcd12******")
+ */
+function maskApiKey(apiKey) {
+  if (!apiKey || typeof apiKey !== "string" || apiKey.length <= 6) {
+    return "******";
+  }
+  return apiKey.substring(0, 6) + "*".repeat(Math.min(apiKey.length - 6, 10));
+}
+
 function logDelhiveryConfig() {
   const apiKey = getDelhiveryApiKey();
   const hasApiKey = !!apiKey;
@@ -282,6 +296,35 @@ function validateShipmentData(shipment) {
 }
 
 /**
+ * Checks if a shipment already exists for an order (idempotency check)
+ * 
+ * @param {string} orderId - MongoDB order ID
+ * @returns {Promise<Object|null>} - Existing order with shipment data, or null if not found
+ */
+async function checkExistingShipment(orderId) {
+  try {
+    const { connectDB } = await import("@/app/lib/db");
+    const Order = (await import("@/app/models/Order")).default;
+    
+    await connectDB();
+    
+    const existingOrder = await Order.findById(orderId).select(
+      "delhiveryWaybill delhiveryAWB isShipmentCreated orderNumber"
+    );
+    
+    if (existingOrder && (existingOrder.delhiveryWaybill || existingOrder.delhiveryAWB || existingOrder.isShipmentCreated)) {
+      return existingOrder;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error("❌ Error checking existing shipment:", error);
+    // Don't throw - allow shipment creation to proceed if check fails
+    return null;
+  }
+}
+
+/**
  * Sends an order to Delhivery for fulfillment
  * 
  * @param {Object} orderData - Order data to send to Delhivery
@@ -309,7 +352,9 @@ export async function sendOrderToDelhivery(orderData) {
       const mockWaybill = `MOCK${Date.now()}`;
       return {
         success: true,
+        awb: mockWaybill,
         waybill: mockWaybill,
+        provider: "delhivery",
         courier_name: "Delhivery-Mock",
         delivery_status: "In Transit",
         tracking_url: `https://www.delhivery.com/track/${mockWaybill}`,
@@ -325,6 +370,9 @@ export async function sendOrderToDelhivery(orderData) {
       return {
         success: false,
         error: "DELHIVERY_API_KEY or DELHIVERY_API_TOKEN not configured",
+        provider: "delhivery",
+        stage: "shipment_creation",
+        orderId: orderData.orderId,
         deliveryStatus: "PENDING",
         shipment_status: "PENDING",
         isMock: false,
@@ -342,9 +390,47 @@ export async function sendOrderToDelhivery(orderData) {
       return {
         success: false,
         error: "Invalid order data",
+        provider: "delhivery",
         deliveryStatus: "PENDING",
         shipment_status: "PENDING",
         isMock: false,
+      };
+    }
+
+    // DUPLICATE SHIPMENT PROTECTION: Check if shipment already exists
+    const existingShipment = await checkExistingShipment(orderData.orderId);
+    if (existingShipment) {
+      const existingAWB = existingShipment.delhiveryWaybill || existingShipment.delhiveryAWB;
+      console.log("⚠️ Shipment already exists, skipping creation:", {
+        orderId: orderData.orderId,
+        orderNumber: existingShipment.orderNumber || "N/A",
+        existingAWB: existingAWB || "N/A",
+        isShipmentCreated: existingShipment.isShipmentCreated,
+      });
+      
+      // Return existing shipment data if available
+      if (existingAWB) {
+        return {
+          success: true,
+          awb: existingAWB,
+          waybill: existingAWB,
+          provider: "delhivery",
+          deliveryStatus: "SENT",
+          shipment_status: "SHIPPED",
+          isMock: false,
+          alreadyExists: true,
+          tracking_url: `https://www.delhivery.com/track/${existingAWB}`,
+        };
+      }
+      
+      return {
+        success: false,
+        error: "Shipment already exists, skipping.",
+        provider: "delhivery",
+        deliveryStatus: "PENDING",
+        shipment_status: "PENDING",
+        isMock: false,
+        alreadyExists: true,
       };
     }
 
@@ -372,6 +458,9 @@ export async function sendOrderToDelhivery(orderData) {
         return {
           success: false,
           error: errorMsg,
+          provider: "delhivery",
+          stage: "shipment_creation",
+          orderId: orderData.orderId,
           deliveryStatus: "PENDING",
           shipment_status: "PENDING",
           isMock: false,
@@ -473,6 +562,9 @@ export async function sendOrderToDelhivery(orderData) {
         return {
           success: false,
           error: "COD orders require cod_amount > 0",
+          provider: "delhivery",
+          stage: "shipment_creation",
+          orderId: orderData.orderId,
           deliveryStatus: "PENDING",
           shipment_status: "PENDING",
           isMock: false,
@@ -503,6 +595,9 @@ export async function sendOrderToDelhivery(orderData) {
       return {
         success: false,
         error: "Invalid shipment data - missing mandatory fields",
+        provider: "delhivery",
+        stage: "shipment_creation",
+        orderId: orderData.orderId,
         deliveryStatus: "PENDING",
         shipment_status: "PENDING",
         isMock: false,
@@ -538,6 +633,9 @@ export async function sendOrderToDelhivery(orderData) {
       return {
         success: false,
         error: `Missing or invalid shipment dimensions: ${dimensionErrors.join("; ")}`,
+        provider: "delhivery",
+        stage: "shipment_creation",
+        orderId: orderData.orderId,
         deliveryStatus: "PENDING",
         shipment_status: "PENDING",
         isMock: false,
@@ -561,6 +659,9 @@ export async function sendOrderToDelhivery(orderData) {
       return {
         success: false,
         error: `Validation failed: ${validation.errors.join("; ")}`,
+        provider: "delhivery",
+        stage: "shipment_creation",
+        orderId: orderData.orderId,
         deliveryStatus: "PENDING",
         shipment_status: "PENDING",
         isMock: false,
@@ -605,6 +706,9 @@ export async function sendOrderToDelhivery(orderData) {
       return {
         success: false,
         error: "products_desc must be a non-empty string",
+        provider: "delhivery",
+        stage: "shipment_creation",
+        orderId: orderData.orderId,
         deliveryStatus: "PENDING",
         shipment_status: "PENDING",
         isMock: false,
@@ -623,6 +727,9 @@ export async function sendOrderToDelhivery(orderData) {
       return {
         success: false,
         error: "Missing 'add' field in shipment. Address key must be 'add', not 'address'",
+        provider: "delhivery",
+        stage: "shipment_creation",
+        orderId: orderData.orderId,
         deliveryStatus: "PENDING",
         shipment_status: "PENDING",
         isMock: false,
@@ -630,11 +737,19 @@ export async function sendOrderToDelhivery(orderData) {
     }
     
     // Build payload with proper structure
+    // CRITICAL: pickup_location must be a plain STRING, not an object or escaped string
+    // Ensure no escaped quotes in pickup_location
+    let pickupLocationClean = pickupLocationName;
+    if (typeof pickupLocationClean === "string") {
+      // Remove any escaped quotes that might have been added
+      pickupLocationClean = pickupLocationClean.replace(/^["']|["']$/g, "").trim();
+    }
+    
     const payload = {
-      // Optional: Add client name if configured (helps with multi-client accounts)
-      ...(process.env.DELHIVERY_CLIENT_NAME ? { client: process.env.DELHIVERY_CLIENT_NAME } : {}),
-      // CRITICAL: pickup_location must be STRING, not object
-      pickup_location: pickupLocationName, // Must match dashboard exactly (case-sensitive)
+      // Optional: Add client name if configured (from ENV)
+      ...(process.env.DELHIVERY_CLIENT ? { client: process.env.DELHIVERY_CLIENT } : {}),
+      // CRITICAL: pickup_location must be STRING, not object, no escaped quotes
+      pickup_location: pickupLocationClean,
       shipments: [sanitizedShipment],
     };
 
@@ -663,82 +778,83 @@ export async function sendOrderToDelhivery(orderData) {
       console.error("❌ Failed to validate JSON payload structure:", e);
     }
 
-    // Debug log: Print the normalized payload being sent (without sensitive data)
-    console.log("📤 Delhivery API Payload (Normalized):", {
-      pickup_location: payload.pickup_location,
-      client: payload.client || "N/A (not configured)",
-      shipment_count: payload.shipments.length,
-      order_id: sanitizedShipment.order,
-      payment_mode: sanitizedShipment.payment_mode,
-      customer_pin: sanitizedShipment.pin,
-      cod_amount: sanitizedShipment.cod_amount !== undefined ? sanitizedShipment.cod_amount : undefined,
-      customer_name: sanitizedShipment.name,
-      customer_city: sanitizedShipment.city,
-      customer_state: sanitizedShipment.state,
-      address_length: sanitizedShipment.add?.length || 0,
-      address_preview: sanitizedShipment.add?.substring(0, 50) + (sanitizedShipment.add?.length > 50 ? "..." : "") || "N/A",
-      weight: sanitizedShipment.weight,
-      shipment_length: sanitizedShipment.shipment_length,
-      shipment_breadth: sanitizedShipment.shipment_breadth,
-      shipment_height: sanitizedShipment.shipment_height,
-      note: "Payload has been validated, normalized, and sanitized (null/undefined fields removed, pickup_location as string)",
+    // STRONG LOGGING: Before request
+    const maskedApiKey = maskApiKey(API_KEY);
+    
+    // Prepare form-encoded body
+    // CRITICAL: Delhivery CMU API is a legacy form API and requires:
+    // Content-Type: application/x-www-form-urlencoded
+    // Body: format=json&data=<STRINGIFIED_JSON>
+    const formData = new URLSearchParams();
+    formData.append("format", "json");
+    formData.append("data", payloadString);
+    
+    console.log("📤 Delhivery API Request - BEFORE:", {
+      orderId: orderData.orderId,
+      apiUrl: `${API_BASE_URL}/api/cmu/create.json`,
+      headers: {
+        "Authorization": `Token ${maskedApiKey}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      payload: {
+        pickup_location: payload.pickup_location,
+        client: payload.client || "N/A (not configured)",
+        shipment_count: payload.shipments.length,
+        order_id: sanitizedShipment.order,
+        payment_mode: sanitizedShipment.payment_mode,
+        customer_pin: sanitizedShipment.pin,
+        cod_amount: sanitizedShipment.cod_amount !== undefined ? sanitizedShipment.cod_amount : undefined,
+        customer_name: sanitizedShipment.name,
+        customer_city: sanitizedShipment.city,
+        customer_state: sanitizedShipment.state,
+        address_length: sanitizedShipment.add?.length || 0,
+        address_preview: sanitizedShipment.add?.substring(0, 50) + (sanitizedShipment.add?.length > 50 ? "..." : "") || "N/A",
+        weight: sanitizedShipment.weight,
+        shipment_length: sanitizedShipment.shipment_length,
+        shipment_breadth: sanitizedShipment.shipment_breadth,
+        shipment_height: sanitizedShipment.shipment_height,
+      },
+      note: "Sending form-encoded body (format=json&data=<STRINGIFIED_JSON>)",
     });
     
-    // Log full normalized shipment payload for debugging (safe - no sensitive payment data)
-    console.log("📋 Normalized Shipment Payload (Full):", JSON.stringify(sanitizedShipment, null, 2));
-    console.log("📋 Full Payload Structure:", JSON.stringify(payload, null, 2));
+    // Log full payload for debugging (safe - no sensitive payment data)
+    console.log("📋 Full Payload (JSON):", JSON.stringify(payload, null, 2));
 
     // Make API call to Delhivery (REAL API) with retry logic
-    // CRITICAL: Delhivery CMU API STRICTLY requires application/x-www-form-urlencoded with BOTH 'data' AND 'format' keys
-    // - format = "json" (STRING ONLY, must never contain JSON)
-    // - data = JSON.stringify(payload)
-    // Error "Unsupported format" occurs if format contains JSON instead of the string "json"
+    // CRITICAL: Delhivery CMU API is a legacy form API and requires form-encoded body
     const apiUrl = `${API_BASE_URL}/api/cmu/create.json`;
-    
-    // Log request summary (safe, no secrets)
-    console.log("📦 Sending order to Delhivery (REAL API):", {
-      orderId: orderData.orderId,
-      apiUrl,
-      pickup_location: payload.pickup_location,
-      customer_pin: sanitizedShipment.pin,
-      paymentMode: sanitizedShipment.payment_mode,
-      customerName: sanitizedShipment.name,
-    });
 
-    // Prepare form-encoded body with BOTH 'data' AND 'format' keys
-    // CRITICAL: Delhivery CMU API requires:
-    // - format = "json" (STRING ONLY, not JSON)
-    // - data = JSON.stringify(payload) - use the validated payload string
-    // Error "Unsupported format" occurs if format contains JSON instead of "json" string
-    const formData = new URLSearchParams();
-    formData.append("format", "json"); // STRING "json", not JSON.stringify(payload)
-    formData.append("data", payloadString); // Use the validated JSON string
-    
-    // Debug log: Print form data entries to verify format="json" and data="<json string>"
-    console.log("📋 Delhivery form data entries:", [...formData.entries()]);
-
-    // Retry logic with exponential backoff
-    const maxRetries = 3;
+    // SAFE RETRY LOGIC: Only retry on network errors and 5xx errors
+    // Do NOT retry for: 400, 401, 403 (client errors)
+    const maxRetries = 2; // Max 2 retries (3 total attempts)
     const baseDelay = 2000; // 2 seconds
     let lastError = null;
     let lastResponse = null;
     let lastResponseData = null;
 
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
       try {
         if (attempt > 1) {
-          const delay = baseDelay * Math.pow(2, attempt - 2); // Exponential backoff: 2s, 4s, 8s
-          console.log(`🔄 Retry attempt ${attempt}/${maxRetries} after ${delay}ms delay...`);
+          const delay = baseDelay * Math.pow(2, attempt - 2); // Exponential backoff: 2s, 4s
+          console.log(`🔄 Retry attempt ${attempt}/${maxRetries + 1} after ${delay}ms delay...`);
           await new Promise(resolve => setTimeout(resolve, delay));
+        }
+
+        // Log headers once to confirm content-type is correct (only on first attempt)
+        if (attempt === 1) {
+          console.log("✅ Request headers confirmed:", {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Authorization": `Token ${maskedApiKey}`,
+          });
         }
 
         const response = await fetch(apiUrl, {
           method: "POST",
           headers: {
+            "Authorization": `Token ${API_KEY}`,
             "Content-Type": "application/x-www-form-urlencoded",
-            Authorization: `Token ${API_KEY}`,
           },
-          body: formData.toString(),
+          body: formData.toString(), // Form-encoded body: format=json&data=<STRINGIFIED_JSON>
           // Add timeout to prevent hanging
           signal: AbortSignal.timeout(30000), // 30 second timeout
         });
@@ -755,24 +871,51 @@ export async function sendOrderToDelhivery(orderData) {
           console.error("Raw response:", textResponse);
           
           // If it's the last attempt, return error
-          if (attempt === maxRetries) {
+          if (attempt === maxRetries + 1) {
             return {
               success: false,
               error: "Invalid response from Delhivery API",
+              provider: "delhivery",
+              stage: "shipment_creation",
+              orderId: orderData.orderId,
               deliveryStatus: "PENDING",
               shipment_status: "PENDING",
               isMock: false,
               rawResponse: textResponse,
             };
           }
-          // Otherwise, retry
-          lastError = parseError;
-          continue;
+          // Otherwise, retry (only if 5xx error)
+          if (response.status >= 500) {
+            lastError = parseError;
+            continue;
+          }
+          // Don't retry for non-5xx errors
+          return {
+            success: false,
+            error: "Invalid response from Delhivery API",
+            provider: "delhivery",
+            stage: "shipment_creation",
+            orderId: orderData.orderId,
+            deliveryStatus: "PENDING",
+            shipment_status: "PENDING",
+            isMock: false,
+            rawResponse: textResponse,
+          };
         }
+
+        // STRONG LOGGING: After response
+        console.log("📥 Delhivery API Response - AFTER:", {
+          orderId: orderData.orderId,
+          status: response.status,
+          statusText: response.statusText,
+          success: responseData?.success,
+          awb: responseData?.packages?.[0]?.waybill || responseData?.upload_wbn || "N/A",
+          fullResponse: responseData,
+        });
 
         // Check if API call was successful (HTTP status)
         if (!response.ok) {
-          const errorMessage = responseData?.error || responseData?.message || `API error: ${response.status}`;
+          const errorMessage = responseData?.error || responseData?.message || responseData?.rmk || `API error: ${response.status}`;
           
           // Check if package was created despite error (half-success scenario)
           const packages = responseData?.packages || responseData?.package || [];
@@ -782,7 +925,7 @@ export async function sendOrderToDelhivery(orderData) {
           
           // If package was created (upload_wbn or package_count > 0), treat as success, don't retry
           if (uploadWbn || (packageCount > 0 && hasWaybill)) {
-            console.log("⚠️ Delhivery returned error but package was created (half-success). Treating as success:", {
+            console.log("✅ Delhivery returned error but package was created (half-success). Treating as success:", {
               status: response.status,
               error: errorMessage,
               upload_wbn: uploadWbn || "N/A",
@@ -793,17 +936,13 @@ export async function sendOrderToDelhivery(orderData) {
             break;
           }
           
-          // Check for specific errors that shouldn't be retried
+          // SAFE RETRY LOGIC: Only retry for 5xx errors and network errors
+          // Do NOT retry for: 400, 401, 403 (client errors)
+          const isRetryableError = response.status >= 500; // Only 5xx errors
           const errorMsgStr = typeof errorMessage === "string" ? errorMessage : String(errorMessage || "");
-          const isNonRetryableError = 
-            errorMsgStr.toLowerCase().includes("pickup location") ||
-            errorMsgStr.toLowerCase().includes("clientwarehouse matching query doesn't exist") ||
-            errorMsgStr.toLowerCase().includes("client name") ||
-            errorMsgStr.toLowerCase().includes("invalid") ||
-            response.status === 400; // Bad request - don't retry
           
-          if (isNonRetryableError || attempt === maxRetries) {
-            // Don't retry for these errors or if last attempt
+          if (!isRetryableError || attempt === maxRetries + 1) {
+            // Don't retry for client errors (4xx) or if last attempt
             console.error("❌ Delhivery API error (non-retryable or last attempt):", {
               status: response.status,
               statusText: response.statusText,
@@ -812,19 +951,23 @@ export async function sendOrderToDelhivery(orderData) {
               attempt,
             });
             
-            // Check if error is related to pickup location
-            if (errorMsgStr.toLowerCase().includes("pickup location") || 
-                errorMsgStr.toLowerCase().includes("clientwarehouse")) {
-              console.error("⚠️ Pickup location error detected. Verify DELHIVERY_PICKUP_NAME matches dashboard exactly:", {
-                configured_name: `"${pickupLocationName}"`,
-                expected_names: ["SOULSEAM C2C", "Soul seam 2"],
-                note: "Name must match exactly (case-sensitive, including spaces). pickup_location must be sent as STRING: 'Soul seam 2'",
-              });
+            // Throw structured error for Delhivery failures
+            if (responseData?.success === false) {
+              throw {
+                provider: "delhivery",
+                stage: "shipment_creation",
+                orderId: orderData.orderId,
+                response: responseData,
+                error: errorMessage,
+              };
             }
             
             return {
               success: false,
               error: errorMessage,
+              provider: "delhivery",
+              stage: "shipment_creation",
+              orderId: orderData.orderId,
               deliveryStatus: "PENDING",
               shipment_status: "PENDING",
               isMock: false,
@@ -832,11 +975,11 @@ export async function sendOrderToDelhivery(orderData) {
             };
           }
           
-          // Retry for other errors (only if no package was created)
-          console.warn(`⚠️ Delhivery API error (attempt ${attempt}/${maxRetries}), will retry:`, {
+          // Retry for 5xx errors (only if no package was created)
+          console.warn(`⚠️ Delhivery API error (attempt ${attempt}/${maxRetries + 1}), will retry:`, {
             status: response.status,
             error: errorMessage,
-            note: "No package created yet, retrying...",
+            note: "5xx error detected, retrying...",
           });
           lastError = new Error(errorMessage);
           continue;
@@ -848,26 +991,46 @@ export async function sendOrderToDelhivery(orderData) {
       } catch (fetchError) {
         lastError = fetchError;
         
+        // Check if it's a structured error (from Delhivery response)
+        if (fetchError.provider === "delhivery") {
+          return {
+            success: false,
+            error: fetchError.error || "Shipment creation failed",
+            provider: fetchError.provider,
+            stage: fetchError.stage,
+            orderId: fetchError.orderId,
+            deliveryStatus: "PENDING",
+            shipment_status: "PENDING",
+            isMock: false,
+            rawResponse: fetchError.response,
+          };
+        }
+        
         // Check if it's a timeout or network error (retryable)
         const isRetryable = 
           fetchError.name === "AbortError" ||
           fetchError.name === "TimeoutError" ||
           fetchError.message?.includes("network") ||
-          fetchError.message?.includes("timeout");
+          fetchError.message?.includes("timeout") ||
+          fetchError.message?.includes("ECONNREFUSED") ||
+          fetchError.message?.includes("ENOTFOUND");
         
-        if (!isRetryable || attempt === maxRetries) {
+        if (!isRetryable || attempt === maxRetries + 1) {
           // Don't retry for non-retryable errors or if last attempt
           console.error("❌ Delhivery API fetch error (non-retryable or last attempt):", fetchError);
           return {
             success: false,
             error: fetchError.message || "Network error",
+            provider: "delhivery",
+            stage: "shipment_creation",
+            orderId: orderData.orderId,
             deliveryStatus: "PENDING",
             shipment_status: "PENDING",
             isMock: false,
           };
         }
         
-        console.warn(`⚠️ Delhivery API fetch error (attempt ${attempt}/${maxRetries}), will retry:`, fetchError.message);
+        console.warn(`⚠️ Delhivery API fetch error (attempt ${attempt}/${maxRetries + 1}), will retry:`, fetchError.message);
       }
     }
 
@@ -926,23 +1089,13 @@ export async function sendOrderToDelhivery(orderData) {
         fullResponse: responseData,
       });
       
-      // Check if error mentions missing keys or unsupported format
-      // FIX: Only call toLowerCase() if values are strings
-      const errorMsgStr = typeof errorMessage === "string" ? errorMessage : String(errorMessage || "");
-      const rmkStr = typeof responseData?.rmk === "string" ? (responseData.rmk || "") : "";
-      const errorText = errorMsgStr + " " + rmkStr;
-      if (errorText.toLowerCase().includes("data key missing") || 
-          errorText.toLowerCase().includes("format key missing") ||
-          errorText.toLowerCase().includes("unsupported format")) {
-        console.error("⚠️ Delhivery key/format error detected. Verify payload is wrapped correctly:", {
-          pickup_location: pickupLocationName,
-          note: "Payload must be sent as form-urlencoded with format='json' (string) and data=JSON.stringify(payload)",
-        });
-      }
-      
+      // Throw structured error for Delhivery failures
       return {
         success: false,
         error: errorMessage,
+        provider: "delhivery",
+        stage: "shipment_creation",
+        orderId: orderData.orderId,
         deliveryStatus: "PENDING",
         shipment_status: "PENDING",
         isMock: false,
@@ -968,7 +1121,9 @@ export async function sendOrderToDelhivery(orderData) {
           });
           return {
             success: true,
+            awb: waybill,
             waybill: waybill,
+            provider: "delhivery",
             courier_name: "Delhivery",
             delivery_status: "CREATED",
             tracking_url: trackingUrl,
@@ -990,6 +1145,9 @@ export async function sendOrderToDelhivery(orderData) {
         return {
           success: false,
           error: `Invalid waybill format: ${waybill}`,
+          provider: "delhivery",
+          stage: "shipment_creation",
+          orderId: orderData.orderId,
           deliveryStatus: "PENDING",
           shipment_status: "PENDING",
           isMock: false,
@@ -1004,6 +1162,7 @@ export async function sendOrderToDelhivery(orderData) {
       const wasHalfSuccess = responseData?.success === false && (uploadWbn || packageCount > 0);
       console.log(`✅ Delhivery order created successfully (REAL${wasHalfSuccess ? " - half-success scenario" : ""}):`, {
         orderId: orderData.orderId,
+        awb: waybill,
         waybill: waybill,
         courierName: packageData?.courier_name || "Delhivery",
         trackingUrl: trackingUrl,
@@ -1013,21 +1172,24 @@ export async function sendOrderToDelhivery(orderData) {
         note: wasHalfSuccess ? "Delhivery returned success=false but created package. Treating as success." : "Normal success response",
       });
 
-      // Log response summary (safe, no secrets)
+      // STRONG LOGGING: Log AWB if generated
       console.log("📋 Delhivery Response Summary:", {
         success: true,
+        awb: waybill,
         waybill: waybill,
         hasWaybill: !!waybill,
         packageCount: packages?.length || 0,
         pickup_location_used: pickupLocationName,
         order_id: orderData.orderId,
-        form_keys_used: ["data", "format"], // Confirms we used both 'data' and 'format' keys in request
+        note: "Shipment created successfully with form-encoded body",
       });
 
-      // Success: Save waybill and set shipment_status = "SHIPPED"
+      // Success: Return structured response
       return {
         success: true,
+        awb: waybill,
         waybill: waybill,
+        provider: "delhivery",
         courier_name: packageData?.courier_name || "Delhivery",
         delivery_status: packageData?.status || "CREATED",
         tracking_url: trackingUrl,
@@ -1042,6 +1204,9 @@ export async function sendOrderToDelhivery(orderData) {
       return {
         success: false,
         error: `Failed to parse courier response: ${parseError?.message || "Unknown error"}`,
+        provider: "delhivery",
+        stage: "shipment_creation",
+        orderId: orderData.orderId,
         deliveryStatus: "PENDING",
         shipment_status: "PENDING",
         isMock: false,
@@ -1050,9 +1215,28 @@ export async function sendOrderToDelhivery(orderData) {
     }
   } catch (error) {
     console.error("❌ Delhivery service error:", error);
+    
+    // If it's a structured error, return it as-is
+    if (error.provider === "delhivery") {
+      return {
+        success: false,
+        error: error.error || "Shipment creation failed",
+        provider: error.provider,
+        stage: error.stage,
+        orderId: error.orderId,
+        deliveryStatus: "PENDING",
+        shipment_status: "PENDING",
+        isMock: false,
+        rawResponse: error.response,
+      };
+    }
+    
     return {
       success: false,
       error: error.message || "Unknown error",
+      provider: "delhivery",
+      stage: "shipment_creation",
+      orderId: orderData.orderId,
       deliveryStatus: "PENDING",
       shipment_status: "PENDING",
       isMock: false,

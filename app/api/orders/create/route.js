@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/app/lib/db";
 import Order from "@/app/models/Order";
-import Counter from "@/app/models/Counter";
 import { getAuthUserFromCookies } from "@/app/lib/auth";
 import Razorpay from "razorpay";
 import mongoose from "mongoose";
@@ -90,28 +89,22 @@ function normalizeAddress(a) {
 }
 
 /**
- * Generate unique order number using MongoDB atomic counter
+ * Get next order number using atomic MongoDB counter
  * Guarantees sequential order numbers (SS0001, SS0002, etc.) even under high concurrency
+ * Uses atomic findOneAndUpdate to prevent race conditions
  * 
  * @returns {Promise<string>} - Sequential order number (e.g., "SS0001")
  */
-async function generateOrderNumber() {
-  try {
-    // Use atomic counter to get next sequential number
-    const nextNumber = await Counter.getNext("orderNumber");
-    
-    // Format: SS0001, SS0002, etc.
-    const orderNumber = `SS${String(nextNumber).padStart(4, "0")}`;
-    return orderNumber;
-  } catch (error) {
-    console.error("[ORDER] Error generating order number:", {
-      error: error.message,
-      stack: error.stack,
-    });
-    // Fallback: use timestamp-based number (should rarely happen)
-    const fallbackNumber = `SS${String(Date.now()).slice(-4)}`;
-    return fallbackNumber;
-  }
+async function getNextOrderNumber() {
+  const db = mongoose.connection.db;
+  
+  const counter = await db.collection("counters").findOneAndUpdate(
+    { _id: "orderNumber" },
+    { $inc: { sequence_value: 1 } },
+    { returnDocument: "after", upsert: true }
+  );
+
+  return "SS" + String(counter.sequence_value).padStart(4, "0");
 }
 
 /**
@@ -233,8 +226,8 @@ export async function POST(req) {
     const [firstName, ...rest] = fullName.split(" ").filter(Boolean);
     const lastName = rest.join(" ");
 
-    // STEP 1: Generate unique order number
-    const orderNumber = await generateOrderNumber();
+    // STEP 1: Generate unique order number using atomic counter
+    const orderNumber = await getNextOrderNumber();
     console.log("✅ Generated order number:", orderNumber);
 
     // STEP 2: Create MongoDB order FIRST (database-first approach)
