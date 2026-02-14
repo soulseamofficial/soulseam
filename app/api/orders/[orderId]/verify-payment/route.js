@@ -2,15 +2,7 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/app/lib/db";
 import { getAuthUserFromCookies } from "@/app/lib/auth";
 import Order from "@/app/models/Order";
-import crypto from "crypto";
-
-function verifyRazorpaySignature({ razorpay_order_id, razorpay_payment_id, razorpay_signature }) {
-  const secret = process.env.RAZORPAY_KEY_SECRET;
-  if (!secret) return false;
-  const payload = `${razorpay_order_id}|${razorpay_payment_id}`;
-  const expected = crypto.createHmac("sha256", secret).update(payload).digest("hex");
-  return expected === razorpay_signature;
-}
+import { verifyRazorpaySignature, markOrderAsPaid } from "@/app/lib/razorpay";
 
 export async function POST(req, { params }) {
   try {
@@ -75,21 +67,50 @@ export async function POST(req, { params }) {
       );
     }
 
-    // Update order: payment PAID, order CONFIRMED
-    await Order.findByIdAndUpdate(orderId, {
-      $set: {
-        paymentStatus: "PAID",
-        paymentMethod: "RAZORPAY",
-        orderStatus: "CONFIRMED",
-        razorpayPaymentId: razorpay_payment_id,
-        razorpaySignature: razorpay_signature,
-        // Legacy fields for backward compatibility
-        "payment.status": "paid",
-        legacyOrderStatus: "paid",
+    // ✅ USE SAME FUNCTION AS VERIFY ENDPOINT AND WEBHOOK
+    // This ensures idempotency, atomic updates, and prevents duplicate shipments
+    const result = await markOrderAsPaid(
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      {
+        isWebhook: false,
+        // Amount validation not available in this endpoint, but signature is verified
       }
+    );
+
+    if (!result.success) {
+      if (result.error === "ORDER_NOT_FOUND") {
+        return NextResponse.json(
+          { success: false, error: "Order not found" },
+          { status: 404 }
+        );
+      }
+
+      // For other errors, return appropriate status
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: result.error || "Payment update failed",
+          message: result.error === "PAYMENT_ID_MISMATCH" 
+            ? "Order already paid with a different payment ID"
+            : "Failed to update order payment status"
+        },
+        { status: result.error === "PAYMENT_ID_MISMATCH" ? 409 : 500 }
+      );
+    }
+
+    // Log only orderNumber and paymentId
+    console.log("Payment verified via verify-payment route", {
+      orderNumber: result.order?.orderNumber || null,
+      razorpayPaymentId: razorpay_payment_id,
+      alreadyProcessed: result.alreadyProcessed,
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ 
+      success: true,
+      alreadyProcessed: result.alreadyProcessed,
+    });
   } catch (error) {
     console.error("[Orders Verify Payment] Error:", error);
     return NextResponse.json(
