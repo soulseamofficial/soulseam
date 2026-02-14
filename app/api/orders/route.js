@@ -7,9 +7,17 @@ export async function POST(req) {
     await connectDB();
     const body = await req.json();
 
+    // razorpayOrderId is now required - validate it's provided
+    if (!body.razorpayOrderId) {
+      return NextResponse.json(
+        { success: false, message: "razorpayOrderId is required" },
+        { status: 400 }
+      );
+    }
+
     const order = await Order.create({
       ...body,
-      orderStatus: "draft",
+      orderStatus: body.orderStatus || "CREATED", // Use valid enum value
       payment: { method: "not_selected", status: "not_selected" },
       deliveryStatus: "not_created",
     });

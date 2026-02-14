@@ -59,6 +59,11 @@ const OrderSchema = new mongoose.Schema(
       required: true,
       default: "CREATED",
     },
+    cancellationReason: {
+      type: String,
+      default: null,
+      trim: true,
+    },
 
     coupon: { type: CouponSchema, default: null },
     subtotal: { type: Number, required: true, min: 0 },
@@ -76,8 +81,22 @@ const OrderSchema = new mongoose.Schema(
     orderNumber: { type: String, default: null, unique: true, sparse: true, index: true },
 
     // Razorpay payment details (for ONLINE payments and COD advance)
-    razorpayOrderId: { type: String, default: null, unique: true, sparse: true, index: true },
-    razorpayPaymentId: { type: String, default: null },
+    // Note: razorpayOrderId is optional during creation, set after Razorpay order is created
+    razorpayOrderId: {
+      type: String,
+      required: false, // Optional during creation, will be set after Razorpay order creation
+      default: null,
+      unique: true,
+      sparse: true, // Allow multiple nulls, but enforce uniqueness for non-null values
+      index: true
+    },
+    razorpayPaymentId: { 
+      type: String, 
+      default: null,
+      unique: true,
+      sparse: true, // Allow multiple nulls, but enforce uniqueness for non-null values
+      index: true
+    },
     razorpaySignature: { type: String, default: null },
     
     // Payment timestamp

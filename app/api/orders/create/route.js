@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/app/lib/db";
 import Order from "@/app/models/Order";
+import Counter from "@/app/models/Counter";
 import { getAuthUserFromCookies } from "@/app/lib/auth";
 import Razorpay from "razorpay";
 import mongoose from "mongoose";
@@ -89,34 +90,25 @@ function normalizeAddress(a) {
 }
 
 /**
- * Generate unique order number (SS0001, SS0002, etc.)
+ * Generate unique order number using MongoDB atomic counter
+ * Guarantees sequential order numbers (SS0001, SS0002, etc.) even under high concurrency
+ * 
+ * @returns {Promise<string>} - Sequential order number (e.g., "SS0001")
  */
 async function generateOrderNumber() {
   try {
-    // Find the latest order with an order number
-    const latestOrder = await Order.findOne({
-      orderNumber: { $exists: true, $ne: null }
-    })
-      .sort({ orderNumber: -1 })
-      .select("orderNumber")
-      .lean();
-
-    let nextNumber = 1;
-
-    if (latestOrder && latestOrder.orderNumber) {
-      // Extract number from order number (e.g., "SS0001" -> 1)
-      const match = latestOrder.orderNumber.match(/^SS(\d+)$/);
-      if (match) {
-        nextNumber = parseInt(match[1], 10) + 1;
-      }
-    }
-
+    // Use atomic counter to get next sequential number
+    const nextNumber = await Counter.getNext("orderNumber");
+    
     // Format: SS0001, SS0002, etc.
     const orderNumber = `SS${String(nextNumber).padStart(4, "0")}`;
     return orderNumber;
   } catch (error) {
-    console.error("Error generating order number:", error);
-    // Fallback: use timestamp-based number
+    console.error("[ORDER] Error generating order number:", {
+      error: error.message,
+      stack: error.stack,
+    });
+    // Fallback: use timestamp-based number (should rarely happen)
     const fallbackNumber = `SS${String(Date.now()).slice(-4)}`;
     return fallbackNumber;
   }
@@ -245,7 +237,8 @@ export async function POST(req) {
     const orderNumber = await generateOrderNumber();
     console.log("✅ Generated order number:", orderNumber);
 
-    // STEP 2: Create order in MongoDB with status "pending"
+    // STEP 2: Create MongoDB order FIRST (database-first approach)
+    // This ensures we have a database record before any payment can be processed
     const order = await Order.create({
       userId: userId || null,
       guestUserId: guestUserId || null,
@@ -264,6 +257,7 @@ export async function POST(req) {
       finalTotal: totalAmount,
       advancePaid: 0,
       remainingCOD: 0,
+      razorpayOrderId: null, // Will be set after Razorpay order creation
       orderMessage: orderMessage || null,
       orderSource: "WEBSITE",
 
@@ -289,67 +283,134 @@ export async function POST(req) {
       legacyOrderStatus: "created",
     });
 
-    console.log("✅ Order created in MongoDB:", {
+    console.log("✅ Order created in MongoDB (database-first):", {
       orderId: order._id.toString(),
       orderNumber: order.orderNumber,
-      status: order.orderStatus,
       paymentStatus: order.paymentStatus,
+      orderStatus: order.orderStatus,
     });
 
-    // STEP 3: Create Razorpay order
-    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-      // Rollback: delete the order if Razorpay is not configured
-      await Order.findByIdAndDelete(order._id);
-      return NextResponse.json(
-        { success: false, message: "Razorpay configuration missing" },
-        { status: 500 }
+    // STEP 3 & 4: Create Razorpay order AND update MongoDB in STRONG try/catch
+    // CRITICAL: If Razorpay order is created but Mongo update fails, we MUST throw error
+    // This prevents orphan payments (Razorpay order exists but no DB link)
+    let razorpayOrder = null;
+    let updatedOrder = null;
+
+    try {
+      // STEP 3: Create Razorpay order AFTER successful DB save
+      if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+        // If Razorpay config is missing, we still have the order in DB
+        // This prevents payments without database records
+        console.error("❌ Razorpay configuration missing after order creation");
+        return NextResponse.json(
+          { success: false, message: "Razorpay configuration missing" },
+          { status: 500 }
+        );
+      }
+
+      const razorpay = new Razorpay({
+        key_id: process.env.RAZORPAY_KEY_ID,
+        key_secret: process.env.RAZORPAY_KEY_SECRET,
+      });
+
+      // Create Razorpay order with MongoDB order ID and order number in notes
+      // This is set during creation, not edited later
+      razorpayOrder = await razorpay.orders.create({
+        amount: Math.round(totalAmount * 100), // Convert to paise
+        currency: "INR",
+        receipt: `rcpt_${orderNumber}_${Date.now()}`,
+        notes: {
+          mongoOrderId: order._id.toString(), // MongoDB order ID
+          orderNumber: orderNumber, // Order number (SS0001, etc.)
+        },
+      });
+
+      if (!razorpayOrder || !razorpayOrder.id) {
+        // Order exists in DB but Razorpay order creation failed
+        // Log critical error - order exists but cannot process payment
+        console.error("❌ Failed to create Razorpay order after DB order creation", {
+          orderId: order._id.toString(),
+          orderNumber: order.orderNumber,
+        });
+        return NextResponse.json(
+          { success: false, message: "Failed to create Razorpay order" },
+          { status: 500 }
+        );
+      }
+
+      console.log("✅ Razorpay order created:", razorpayOrder.id);
+
+      // STEP 4: Immediately update MongoDB order with razorpayOrderId
+      // CRITICAL: This MUST succeed or we have an orphan payment
+      updatedOrder = await Order.findByIdAndUpdate(
+        order._id,
+        {
+          $set: {
+            razorpayOrderId: razorpayOrder.id,
+          },
+        },
+        { new: true }
       );
+
+      if (!updatedOrder) {
+        // CRITICAL PAYMENT ERROR: Razorpay order created but Mongo update failed
+        console.error("🚨 CRITICAL PAYMENT ERROR");
+        console.error({
+          mongoOrderId: order._id.toString(),
+          razorpayOrderId: razorpayOrder.id,
+          timestamp: new Date().toISOString(),
+        });
+        // DO NOT continue - throw error to prevent hidden orphan payment
+        throw new Error("CRITICAL: Failed to update order with razorpayOrderId. Razorpay order created but DB update failed.");
+      }
+
+      // SAFETY CHECK: Verify razorpayOrderId is actually set
+      if (!updatedOrder.razorpayOrderId) {
+        console.error("🚨 CRITICAL PAYMENT ERROR");
+        console.error({
+          mongoOrderId: order._id.toString(),
+          razorpayOrderId: razorpayOrder.id,
+          timestamp: new Date().toISOString(),
+        });
+        throw new Error("CRITICAL: razorpayOrderId is null after update");
+      }
+
+      console.log("✅ Order updated with Razorpay order ID:", {
+        orderId: updatedOrder._id.toString(),
+        orderNumber: updatedOrder.orderNumber,
+        razorpayOrderId: updatedOrder.razorpayOrderId,
+      });
+    } catch (error) {
+      // CRITICAL: If Razorpay order was created but Mongo update failed, log and throw
+      if (razorpayOrder && razorpayOrder.id && !updatedOrder) {
+        console.error("🚨 CRITICAL PAYMENT ERROR");
+        console.error({
+          mongoOrderId: order._id.toString(),
+          razorpayOrderId: razorpayOrder.id,
+          timestamp: new Date().toISOString(),
+          error: error.message,
+        });
+        // Throw error - frontend must receive failure
+        // We NEVER allow hidden orphan payments
+        return NextResponse.json(
+          {
+            success: false,
+            message: "CRITICAL: Payment order created but database update failed. Order cannot be processed.",
+            error: "PAYMENT_UPDATE_FAILED",
+          },
+          { status: 500 }
+        );
+      }
+      // Re-throw other errors
+      throw error;
     }
-
-    const razorpay = new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID,
-      key_secret: process.env.RAZORPAY_KEY_SECRET,
-    });
-
-    // Create Razorpay order with amount in paise
-    const razorpayOrder = await razorpay.orders.create({
-      amount: Math.round(totalAmount * 100), // Convert to paise
-      currency: "INR",
-      receipt: `rcpt_${orderNumber}_${Date.now()}`,
-      notes: {
-        internal_order_id: orderNumber,
-        order_id: order._id.toString(),
-      },
-    });
-
-    if (!razorpayOrder || !razorpayOrder.id) {
-      // Rollback: delete the order if Razorpay order creation fails
-      await Order.findByIdAndDelete(order._id);
-      return NextResponse.json(
-        { success: false, message: "Failed to create Razorpay order" },
-        { status: 500 }
-      );
-    }
-
-    // STEP 4: Update order with razorpay_order_id
-    await Order.findByIdAndUpdate(order._id, {
-      $set: {
-        razorpayOrderId: razorpayOrder.id,
-      },
-    });
-
-    console.log("✅ Razorpay order created and linked:", {
-      orderId: order._id.toString(),
-      orderNumber: order.orderNumber,
-      razorpayOrderId: razorpayOrder.id,
-    });
 
     // STEP 5: Return response
     return NextResponse.json({
       success: true,
       razorpay_order_id: razorpayOrder.id,
       order_number: orderNumber,
-      order_id: order._id.toString(),
+      order_id: updatedOrder._id.toString(),
       amount: razorpayOrder.amount, // Amount in paise
       amountInRupees: totalAmount,
       key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,

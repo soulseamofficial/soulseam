@@ -14,6 +14,7 @@ export default function AdminDashboardPage() {
     reels: 0,
     coupons: 0,
     users: 0,
+    guestUsers: 0,
     orders: 0,
   });
   const [loading, setLoading] = useState(true);
@@ -46,8 +47,9 @@ export default function AdminDashboardPage() {
           products: data?.products ?? 0,
           reels: data?.reels ?? 0,
           coupons: data?.coupons ?? 0,
-          users: data?.users ?? 0,
-          orders: data?.orders ?? 0,
+          users: data?.totalUsers ?? data?.users ?? 0,
+          guestUsers: data?.totalGuestUsers ?? 0,
+          orders: data?.totalOrders ?? data?.orders ?? 0,
         });
       } catch (err) {
         console.error("[Dashboard] Failed to load stats:", err);
@@ -69,7 +71,7 @@ export default function AdminDashboardPage() {
 
       {/* ===== Stats Cards ===== */}
       <div
-        className={`grid grid-cols-2 lg:grid-cols-5 gap-8 mb-14 w-full max-w-5xl ${FADE_IN_ANIMATION}`}
+        className={`grid grid-cols-2 lg:grid-cols-6 gap-8 mb-14 w-full max-w-6xl ${FADE_IN_ANIMATION}`}
         style={{ animationDelay: "0.15s", animationFillMode: "forwards" }}
       >
         {loading ? (
@@ -78,6 +80,7 @@ export default function AdminDashboardPage() {
             <StatCard label="Reels" value="..." icon="🎬" />
             <StatCard label="Coupons" value="..." icon="🏷️" />
             <StatCard label="Users" value="..." icon="👤" />
+            <StatCard label="Guest Users" value="..." icon="👥" />
 
             {/* Orders (loading) */}
             <div className="bg-gradient-to-b from-white/10 to-white/0 border border-white/15 rounded-2xl p-6 shadow-[0_20px_80px_rgba(255,255,255,0.13)] backdrop-blur-xl flex items-center space-x-4">
@@ -89,7 +92,7 @@ export default function AdminDashboardPage() {
             </div>
           </>
         ) : error ? (
-          <div className="col-span-5 text-red-500 text-lg font-bold text-center">
+          <div className="col-span-6 text-red-500 text-lg font-bold text-center">
             {error}
           </div>
         ) : (
@@ -97,7 +100,18 @@ export default function AdminDashboardPage() {
             <StatCard label="Products" value={stats?.products ?? 0} icon="🛍️" />
             <StatCard label="Reels" value={stats?.reels ?? 0} icon="🎬" />
             <StatCard label="Coupons" value={stats?.coupons ?? 0} icon="🏷️" />
-            <StatCard label="Users" value={stats?.users ?? 0} icon="👤" />
+            <StatCard 
+              label="Users" 
+              value={stats?.users ?? 0} 
+              icon="👤" 
+              onClick={() => router.push("/admin/users")}
+            />
+            <StatCard 
+              label="Guest Users" 
+              value={stats?.guestUsers ?? 0} 
+              icon="👥" 
+              onClick={() => router.push("/admin/guest-users")}
+            />
 
             {/* ✅ Orders (SUCCESS) */}
             <div
@@ -120,9 +134,13 @@ export default function AdminDashboardPage() {
 }
 
 /* ---------- Stat Card ---------- */
-function StatCard({ label, value, icon }) {
+function StatCard({ label, value, icon, onClick }) {
+  const cardClasses = onClick 
+    ? "cursor-pointer bg-gradient-to-b from-white/10 to-white/0 border border-white/15 rounded-2xl p-6 shadow-[0_20px_80px_rgba(255,255,255,0.13)] backdrop-blur-xl hover:-translate-y-1 hover:scale-105 hover:shadow-[0_32px_100px_rgba(255,255,255,0.19)] hover:border-white/25 transition-all duration-300 flex items-center space-x-4"
+    : "bg-gradient-to-b from-white/10 to-white/0 border border-white/15 rounded-2xl p-6 shadow-[0_20px_80px_rgba(255,255,255,0.13)] backdrop-blur-xl hover:-translate-y-1 hover:scale-105 hover:shadow-[0_32px_100px_rgba(255,255,255,0.19)] hover:border-white/25 transition-all duration-300 flex items-center space-x-4";
+  
   return (
-    <div className="bg-gradient-to-b from-white/10 to-white/0 border border-white/15 rounded-2xl p-6 shadow-[0_20px_80px_rgba(255,255,255,0.13)] backdrop-blur-xl hover:-translate-y-1 hover:scale-105 hover:shadow-[0_32px_100px_rgba(255,255,255,0.19)] hover:border-white/25 transition-all duration-300 flex items-center space-x-4">
+    <div onClick={onClick} className={cardClasses}>
       <span className="text-4xl">{icon}</span>
       <div>
         <p className="text-sm text-white/70">{label}</p>
