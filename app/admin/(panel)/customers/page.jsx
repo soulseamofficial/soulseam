@@ -44,6 +44,7 @@ function CustomerTypeBadge({ customerType }) {
 // Customer Row Component
 function CustomerRow({ customer, isSelected, onSelect }) {
   const router = useRouter();
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const handleViewOrders = () => {
     const param =
@@ -53,35 +54,80 @@ function CustomerRow({ customer, isSelected, onSelect }) {
     router.push(`/admin/orders?${param}`);
   };
 
+  const handleRowClick = (e) => {
+    // Don't toggle if clicking checkbox or button
+    if (e.target.type === "checkbox" || e.target.closest("button")) {
+      return;
+    }
+    setIsExpanded(!isExpanded);
+  };
+
+  const formatDate = (date) => {
+    if (!date) return "N/A";
+    return new Date(date).toLocaleDateString("en-IN", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  const shippingAddress = customer.shippingAddress;
+  const hasAddress = shippingAddress && shippingAddress.addressLine1;
+
   return (
-    <div className="border border-white/10 rounded-2xl p-5 bg-black/40 backdrop-blur-sm transition-all duration-300 hover:border-white/20 hover:bg-black/50">
+    <div className="border border-white/10 rounded-2xl bg-black/40 backdrop-blur-sm transition-all duration-300 hover:border-white/20 hover:bg-black/50">
       {/* Mobile Card View */}
-      <div className="md:hidden space-y-3">
-        <div className="flex justify-between items-start">
+      <div className="md:hidden p-5">
+        <div className="flex justify-between items-start mb-3">
           <div className="flex items-center gap-3 flex-1">
             <input
               type="checkbox"
               checked={isSelected}
               onChange={(e) => onSelect(customer._id, e.target.checked)}
+              onClick={(e) => e.stopPropagation()}
               className="w-5 h-5 rounded border-white/30 bg-white/10 text-blue-600 focus:ring-2 focus:ring-blue-500"
             />
-            <div className="flex-1">
+            <div className="flex-1" onClick={handleRowClick} style={{ cursor: "pointer" }}>
               <p className="font-semibold text-white/90">{customer.name || "N/A"}</p>
               <div className="mt-1">
                 <CustomerTypeBadge customerType={customer.customerType} />
               </div>
             </div>
           </div>
-          {customer.ordersCount > 0 ? (
-            <button
-              onClick={handleViewOrders}
-              className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition"
-            >
-              View Orders →
-            </button>
-          ) : (
-            <span className="text-xs text-white/40">No Orders</span>
-          )}
+          <div className="flex items-center gap-2">
+            {hasAddress && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsExpanded(!isExpanded);
+                }}
+                className="p-1 text-white/60 hover:text-white/90 transition"
+                aria-label="Toggle address"
+              >
+                <svg
+                  className={`w-5 h-5 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            )}
+            {customer.ordersCount > 0 ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleViewOrders();
+                }}
+                className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition"
+              >
+                View Orders →
+              </button>
+            ) : (
+              <span className="text-xs text-white/40">No Orders</span>
+            )}
+          </div>
         </div>
         <div className="space-y-2 text-sm">
           <div>
@@ -93,25 +139,70 @@ function CustomerRow({ customer, isSelected, onSelect }) {
             <p className="text-white/90">{customer.phone || "N/A"}</p>
           </div>
           <div>
-            <p className="text-xs text-white/50">Orders</p>
-            <p className="text-white/90">{customer.ordersCount}</p>
+            <p className="text-xs text-white/50">Orders Count</p>
+            <p className="text-white/90">Orders: {customer.ordersCount || 0}</p>
           </div>
           <div>
-            <p className="text-xs text-white/50">Joined Date</p>
+            <p className="text-xs text-white/50">Registered On</p>
             <p className="text-white/90">
-              {new Date(customer.createdAt).toLocaleDateString("en-IN", {
-                year: "numeric",
-                month: "short",
-                day: "numeric",
-              })}
+              {formatDate(customer.registeredDate || customer.createdAt)}
             </p>
           </div>
         </div>
+        {/* Address Accordion */}
+        {hasAddress && (
+          <div
+            className={`mt-3 overflow-hidden transition-all duration-300 ease-in-out ${
+              isExpanded ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+            }`}
+          >
+            <div className="pt-3 border-t border-white/10 space-y-2 text-sm">
+              <p className="text-xs font-semibold text-white/70 mb-2">Shipping Address</p>
+              <div>
+                <p className="text-xs text-white/50">Full Name</p>
+                <p className="text-white/90">{shippingAddress.fullName || "N/A"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-white/50">Phone</p>
+                <p className="text-white/90">{shippingAddress.phone || "N/A"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-white/50">Address Line 1</p>
+                <p className="text-white/90">{shippingAddress.addressLine1 || "N/A"}</p>
+              </div>
+              {shippingAddress.addressLine2 && (
+                <div>
+                  <p className="text-xs text-white/50">Address Line 2</p>
+                  <p className="text-white/90">{shippingAddress.addressLine2}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-xs text-white/50">City</p>
+                <p className="text-white/90">{shippingAddress.city || "N/A"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-white/50">State</p>
+                <p className="text-white/90">{shippingAddress.state || "N/A"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-white/50">Pincode</p>
+                <p className="text-white/90">{shippingAddress.pincode || "N/A"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-white/50">Country</p>
+                <p className="text-white/90">{shippingAddress.country || "N/A"}</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Desktop Table Row */}
-      <div className="hidden md:grid md:grid-cols-7 gap-4 items-center">
-        <div className="flex items-center">
+      <div
+        className="hidden md:grid md:grid-cols-8 gap-4 items-center p-5 cursor-pointer"
+        onClick={handleRowClick}
+      >
+        <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
           <input
             type="checkbox"
             checked={isSelected}
@@ -135,17 +226,38 @@ function CustomerRow({ customer, isSelected, onSelect }) {
         </div>
         <div>
           <p className="text-sm text-white/90">
-            {new Date(customer.createdAt).toLocaleDateString("en-IN", {
-              year: "numeric",
-              month: "short",
-              day: "numeric",
-            })}
+            {formatDate(customer.registeredDate || customer.createdAt)}
           </p>
         </div>
         <div>
+          <p className="text-sm text-white/90">Orders: {customer.ordersCount || 0}</p>
+        </div>
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          {hasAddress && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded(!isExpanded);
+              }}
+              className="p-1 text-white/60 hover:text-white/90 transition"
+              aria-label="Toggle address"
+            >
+              <svg
+                className={`w-5 h-5 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          )}
           {customer.ordersCount > 0 ? (
             <button
-              onClick={handleViewOrders}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleViewOrders();
+              }}
               className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition"
             >
               View Orders →
@@ -155,6 +267,54 @@ function CustomerRow({ customer, isSelected, onSelect }) {
           )}
         </div>
       </div>
+
+      {/* Desktop Address Accordion */}
+      {hasAddress && (
+        <div
+          className={`hidden md:block overflow-hidden transition-all duration-300 ease-in-out ${
+            isExpanded ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+          }`}
+        >
+          <div className="px-5 pb-5 border-t border-white/10 pt-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <p className="text-xs text-white/50 mb-1">Full Name</p>
+                <p className="text-white/90">{shippingAddress.fullName || "N/A"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-white/50 mb-1">Phone</p>
+                <p className="text-white/90">{shippingAddress.phone || "N/A"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-white/50 mb-1">Address Line 1</p>
+                <p className="text-white/90">{shippingAddress.addressLine1 || "N/A"}</p>
+              </div>
+              {shippingAddress.addressLine2 && (
+                <div>
+                  <p className="text-xs text-white/50 mb-1">Address Line 2</p>
+                  <p className="text-white/90">{shippingAddress.addressLine2}</p>
+                </div>
+              )}
+              <div>
+                <p className="text-xs text-white/50 mb-1">City</p>
+                <p className="text-white/90">{shippingAddress.city || "N/A"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-white/50 mb-1">State</p>
+                <p className="text-white/90">{shippingAddress.state || "N/A"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-white/50 mb-1">Pincode</p>
+                <p className="text-white/90">{shippingAddress.pincode || "N/A"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-white/50 mb-1">Country</p>
+                <p className="text-white/90">{shippingAddress.country || "N/A"}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -536,7 +696,7 @@ export default function AdminCustomersPage() {
       ) : (
         <>
           {/* Desktop Table Header */}
-          <div className="hidden md:grid md:grid-cols-7 gap-4 mb-4 px-5 py-3 bg-white/5 border border-white/10 rounded-xl">
+          <div className="hidden md:grid md:grid-cols-8 gap-4 mb-4 px-5 py-3 bg-white/5 border border-white/10 rounded-xl">
             <div className="flex items-center">
               <SelectAllCheckbox
                 checked={allSelected}
@@ -548,8 +708,9 @@ export default function AdminCustomersPage() {
             <div className="font-bold text-white/90">Email</div>
             <div className="font-bold text-white/90">Phone</div>
             <div className="font-bold text-white/90">Customer Type</div>
-            <div className="font-bold text-white/90">Joined Date</div>
-            <div className="font-bold text-white/90">Orders</div>
+            <div className="font-bold text-white/90">Registered On</div>
+            <div className="font-bold text-white/90">Orders Count</div>
+            <div className="font-bold text-white/90">Actions</div>
           </div>
 
           {/* Customers List */}

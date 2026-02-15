@@ -112,6 +112,11 @@ export async function connectDB() {
       retryWrites: true,
       w: "majority",
       
+      // Disable automatic index creation in production
+      // This prevents Mongoose from recreating indexes that were manually dropped
+      // Indexes should be managed explicitly via migration scripts
+      autoIndex: false,
+      
       // TLS/SSL is automatically enabled for mongodb+srv:// connections
       // No need to specify tls/ssl options explicitly
     };

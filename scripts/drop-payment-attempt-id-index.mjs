@@ -48,36 +48,75 @@ async function dropPaymentAttemptIdIndex() {
     console.log();
 
     //------------------------------------------------
-    // STEP 2: Find and drop all paymentAttemptId indexes
+    // STEP 2: Find and drop UNIQUE paymentAttemptId indexes
     //------------------------------------------------
-    console.log("🗑️  Step 2: Dropping paymentAttemptId indexes...");
+    console.log("🗑️  Step 2: Dropping UNIQUE paymentAttemptId indexes...");
     
-    // Find all indexes on paymentAttemptId
-    const paymentAttemptIdIndexes = existingIndexes.filter(
+    // Find all UNIQUE indexes on paymentAttemptId (we only want to drop unique ones)
+    const uniquePaymentAttemptIdIndexes = existingIndexes.filter(
+      idx => idx.key && idx.key.paymentAttemptId !== undefined && idx.unique === true
+    );
+
+    // Also find any indexes that might be unique but not marked as such
+    // (some MongoDB versions may have unique indexes without the unique flag in getIndexes)
+    const allPaymentAttemptIdIndexes = existingIndexes.filter(
       idx => idx.key && idx.key.paymentAttemptId !== undefined
     );
 
-    if (paymentAttemptIdIndexes.length === 0) {
+    if (uniquePaymentAttemptIdIndexes.length === 0 && allPaymentAttemptIdIndexes.length === 0) {
       console.log("   ℹ️  No paymentAttemptId indexes found (this is okay)");
     } else {
-      for (const index of paymentAttemptIdIndexes) {
-        try {
-          await collection.dropIndex(index.name);
-          console.log(`   ✅ Dropped index: ${index.name}`);
-          if (index.unique) {
-            console.log(`      - Was UNIQUE: ${index.unique}`);
-          }
-          if (index.partialFilterExpression) {
-            console.log(`      - Was PARTIAL: ${JSON.stringify(index.partialFilterExpression)}`);
-          }
-        } catch (error) {
-          if (error.code === 27) {
-            // IndexNotFound - already dropped or doesn't exist
-            console.log(`   ℹ️  Index ${index.name} doesn't exist (already dropped)`);
-          } else {
-            throw error;
+      // Drop unique indexes first
+      if (uniquePaymentAttemptIdIndexes.length > 0) {
+        for (const index of uniquePaymentAttemptIdIndexes) {
+          try {
+            await collection.dropIndex(index.name);
+            console.log(`   ✅ Dropped UNIQUE index: ${index.name}`);
+            if (index.partialFilterExpression) {
+              console.log(`      - Was PARTIAL: ${JSON.stringify(index.partialFilterExpression)}`);
+            }
+          } catch (error) {
+            if (error.code === 27) {
+              // IndexNotFound - already dropped or doesn't exist
+              console.log(`   ℹ️  Index ${index.name} doesn't exist (already dropped)`);
+            } else {
+              throw error;
+            }
           }
         }
+      }
+      
+      // Check if there are any other paymentAttemptId indexes that might be unique
+      // (drop them if they exist, as they're likely the problematic unique index)
+      const nonUniqueIndexes = allPaymentAttemptIdIndexes.filter(
+        idx => !uniquePaymentAttemptIdIndexes.some(uniq => uniq.name === idx.name)
+      );
+      
+      // If we found indexes but none were marked unique, check if they're actually unique
+      // by trying to drop the most common name (paymentAttemptId_1)
+      if (nonUniqueIndexes.length > 0 && uniquePaymentAttemptIdIndexes.length === 0) {
+        const paymentAttemptId1Index = nonUniqueIndexes.find(idx => idx.name === "paymentAttemptId_1");
+        if (paymentAttemptId1Index) {
+          try {
+            await collection.dropIndex("paymentAttemptId_1");
+            console.log(`   ✅ Dropped index: paymentAttemptId_1 (likely the unique index causing issues)`);
+          } catch (error) {
+            if (error.code === 27) {
+              console.log(`   ℹ️  Index paymentAttemptId_1 doesn't exist`);
+            } else {
+              // If drop fails for other reasons, log but continue
+              console.log(`   ⚠️  Could not drop paymentAttemptId_1: ${error.message}`);
+            }
+          }
+        }
+      }
+      
+      // Log any remaining non-unique indexes (these are fine to keep)
+      const remainingNonUnique = allPaymentAttemptIdIndexes.filter(
+        idx => idx.name !== "paymentAttemptId_1" && !uniquePaymentAttemptIdIndexes.some(uniq => uniq.name === idx.name)
+      );
+      if (remainingNonUnique.length > 0) {
+        console.log(`   ℹ️  Keeping ${remainingNonUnique.length} non-unique paymentAttemptId index(es) for query performance`);
       }
     }
     console.log();
@@ -91,13 +130,18 @@ async function dropPaymentAttemptIdIndex() {
       idx => idx.key && idx.key.paymentAttemptId !== undefined
     );
 
-    if (remainingPaymentAttemptIdIndexes.length === 0) {
-      console.log("   ✅ All paymentAttemptId indexes successfully dropped");
+    const remainingUniqueIndexes = remainingPaymentAttemptIdIndexes.filter(idx => idx.unique === true);
+    
+    if (remainingUniqueIndexes.length === 0) {
+      console.log("   ✅ All UNIQUE paymentAttemptId indexes successfully dropped");
       console.log("   ✅ paymentAttemptId can now have null or duplicate values");
+      if (remainingPaymentAttemptIdIndexes.length > 0) {
+        console.log(`   ℹ️  ${remainingPaymentAttemptIdIndexes.length} non-unique index(es) remain for query performance`);
+      }
     } else {
-      console.log("   ⚠️  Warning: Some paymentAttemptId indexes still exist:");
-      remainingPaymentAttemptIdIndexes.forEach(idx => {
-        console.log(`      - ${idx.name}: ${JSON.stringify(idx.key)}`);
+      console.log("   ⚠️  Warning: Some UNIQUE paymentAttemptId indexes still exist:");
+      remainingUniqueIndexes.forEach(idx => {
+        console.log(`      - ${idx.name}: ${JSON.stringify(idx.key)} (UNIQUE)`);
       });
     }
     console.log();
