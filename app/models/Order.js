@@ -81,15 +81,15 @@ const OrderSchema = new mongoose.Schema(
     // Order number (unique identifier like SS0001, SS0002, etc.)
     orderNumber: { type: String, default: null, unique: true, sparse: true, index: true },
 
-    // Payment attempt ID for idempotency (prevents duplicate orders from payment retries)
+    // Payment attempt ID for tracking payment attempts
     // Comes from razorpay_order_id OR razorpay_payment_id
-    // NOTE: Uniqueness is enforced via partial unique index (created via migration script)
-    // This allows multiple null values while preventing duplicate non-null values
+    // NOTE: This field is NOT unique - allows null and duplicate values
+    // Used for tracking and idempotency checks in application logic
     paymentAttemptId: {
       type: String,
       default: null,
       required: false, // Not required - only set after Razorpay creates payment attempt
-      index: true
+      index: true // Non-unique index for query performance
     },
 
     // Razorpay payment details (for ONLINE payments and COD advance)
