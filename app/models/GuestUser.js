@@ -21,6 +21,10 @@ const GuestUserSchema = new mongoose.Schema(
     },
 
     createdAt: { type: Date, default: Date.now },
+
+    // Soft delete fields
+    isDeleted: { type: Boolean, default: false, index: true },
+    deletedAt: { type: Date, default: null },
   },
   { timestamps: false }
 );

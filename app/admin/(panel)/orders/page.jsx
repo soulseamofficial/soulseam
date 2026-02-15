@@ -114,6 +114,11 @@ export default function AdminOrdersPage() {
   const [updatingStatus, setUpdatingStatus] = useState({});
   const [creatingShipment, setCreatingShipment] = useState({});
   const [filterInfo, setFilterInfo] = useState(null);
+  const [selectedOrders, setSelectedOrders] = useState([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [toast, setToast] = useState(null);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -199,6 +204,71 @@ export default function AdminOrdersPage() {
 
   const refreshOrders = async () => {
     await fetchOrders(pagination.page, search, paymentStatusFilter, orderStatusFilter, sortBy, order);
+    // Clear selection after refresh
+    setSelectedOrders([]);
+  };
+
+  // Selection handlers
+  const handleSelectOrder = (orderId) => {
+    setSelectedOrders(prev => 
+      prev.includes(orderId) 
+        ? prev.filter(id => id !== orderId)
+        : [...prev, orderId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedOrders.length === orders.length) {
+      setSelectedOrders([]);
+    } else {
+      setSelectedOrders(orders.map(o => o._id));
+    }
+  };
+
+  const handleDeleteOrders = async () => {
+    if (deleteConfirmText !== "DELETE") {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/admin/orders/bulk-delete", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ orderIds: selectedOrders }),
+      });
+
+      const data = await res.json();
+      
+      if (data.success) {
+        setToast({
+          message: `Orders moved to trash`,
+          type: "success",
+        });
+        setShowDeleteModal(false);
+        setDeleteConfirmText("");
+        await refreshOrders();
+        
+        // Auto-hide toast after 3 seconds
+        setTimeout(() => setToast(null), 3000);
+      } else {
+        setToast({
+          message: data.error || "Failed to delete orders",
+          type: "error",
+        });
+        setTimeout(() => setToast(null), 3000);
+      }
+    } catch (error) {
+      console.error("Error deleting orders:", error);
+      setToast({
+        message: "An error occurred while deleting orders",
+        type: "error",
+      });
+      setTimeout(() => setToast(null), 3000);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   async function updateOrderStatus(orderId, newStatus) {
@@ -470,6 +540,29 @@ export default function AdminOrdersPage() {
         </div>
       </div>
 
+      {/* ---------- ACTION BAR (when orders selected) ---------- */}
+      {selectedOrders.length > 0 && (
+        <div className="mb-6 p-4 rounded-xl bg-gradient-to-r from-red-900/30 to-orange-900/30 border border-red-500/30 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <span className="px-4 py-2 rounded-lg bg-red-500/20 border border-red-500/40 font-bold text-white">
+              {selectedOrders.length} Selected
+            </span>
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-extrabold transition transform hover:scale-105"
+            >
+              Delete Orders
+            </button>
+            <button
+              onClick={() => setSelectedOrders([])}
+              className="px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white font-semibold hover:bg-white/15 transition"
+            >
+              Clear Selection
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ---------- LIST ---------- */}
       {sortedOrders.length === 0 ? (
         <div className="bg-white/10 border border-white/15 rounded-2xl p-12 text-center">
@@ -477,6 +570,17 @@ export default function AdminOrdersPage() {
         </div>
       ) : (
         <>
+          {/* Table Header with Select All */}
+          <div className="mb-4 p-4 rounded-xl bg-white/5 border border-white/10 flex items-center gap-4">
+            <input
+              type="checkbox"
+              checked={selectedOrders.length === orders.length && orders.length > 0}
+              onChange={handleSelectAll}
+              className="w-5 h-5 rounded border-white/30 bg-black cursor-pointer"
+            />
+            <span className="text-sm font-semibold text-white/70">Select All</span>
+          </div>
+
           <div className="space-y-4">
             {sortedOrders.map(order => {
             const isOpen = expandedOrderId === order._id;
@@ -487,11 +591,19 @@ export default function AdminOrdersPage() {
                 className="border border-white/10 rounded-2xl p-5 bg-black/40 backdrop-blur-sm transition-all duration-300 hover:border-white/20 hover:bg-black/50 hover:shadow-[0_8px_24px_rgba(255,255,255,0.08)]"
               >
                 {/* COLLAPSED */}
-                <button
-                  onClick={() => toggleOrder(order._id)}
-                  className="w-full p-5 flex justify-between items-center hover:bg-white/5 transition"
-                >
-                  <div className="grid grid-cols-2 sm:grid-cols-6 gap-x-8 gap-y-4 flex-1">
+                <div className="flex items-center gap-4">
+                  <input
+                    type="checkbox"
+                    checked={selectedOrders.includes(order._id)}
+                    onChange={() => handleSelectOrder(order._id)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-5 h-5 rounded border-white/30 bg-black cursor-pointer flex-shrink-0"
+                  />
+                  <button
+                    onClick={() => toggleOrder(order._id)}
+                    className="flex-1 p-5 flex justify-between items-center hover:bg-white/5 transition"
+                  >
+                    <div className="grid grid-cols-2 sm:grid-cols-6 gap-x-8 gap-y-4 flex-1">
                     <div>
                       <p className="text-xs text-white/50">Order ID</p>
                       <p className="font-semibold break-all text-xs">{order._id.slice(-8)}</p>
@@ -558,10 +670,11 @@ export default function AdminOrdersPage() {
                     </div>
                   </div>
 
-                  <span className="font-bold text-white/70 ml-4">
-                    {isOpen ? "▲ Hide" : "▼ View"}
-                  </span>
-                </button>
+                    <span className="font-bold text-white/70 ml-4">
+                      {isOpen ? "▲ Hide" : "▼ View"}
+                    </span>
+                  </button>
+                </div>
 
                 {/* EXPANDED */}
                 {isOpen && (
@@ -734,18 +847,37 @@ export default function AdminOrdersPage() {
                       </div>
                     </div>
 
+                    {/* Coupon Code Badge */}
+                    {order.coupon?.code && (
+                      <div className="mb-4">
+                        <span className="px-3 py-1 rounded-lg bg-purple-500/20 border border-purple-400/30 text-purple-300 text-xs font-bold">
+                          COUPON: {order.coupon.code.toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+
                     {/* Payment Details */}
                     <div className="grid md:grid-cols-2 gap-4 mb-4">
                       <div>
                         <p className="text-sm text-white/60">Subtotal</p>
                         <p className="font-semibold">
-                          ₹{order.subtotal || order.total || 0}
+                          ₹{(
+                            order.subtotal ?? 
+                            (Array.isArray(order.items) && order.items.length > 0
+                              ? order.items.reduce((acc, item) => acc + (item.price || 0) * (item.quantity || 1), 0)
+                              : 0)
+                          ).toFixed(2)}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-white/60">Discount</p>
                         <p className="font-semibold">
-                          ₹{order.discount || order.discountAmount || 0}
+                          ₹{(
+                            order.discountAmount ?? 
+                            order.discount ?? 
+                            order.coupon?.discount ?? 
+                            0
+                          ).toFixed(2)}
                         </p>
                       </div>
                     </div>
@@ -783,7 +915,7 @@ export default function AdminOrdersPage() {
                       <div>
                         <p className="text-sm text-white/60">Final Total</p>
                         <p className="text-xl font-extrabold">
-                          ₹{order.totalAmount || order.finalTotal || order.total || 0}
+                          ₹{(order.finalTotal || order.totalAmount || order.total || 0).toFixed(2)}
                         </p>
                       </div>
                     </div>
@@ -879,6 +1011,70 @@ export default function AdminOrdersPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* ---------- DELETE CONFIRMATION MODAL ---------- */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-gradient-to-br from-red-900/95 to-orange-900/95 border-2 border-red-500/50 rounded-2xl p-8 max-w-md w-full shadow-2xl">
+            <div className="text-center mb-6">
+              <div className="text-6xl mb-4">⚠️</div>
+              <h2 className="text-2xl font-extrabold text-white mb-2">
+                Delete Orders Permanently?
+              </h2>
+              <p className="text-white/80 text-sm mb-4">
+                This action is irreversible.
+              </p>
+              <p className="text-white/80 text-sm mb-6">
+                Deleted orders cannot be recovered.
+              </p>
+              <p className="text-white font-semibold mb-4">
+                Type <span className="text-red-400 font-extrabold">DELETE</span> to confirm:
+              </p>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="Type DELETE here"
+                className="w-full px-4 py-3 rounded-xl bg-black/60 border-2 border-white/20 text-white placeholder-white/50 focus:outline-none focus:border-red-500/50 transition text-center font-mono"
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-4">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteConfirmText("");
+                }}
+                disabled={deleting}
+                className="flex-1 px-5 py-3 rounded-xl bg-white/10 border border-white/20 text-white font-semibold hover:bg-white/15 transition disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteOrders}
+                disabled={deleteConfirmText !== "DELETE" || deleting}
+                className="flex-1 px-5 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-extrabold transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleting ? "Deleting..." : "Delete Orders"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------- TOAST NOTIFICATION ---------- */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-xl shadow-2xl border-2 ${
+          toast.type === "success" 
+            ? "bg-green-900/95 border-green-500/50 text-white" 
+            : "bg-red-900/95 border-red-500/50 text-white"
+        }`}>
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">{toast.type === "success" ? "✅" : "❌"}</span>
+            <span className="font-semibold">{toast.message}</span>
+          </div>
+        </div>
       )}
 
       {/* animation */}

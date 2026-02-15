@@ -1849,41 +1849,123 @@ export default function CheckoutPage() {
     setDeliveryCreationError(null);
 
     try {
-      // Create Razorpay order for advance payment
-      const res = await fetch("/api/payments/create-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: codSettings.codAdvanceAmount,
-          orderType: "cod_advance",
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.orderId) {
-        window?.alert?.(data?.error || "Failed to initialize advance payment. Please try again.");
+      // Validate form data first
+      if (!validateInfo()) {
+        window?.alert?.("Please fill in all required fields before proceeding with advance payment.");
         setCodAdvanceLoading(false);
         return;
       }
+
+      // Prepare shipping address
+      const shippingAddressSnapshot = {
+        fullName: [form.firstName, form.lastName].filter(Boolean).join(" "),
+        phone: form.phone,
+        addressLine1: form.address,
+        addressLine2: form.apt,
+        city: form.city,
+        state: form.state,
+        pincode: form.pin,
+        country: form.country,
+      };
+
+      // Ensure guest user exists if not logged in
+      const gId = await upsertGuestUser(shippingAddressSnapshot);
+
+      // Prepare items
+      let itemsToSend = [];
+      if (itemsWithFinalPrice.length > 0) {
+        itemsToSend = itemsWithFinalPrice;
+      } else if (cartItems.length > 0) {
+        itemsToSend = cartItems.map(item => ({
+          productId: item.productId || item._id || item.id || "",
+          id: item.productId || item._id || item.id || "",
+          name: item.name || "",
+          image: item.image || "",
+          size: item.size || "",
+          color: item.color || "",
+          price: item.price || 0,
+          finalPrice: item.finalPrice ?? item.price ?? 0,
+          quantity: item.quantity || 1,
+        }));
+      }
+
+      if (itemsToSend.length === 0) {
+        window?.alert?.("Your cart is empty. Please add items before placing an order.");
+        setCodAdvanceLoading(false);
+        return;
+      }
+
+      console.log("📦 CREATING COD ADVANCE ORDER - Sending request to /api/orders/create-cod-advance", {
+        itemsCount: itemsToSend.length,
+        paymentMethod: "COD",
+      });
+
+      // STEP 1: Create order in DB FIRST (BEFORE Razorpay payment)
+      const createOrderRes = await fetch("/api/orders/create-cod-advance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          guestUserId: gId || undefined,
+          shippingAddress: shippingAddressSnapshot,
+          items: itemsToSend,
+          coupon: appliedCoupon && appliedCouponCode ? { code: appliedCouponCode, discount } : null,
+          subtotal,
+          discount,
+          total,
+          paymentMethod: "COD",
+          orderMessage: orderMessage || undefined,
+        }),
+      });
+
+      const createOrderData = await createOrderRes.json().catch((err) => {
+        console.error("❌ Failed to parse create COD advance order response:", err);
+        return {};
+      });
+
+      if (!createOrderRes.ok) {
+        console.error("❌ COD ADVANCE ORDER CREATION FAILED", {
+          status: createOrderRes.status,
+          message: createOrderData?.message,
+        });
+        window?.alert?.(createOrderData?.message || "Failed to create order. Please try again.");
+        setCodAdvanceLoading(false);
+        return;
+      }
+
+      console.log("✅ COD ADVANCE ORDER CREATED IN DB - Order created before payment", {
+        orderNumber: createOrderData?.order_number,
+        razorpayOrderId: createOrderData?.razorpay_order_id,
+      });
 
       if (typeof window === "undefined") {
         setCodAdvanceLoading(false);
         return;
       }
 
-      // Open Razorpay popup
+      // STEP 2: Open Razorpay popup using the returned razorpay_order_id
       const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: data.amount,
+        key: createOrderData?.key || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: createOrderData?.amount, // Amount in paise
         currency: "INR",
         name: "SOULSEAM",
         description: `COD Advance Payment - ₹${codSettings.codAdvanceAmount}`,
-        order_id: data.orderId,
+        order_id: createOrderData?.razorpay_order_id,
         handler: async function (response) {
-          // Store payment details
+          console.log("🚀 COD ADVANCE PAYMENT SUCCESS - Razorpay payment completed", {
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_order_id: response.razorpay_order_id,
+            orderNumber: createOrderData?.order_number,
+          });
+
+          // Store payment details and order ID
+          // Order already exists in DB - webhook will update it to PARTIALLY_PAID
           setCodAdvancePaymentId(response.razorpay_payment_id);
           setCodAdvanceOrderId(response.razorpay_order_id);
           setCodAdvanceSignature(response.razorpay_signature);
+          // Store MongoDB order ID for later use
+          if (createOrderData?.order_id) {
+            setOrderId(createOrderData.order_id);
+          }
           setCodAdvancePaid(true);
           setCodAdvanceLoading(false);
         },
@@ -1944,6 +2026,38 @@ export default function CheckoutPage() {
     }
 
     try {
+      // If COD advance was paid, order already exists in DB
+      // Just show success - webhook has already updated the order to PARTIALLY_PAID
+      if (codSettings.codAdvanceEnabled && codAdvancePaid && orderId) {
+        console.log("✅ COD order already exists - order was created during advance payment", {
+          orderId: orderId,
+        });
+        
+        // Order already exists and is confirmed - show success
+        setSuccessPaymentMethod("COD");
+        setOrderSuccess(true);
+        
+        clearCart();
+        setStep(1);
+        setPaymentMethod("not_selected");
+        // Reset coupon state
+        setAppliedCoupon(false);
+        setCouponCode("");
+        setCouponDiscount(0);
+        setOrderDiscount(0);
+        setOrderTotal(orderSubtotal || calculatedSubtotal);
+        setAppliedCouponCode("");
+        setCouponError("");
+        setShowCouponSuccess(false);
+        // Reset COD advance state
+        setCodAdvancePaid(false);
+        setCodAdvancePaymentId(null);
+        setCodAdvanceOrderId(null);
+        setCodAdvanceSignature(null);
+        return;
+      }
+
+      // If COD advance is disabled, create order via checkout API (legacy flow)
       const shippingAddressSnapshot = {
         fullName: [form.firstName, form.lastName].filter(Boolean).join(" "),
         phone: form.phone,
@@ -1991,7 +2105,7 @@ export default function CheckoutPage() {
         return;
       }
 
-      // Prepare checkout body with advance payment details if applicable
+      // Prepare checkout body (for COD without advance)
       const checkoutBody = {
         guestUserId: gId || undefined,
         shippingAddress: shippingAddressSnapshot,
@@ -2004,14 +2118,7 @@ export default function CheckoutPage() {
         orderMessage: orderMessage || undefined,
       };
 
-      // Add advance payment details if paid
-      if (codSettings.codAdvanceEnabled && codAdvancePaid) {
-        checkoutBody.razorpay_order_id = codAdvanceOrderId;
-        checkoutBody.razorpay_payment_id = codAdvancePaymentId;
-        checkoutBody.razorpay_signature = codAdvanceSignature;
-      }
-
-      // Create order directly via checkout API
+      // Create order directly via checkout API (only if advance is disabled)
       const checkoutRes = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

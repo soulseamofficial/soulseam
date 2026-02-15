@@ -15,6 +15,7 @@ export async function GET(req) {
     await connectDB();
 
     // Fetch orders where return is requested or has a return status
+    // IMPORTANT: Always exclude deleted orders
     const returnOrders = await Order.find({
       $or: [
         { returnRequested: true },
@@ -22,7 +23,9 @@ export async function GET(req) {
       ],
       // Exclude cancelled or failed orders
       orderStatus: { $ne: "CANCELLED" },
-      paymentStatus: { $ne: "FAILED" }
+      paymentStatus: { $ne: "FAILED" },
+      // Exclude deleted orders
+      isDeleted: { $ne: true }
     })
       .sort({ returnRequestedAt: -1, createdAt: -1 })
       .lean(); // Use lean() to get plain JavaScript objects for better JSON serialization

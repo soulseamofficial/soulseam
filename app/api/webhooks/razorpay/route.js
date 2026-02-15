@@ -1,7 +1,8 @@
 import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { connectDB } from "@/app/lib/db";
-import { markOrderAsPaid } from "@/app/lib/razorpay";
+import { markOrderAsPaid, markOrderAdvancePaid } from "@/app/lib/razorpay";
+import Order from "@/app/models/Order";
 
 export async function POST(req) {
   try {
@@ -58,18 +59,47 @@ export async function POST(req) {
       // Connect to database
       await connectDB();
 
-      // ✅ STEP 2: CALL IDEMPOTENT HELPER WITH FULL PAYMENT DATA
+      // ✅ STEP 2: Determine if this is a COD advance payment or ONLINE payment
+      // Find order first to check payment method
+      const order = await Order.findOne({ razorpayOrderId: razorpay_order_id }).lean();
+      
+      if (!order) {
+        console.error("Webhook: Order not found", {
+          orderNumber: null,
+          razorpayPaymentId: razorpay_payment_id,
+        });
+        return new NextResponse("Order not found (logged)", { status: 200 });
+      }
+
+      // ✅ STEP 3: CALL APPROPRIATE HELPER BASED ON PAYMENT METHOD
       // Webhook is the SINGLE SOURCE OF TRUTH for payment persistence
-      const result = await markOrderAsPaid(
-        razorpay_order_id,
-        razorpay_payment_id,
-        signatureFromHeader, // Pass webhook signature for audit trail
-        {
-          isWebhook: true,
-          paymentAmount,
-          paymentAmountInPaise,
-        }
-      );
+      let result;
+      
+      if (order.paymentMethod === "COD") {
+        // COD Advance Payment - update to PARTIALLY_PAID
+        result = await markOrderAdvancePaid(
+          razorpay_order_id,
+          razorpay_payment_id,
+          signatureFromHeader, // Pass webhook signature for audit trail
+          {
+            isWebhook: true,
+            paymentAmount,
+            paymentAmountInPaise,
+          }
+        );
+      } else {
+        // ONLINE Payment - update to PAID
+        result = await markOrderAsPaid(
+          razorpay_order_id,
+          razorpay_payment_id,
+          signatureFromHeader, // Pass webhook signature for audit trail
+          {
+            isWebhook: true,
+            paymentAmount,
+            paymentAmountInPaise,
+          }
+        );
+      }
 
       // Handle result
       if (!result.success) {
