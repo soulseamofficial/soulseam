@@ -85,11 +85,13 @@ const OrderSchema = new mongoose.Schema(
     // Comes from razorpay_order_id OR razorpay_payment_id
     // NOTE: This field is NOT unique - allows null and duplicate values
     // Used for tracking and idempotency checks in application logic
+    // CRITICAL: index: false prevents MongoDB from creating any index on this field
+    // This prevents E11000 duplicate key errors when multiple orders have null values
     paymentAttemptId: {
       type: String,
       default: null,
       required: false, // Not required - only set after Razorpay creates payment attempt
-      index: true // Non-unique index for query performance
+      index: false // NO INDEX - prevents unique index errors with null values
     },
 
     // Razorpay payment details (for ONLINE payments and COD advance)
