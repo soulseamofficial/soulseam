@@ -83,11 +83,12 @@ const OrderSchema = new mongoose.Schema(
 
     // Payment attempt ID for idempotency (prevents duplicate orders from payment retries)
     // Comes from razorpay_order_id OR razorpay_payment_id
+    // NOTE: Uniqueness is enforced via partial unique index (created via migration script)
+    // This allows multiple null values while preventing duplicate non-null values
     paymentAttemptId: {
       type: String,
       default: null,
-      unique: true,
-      sparse: true, // Allow multiple nulls, but enforce uniqueness for non-null values
+      required: false, // Not required - only set after Razorpay creates payment attempt
       index: true
     },
 

@@ -281,11 +281,11 @@ export async function POST(req) {
           retriesRemaining: retries
         });
         
-        order = await Order.create({
+        // Build order data - only include paymentAttemptId if it exists
+        const orderData = {
           userId: userId || null,
           guestUserId: guestUserId || null,
           orderNumber,
-          paymentAttemptId: paymentAttemptId || null, // Set for idempotency
           items,
           shippingAddress,
           paymentMethod: "ONLINE",
@@ -304,27 +304,35 @@ export async function POST(req) {
           orderMessage: orderMessage || null,
           orderSource: "WEBSITE",
 
-      // Legacy fields for backward compatibility
-      customer: {
-        email: authed?.email || "",
-        firstName: firstName || "",
-        lastName: lastName || "",
-        phone: shippingAddress.phone || "",
-      },
-      shippingAddressLegacy: {
-        address: shippingAddress.addressLine1 || "",
-        apt: shippingAddress.addressLine2 || "",
-        city: shippingAddress.city || "",
-        state: shippingAddress.state || "",
-        pin: shippingAddress.pincode || "",
-        country: shippingAddress.country || "",
-      },
-      payment: {
-        method: "Razorpay",
-        status: "pending",
-      },
-      legacyOrderStatus: "created",
-        });
+          // Legacy fields for backward compatibility
+          customer: {
+            email: authed?.email || "",
+            firstName: firstName || "",
+            lastName: lastName || "",
+            phone: shippingAddress.phone || "",
+          },
+          shippingAddressLegacy: {
+            address: shippingAddress.addressLine1 || "",
+            apt: shippingAddress.addressLine2 || "",
+            city: shippingAddress.city || "",
+            state: shippingAddress.state || "",
+            pin: shippingAddress.pincode || "",
+            country: shippingAddress.country || "",
+          },
+          payment: {
+            method: "Razorpay",
+            status: "pending",
+          },
+          legacyOrderStatus: "created",
+        };
+
+        // Only include paymentAttemptId if it exists (not null/undefined)
+        // This prevents duplicate key errors on null values
+        if (paymentAttemptId) {
+          orderData.paymentAttemptId = paymentAttemptId;
+        }
+
+        order = await Order.create(orderData);
         
         // Order created successfully - break out of retry loop
         console.log("✅ Order created successfully:", {
