@@ -864,8 +864,7 @@ export default function ProductPage() {
               </LuxuryAccordion>
               <LuxuryAccordion title="Fabric & Care" accordionKey="fabric">
                 <div>
-                  <div className="mb-1">Fabric: 100% long-staple organic cotton, pre-shrunk</div>
-                  <div className="mb-0.5">Weight: 260gsm | Handfeel: Dense, powdery-soft</div>
+                  <div className="mb-1">Fabric: 240 GSM French Terry Cotton</div>
                   <div className="mt-2">
                     <span className="text-white/90 font-medium mr-1">Care:</span>
                     Machine wash cold, dry flat. No tumble dry. Steam press only on reverse.
@@ -1173,8 +1172,7 @@ export default function ProductPage() {
                 </LuxuryAccordion>
                 <LuxuryAccordion title="Fabric & Care" accordionKey="fabric">
                   <div>
-                    <div className="mb-1">Fabric: 100% long-staple organic cotton, pre-shrunk</div>
-                    <div className="mb-0.5">Weight: 260gsm | Handfeel: Dense, powdery-soft</div>
+                    <div className="mb-1">Fabric: 240 GSM French Terry Cotton</div>
                     <div className="mt-2">
                       <span className="text-white/90 font-medium mr-1">Care:</span>
                       Machine wash cold, dry flat. No tumble dry. Steam press only on reverse.
