@@ -281,11 +281,11 @@ export async function POST(req) {
           retriesRemaining: retries
         });
         
-        // Build order data - only include paymentAttemptId if it exists
+        // Build order data - clean structure
         const orderData = {
+          orderNumber,
           userId: userId || null,
           guestUserId: guestUserId || null,
-          orderNumber,
           items,
           shippingAddress,
           paymentMethod: "ONLINE",
@@ -326,8 +326,8 @@ export async function POST(req) {
           legacyOrderStatus: "created",
         };
 
-        // Only include paymentAttemptId if it exists (not null/undefined)
-        // This prevents duplicate key errors on null values
+        // Add paymentAttemptId ONLY if it exists (not null/undefined)
+        // This prevents the field from being set to null, which would cause duplicate key errors
         if (paymentAttemptId) {
           orderData.paymentAttemptId = paymentAttemptId;
         }
@@ -337,11 +337,11 @@ export async function POST(req) {
         // Order created successfully - break out of retry loop
         console.log("✅ Order created successfully:", {
           orderNumber: order.orderNumber,
-          paymentAttemptId: order.paymentAttemptId
+          paymentAttemptId: order.paymentAttemptId || "none"
         });
         break;
       } catch (error) {
-        // Handle duplicate key errors (orderNumber or paymentAttemptId conflict)
+        // Handle duplicate key errors
         if (error.code === 11000) {
           const duplicateField = error.keyPattern?.orderNumber ? 'orderNumber' : 
                                  error.keyPattern?.paymentAttemptId ? 'paymentAttemptId' : 'unknown';
@@ -353,28 +353,22 @@ export async function POST(req) {
             retriesRemaining: retries
           });
           
-          // If duplicate paymentAttemptId, check if order exists (idempotency)
-          if (duplicateField === 'paymentAttemptId' && paymentAttemptId) {
-            const existingOrder = await Order.findOne({
-              paymentAttemptId: paymentAttemptId
+          // If duplicate paymentAttemptId, return error (do not retry)
+          if (duplicateField === 'paymentAttemptId' && error.keyPattern?.paymentAttemptId) {
+            console.error("❌ Duplicate payment attempt detected:", {
+              paymentAttemptId,
+              error: error.message
             });
-            
-            if (existingOrder) {
-              // Order exists - return it (idempotent response)
-              console.log("✅ Existing order found after duplicate error (idempotency):", {
-                orderNumber: existingOrder.orderNumber,
-                paymentAttemptId: existingOrder.paymentAttemptId
-              });
-              
-              order = existingOrder;
-              break; // Exit retry loop - order already exists
-            }
+            return NextResponse.json(
+              { success: false, message: "Duplicate payment attempt detected" },
+              { status: 409 }
+            );
           }
           
-          // If duplicate orderNumber or other duplicate error, retry with new order number
+          // If duplicate orderNumber, retry with new order number
           // NOTE: We intentionally DO NOT reuse order numbers - gaps are acceptable
           // This is standard ecommerce practice to prevent duplicates
-          if (retries > 0) {
+          if (duplicateField === 'orderNumber' && retries > 0) {
             retries--;
             console.log("🔄 Retrying with new order number (order number will not be reused):", {
               paymentAttemptId,
@@ -382,10 +376,11 @@ export async function POST(req) {
             });
             continue; // Retry with new order number (generated at start of loop)
           } else {
-            // Exhausted retries - throw error
+            // Exhausted retries or unknown duplicate field - throw error
             console.error("❌ Max retries reached for order creation:", {
               orderNumber,
               paymentAttemptId,
+              duplicateField,
               error: error.message
             });
             throw error;
@@ -567,6 +562,14 @@ export async function POST(req) {
         field: duplicateField,
         error: error.message
       });
+      
+      // Handle duplicate paymentAttemptId specifically
+      if (error.keyPattern?.paymentAttemptId) {
+        return NextResponse.json(
+          { success: false, message: "Duplicate payment attempt detected" },
+          { status: 409 }
+        );
+      }
       
       // Never show "Order conflict" to customers - return generic error
       return NextResponse.json(
