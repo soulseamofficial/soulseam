@@ -50,7 +50,7 @@ const OrderSchema = new mongoose.Schema(
     },
     paymentStatus: {
       type: String,
-      enum: ["PENDING", "PAID", "FAILED"],
+      enum: ["PENDING", "PAID", "PARTIALLY_PAID", "FAILED"],
       required: true,
     },
     orderStatus: {
@@ -74,7 +74,8 @@ const OrderSchema = new mongoose.Schema(
     finalTotal: { type: Number, default: 0 }, // Alias for totalAmount, for clarity
 
     // COD Advance Payment fields
-    advancePaid: { type: Number, default: 0, min: 0 },
+    advanceAmount: { type: Number, default: 0, min: 0 }, // Expected advance amount (e.g., 100)
+    advancePaid: { type: Number, default: 0, min: 0 }, // Actual advance paid
     remainingCOD: { type: Number, default: 0, min: 0 },
 
     // Order number (unique identifier like SS0001, SS0002, etc.)
@@ -226,6 +227,22 @@ const OrderSchema = new mongoose.Schema(
       enum: ["WEBSITE", "ADMIN", null],
       default: null,
       index: true,
+    },
+
+    // Soft delete fields
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
+    deletedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+      default: null,
     },
   },
   { timestamps: true }

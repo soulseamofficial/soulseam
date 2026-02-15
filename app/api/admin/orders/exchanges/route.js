@@ -15,6 +15,7 @@ export async function GET(req) {
     await connectDB();
 
     // Fetch orders where exchange is requested or has an exchange status
+    // IMPORTANT: Always exclude deleted orders
     const exchangeOrders = await Order.find({
       $or: [
         { exchangeRequested: true },
@@ -22,7 +23,9 @@ export async function GET(req) {
       ],
       // Exclude cancelled or failed orders
       orderStatus: { $ne: "CANCELLED" },
-      paymentStatus: { $ne: "FAILED" }
+      paymentStatus: { $ne: "FAILED" },
+      // Exclude deleted orders
+      isDeleted: { $ne: true }
     })
       .sort({ exchangeRequestedAt: -1, createdAt: -1 });
 

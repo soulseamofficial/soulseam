@@ -16,11 +16,13 @@ export async function GET() {
     await connectDB();
 
     // Find orders for the authenticated user (both userId and guestUserId)
+    // IMPORTANT: Always exclude deleted orders
     const orders = await Order.find({
       $or: [
         { userId: user._id },
         { guestUserId: user._id }
-      ]
+      ],
+      isDeleted: { $ne: true }
     })
       .sort({ createdAt: -1 })
       .lean();

@@ -44,6 +44,10 @@ const UserSchema = new mongoose.Schema(
 
     // Address book (unlimited)
     addresses: { type: [AddressSchema], default: [] },
+
+    // Soft delete fields
+    isDeleted: { type: Boolean, default: false, index: true },
+    deletedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

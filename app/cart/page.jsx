@@ -12,22 +12,8 @@ export default function CartPage() {
   const { cartItems, removeItem, updateQuantity, orderMessage, setOrderMessage } = useCart();
   const router = useRouter();
 
-  const [coupon, setCoupon] = useState("");
-  const [couponApplied, setCouponApplied] = useState(false);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [messageInput, setMessageInput] = useState(orderMessage || "");
-
-  const subtotal = cartItems.reduce(
-    (sum, item) => sum + Number(item.price) * Number(item.quantity),
-    0
-  );
-
-  const discount =
-    couponApplied && coupon.trim().toUpperCase() === "PREMIUM15"
-      ? subtotal * 0.15
-      : 0;
-
-  const total = subtotal - discount;
 
   const handleSaveMessage = () => {
     if (messageInput.trim().length > 250) {
@@ -268,47 +254,6 @@ export default function CartPage() {
               <h2 className="text-lg sm:text-xl font-semibold tracking-widest">
                 YOUR ORDER
               </h2>
-
-              <div className="flex gap-2">
-                <input
-                  value={coupon}
-                  onChange={(e) => setCoupon(e.target.value)}
-                  placeholder="Gift card or discount code"
-                  className={`
-                    flex-1 bg-black/70 border border-white/15
-                    rounded-full px-4 py-3 text-xs sm:text-sm
-                    outline-none focus:border-white/40
-                  `}
-                />
-                <button
-                  onClick={() => setCouponApplied(true)}
-                  className={`
-                    px-5 rounded-full bg-white text-black font-semibold
-                    text-xs sm:text-sm
-                    active:bg-white/90
-                    md:hover:scale-105 transition
-                  `}
-                >
-                  Apply
-                </button>
-              </div>
-
-              <div className="space-y-2 text-xs sm:text-sm">
-                <div className="flex justify-between text-white/70">
-                  <span>Subtotal</span>
-                  <span>₹{subtotal}</span>
-                </div>
-                <div className="flex justify-between text-white/70">
-                  <span>Discount</span>
-                  <span className="text-green-400">
-                    -₹{discount.toFixed(0)}
-                  </span>
-                </div>
-                <div className="border-t border-white/10 pt-2 flex justify-between font-semibold">
-                  <span>Total</span>
-                  <span>₹{total.toFixed(0)}</span>
-                </div>
-              </div>
 
               {/* Add Message Button */}
               <button

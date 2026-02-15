@@ -35,7 +35,10 @@ export async function GET(req) {
     const skip = (validPage - 1) * validLimit;
 
     // Build query filter
-    let filter = {};
+    // IMPORTANT: Always exclude deleted orders
+    let filter = {
+      isDeleted: { $ne: true }
+    };
     
     if (userId) {
       // Validate ObjectId format
@@ -88,7 +91,7 @@ export async function GET(req) {
     // Fetch orders with pagination, filters, search, and sort
     // Use lean() for performance and select only needed fields
     const orders = await Order.find(filter)
-      .select("_id orderNumber userId guestUserId customer shippingAddress paymentMethod paymentStatus orderStatus totalAmount finalTotal total items createdAt deliveredAt isShipmentCreated delhiveryWaybill delhiveryTrackingUrl delhiveryCourierName delhiveryPartner delivery_status advancePaid remainingCOD razorpayPaymentId orderMessage exchangeRequested exchangeStatus exchangeRequestedAt")
+      .select("_id orderNumber userId guestUserId customer shippingAddress paymentMethod paymentStatus orderStatus subtotal discount discountAmount totalAmount finalTotal total items coupon createdAt deliveredAt isShipmentCreated delhiveryWaybill delhiveryTrackingUrl delhiveryCourierName delhiveryPartner delivery_status advancePaid remainingCOD razorpayPaymentId orderMessage exchangeRequested exchangeStatus exchangeRequestedAt")
       .sort(sortObj)
       .skip(skip)
       .limit(validLimit)

@@ -79,8 +79,7 @@ export default function AdminDashboardPage() {
             <StatCard label="Products" value="..." icon="🛍️" />
             <StatCard label="Reels" value="..." icon="🎬" />
             <StatCard label="Coupons" value="..." icon="🏷️" />
-            <StatCard label="Users" value="..." icon="👤" />
-            <StatCard label="Guest Users" value="..." icon="👥" />
+            <StatCard label="Customers" value="..." icon="👥" />
 
             {/* Orders (loading) */}
             <div className="bg-gradient-to-b from-white/10 to-white/0 border border-white/15 rounded-2xl p-6 shadow-[0_20px_80px_rgba(255,255,255,0.13)] backdrop-blur-xl flex items-center space-x-4">
@@ -101,16 +100,10 @@ export default function AdminDashboardPage() {
             <StatCard label="Reels" value={stats?.reels ?? 0} icon="🎬" />
             <StatCard label="Coupons" value={stats?.coupons ?? 0} icon="🏷️" />
             <StatCard 
-              label="Users" 
-              value={stats?.users ?? 0} 
-              icon="👤" 
-              onClick={() => router.push("/admin/users")}
-            />
-            <StatCard 
-              label="Guest Users" 
-              value={stats?.guestUsers ?? 0} 
+              label="Customers" 
+              value={(stats?.users ?? 0) + (stats?.guestUsers ?? 0)} 
               icon="👥" 
-              onClick={() => router.push("/admin/guest-users")}
+              onClick={() => router.push("/admin/customers")}
             />
 
             {/* ✅ Orders (SUCCESS) */}
