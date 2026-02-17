@@ -2,6 +2,7 @@ import "./globals.css";
 import { CartProvider } from "./CartContext";
 import Script from "next/script";
 import ToastContainer from "./components/Toast";
+import WhatsAppFloat from "./components/WhatsAppFloat";
 
 export const metadata = {
   title: "SoulSeam Official",
@@ -41,6 +42,7 @@ export default function RootLayout({ children }) {
         <CartProvider>
           {children}
           <ToastContainer />
+          <WhatsAppFloat />
         </CartProvider>
 
       </body>
