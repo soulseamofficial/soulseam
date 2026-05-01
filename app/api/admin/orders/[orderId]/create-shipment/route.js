@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/app/lib/db";
 import { requireAdminAuth } from "@/app/lib/adminAuth";
 import Order from "@/app/models/Order";
-import { sendOrderToDelhivery, logVerificationInstructions } from "@/app/lib/delhivery";
+// import { sendOrderToDelhivery, logVerificationInstructions } from "@/app/lib/delhivery";
 
 /**
  * POST /api/admin/orders/[orderId]/create-shipment
  * Creates a Delhivery shipment for an order (admin-only)
  * 
  * CRITICAL SAFETY FEATURES:
- * - Hard safety checks: Order exists, payment status is PAID
+ * - Hard safety checks: Order exists, payment status is PAID or PARTIALLY_PAID
  * - Atomic locking: Prevents double clicks and race conditions
  * - Lock release on failure: Prevents permanent blocking
  * - Manual-only: Shipment NEVER auto-created after payment
@@ -44,7 +44,8 @@ export async function POST(req, { params }) {
       );
     }
 
-    if (order.paymentStatus !== "PAID") {
+    const allowedPaymentStatuses = ["PAID", "PARTIALLY_PAID"];
+    if (!allowedPaymentStatuses.includes(order.paymentStatus)) {
       return NextResponse.json(
         { success: false, error: "Cannot ship unpaid order" },
         { status: 400 }

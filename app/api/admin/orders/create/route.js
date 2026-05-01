@@ -107,10 +107,12 @@ export async function POST(req) {
         );
       }
     }
+    const orderNumber = "ORD-" + Date.now();
 
     // STEP 3: Create order with userId linked
     const order = await Order.create({
       userId: user._id,
+      orderNumber: orderNumber,
       items,
       shippingAddress,
       paymentMethod: paymentMethod || "COD",
