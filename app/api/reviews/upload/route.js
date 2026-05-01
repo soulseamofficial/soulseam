@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getCloudinaryReview } from "@/app/lib/cloudinaryReview";
 
 export const runtime = "nodejs";
 
