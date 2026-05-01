@@ -34,7 +34,7 @@ export async function PATCH(req, { params }) {
     }
 
     // Validate order status
-    const validStatuses = ["CREATED", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"];
+    const validStatuses = ["CREATED", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED", "RTO_RETURNED"];
     if (!validStatuses.includes(orderStatus)) {
       return NextResponse.json(
         { success: false, error: "Invalid order status" },

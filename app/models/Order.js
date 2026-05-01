@@ -77,6 +77,10 @@ const OrderSchema = new mongoose.Schema(
     advanceAmount: { type: Number, default: 0, min: 0 }, // Expected advance amount (e.g., 100)
     advancePaid: { type: Number, default: 0, min: 0 }, // Actual advance paid
     remainingCOD: { type: Number, default: 0, min: 0 },
+    
+    // COD Collection tracking (for manual admin updates)
+    codCollectedAt: { type: Date, default: null }, // Timestamp when COD was collected
+    codCollectedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Admin", default: null }, // Admin who marked as paid
 
     // Order number (unique identifier like SS0001, SS0002, etc.)
     orderNumber: { 

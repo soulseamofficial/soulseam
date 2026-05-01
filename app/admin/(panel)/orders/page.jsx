@@ -113,12 +113,16 @@ export default function AdminOrdersPage() {
   const [expandedOrderId, setExpandedOrderId] = useState(null);
   const [updatingStatus, setUpdatingStatus] = useState({});
   const [creatingShipment, setCreatingShipment] = useState({});
+  const [markingCodPaid, setMarkingCodPaid] = useState({});
   const [filterInfo, setFilterInfo] = useState(null);
   const [selectedOrders, setSelectedOrders] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState(null);
+
+  // Allowed payment statuses for shipment creation
+  const allowedPaymentStatuses = ["PAID", "PARTIALLY_PAID"];
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -303,16 +307,21 @@ export default function AdminOrdersPage() {
     
     setCreatingShipment(prev => ({ ...prev, [orderId]: true }));
     try {
-      const res = await fetch(`/api/admin/orders/${orderId}/create-shipment`, {
+      const res = await fetch(`/api/delhivery/create-shipment`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
+        body: JSON.stringify({ orderId }),
       });
       
       const data = await res.json();
       if (data.success) {
         await refreshOrders();
-        alert(`Shipment created successfully!\nAWB: ${data.shipment?.waybill || "N/A"}\nCourier: ${data.shipment?.courierName || "N/A"}`);
+        setToast({
+          message: `Shipment created successfully! AWB: ${data.awb || "N/A"}`,
+          type: "success",
+        });
+        setTimeout(() => setToast(null), 5000);
       } else {
         // Extract error message with priority: error field > fallback
         const errorMessage = 
@@ -320,16 +329,62 @@ export default function AdminOrdersPage() {
           data.details?.rmk ||
           data.details?.message ||
           "Shipment creation failed";
-        alert(errorMessage);
+        setToast({
+          message: errorMessage,
+          type: "error",
+        });
+        setTimeout(() => setToast(null), 5000);
       }
     } catch (error) {
       console.error("Error creating shipment:", error);
       const errorMessage = 
         error?.message ||
         "An error occurred while creating shipment";
-      alert(errorMessage);
+      setToast({
+        message: errorMessage,
+        type: "error",
+      });
+      setTimeout(() => setToast(null), 5000);
     } finally {
       setCreatingShipment(prev => ({ ...prev, [orderId]: false }));
+    }
+  }
+
+  async function markCodAsPaid(orderId) {
+    if (markingCodPaid[orderId]) return;
+    
+    setMarkingCodPaid(prev => ({ ...prev, [orderId]: true }));
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/mark-cod-paid`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        await refreshOrders();
+        setToast({
+          message: "COD marked as fully paid successfully",
+          type: "success",
+        });
+        setTimeout(() => setToast(null), 5000);
+      } else {
+        setToast({
+          message: data.error || "Failed to mark COD as paid",
+          type: "error",
+        });
+        setTimeout(() => setToast(null), 5000);
+      }
+    } catch (error) {
+      console.error("Error marking COD as paid:", error);
+      setToast({
+        message: "An error occurred while marking COD as paid",
+        type: "error",
+      });
+      setTimeout(() => setToast(null), 5000);
+    } finally {
+      setMarkingCodPaid(prev => ({ ...prev, [orderId]: false }));
     }
   }
 
@@ -518,6 +573,7 @@ export default function AdminOrdersPage() {
               <option value="CONFIRMED">CONFIRMED</option>
               <option value="SHIPPED">SHIPPED</option>
               <option value="DELIVERED">DELIVERED</option>
+              <option value="RTO_RETURNED">RTO_RETURNED</option>
             </select>
             <select
               value={sortBy}
@@ -607,6 +663,18 @@ export default function AdminOrdersPage() {
                     <div>
                       <p className="text-xs text-white/50">Order ID</p>
                       <p className="font-semibold break-all text-xs">{order._id.slice(-8)}</p>
+                        {/* ✅ NEW: Order Created Date */}
+                      <p className="text-[11px] text-white/40 mt-1">
+                        {order.createdAt
+                          ? new Date(order.createdAt).toLocaleString("en-IN", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "N/A"}
+                      </p>
                     </div>
 
                     <div>
@@ -636,9 +704,15 @@ export default function AdminOrdersPage() {
                       <p className="font-semibold">
                         ₹{order.totalAmount || order.finalTotal || order.total || 0}
                       </p>
-                      {order.paymentMethod === "COD" && order.remainingCOD > 0 && (
+                      {order.paymentMethod === "COD" && (
                         <p className="text-xs text-white/60">
-                          Remaining: ₹{order.remainingCOD}
+                          Remaining: ₹{
+                            order.paymentStatus === "PAID" 
+                              ? 0 
+                              : (order.remainingCOD !== undefined && order.remainingCOD !== null
+                                  ? order.remainingCOD
+                                  : Math.max((order.subtotal || 0) - (order.advancePaid || 0), 0))
+                          }
                         </p>
                       )}
                     </div>
@@ -650,6 +724,7 @@ export default function AdminOrdersPage() {
                         (order.orderStatus || "CREATED") === "SHIPPED" ? "bg-blue-500/20 text-blue-400 border-blue-500/30" :
                         (order.orderStatus || "CREATED") === "CONFIRMED" ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" :
                         (order.orderStatus || "CREATED") === "CANCELLED" ? "bg-red-500/20 text-red-400 border-red-500/30" :
+                        (order.orderStatus || "CREATED") === "RTO_RETURNED" ? "bg-red-500/20 text-red-400 border-red-500/30" :
                         (order.orderStatus || "CREATED") === "PENDING" || (order.orderStatus || "CREATED") === "CREATED" ? "bg-red-500/20 text-red-400 border-red-500/30" :
                         "bg-white/10 text-white/70 border-white/20"
                       }`}>
@@ -694,6 +769,7 @@ export default function AdminOrdersPage() {
                             (order.orderStatus || "CREATED") === "SHIPPED" ? "bg-blue-500/20 text-blue-400 border-blue-500/30" :
                             (order.orderStatus || "CREATED") === "CONFIRMED" ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" :
                             (order.orderStatus || "CREATED") === "CANCELLED" ? "bg-red-500/20 text-red-400 border-red-500/30" :
+                            (order.orderStatus || "CREATED") === "RTO_RETURNED" ? "bg-red-500/20 text-red-400 border-red-500/30" :
                             (order.orderStatus || "CREATED") === "PENDING" || (order.orderStatus || "CREATED") === "CREATED" ? "bg-red-500/20 text-red-400 border-red-500/30" :
                             "bg-white/10 text-white/70 border-white/20"
                           }`}>
@@ -710,6 +786,7 @@ export default function AdminOrdersPage() {
                             <option value="SHIPPED">SHIPPED</option>
                             <option value="DELIVERED">DELIVERED</option>
                             <option value="CANCELLED">CANCELLED</option>
+                            <option value="RTO_RETURNED">RTO_RETURNED</option>
                           </select>
                           {updatingStatus[order._id] && (
                             <span className="text-xs text-white/60">Updating...</span>
@@ -731,11 +808,16 @@ export default function AdminOrdersPage() {
                     <div className="mb-4 p-4 rounded-xl bg-gradient-to-br from-blue-900/20 to-indigo-900/20 border border-blue-500/30">
                       <p className="text-sm font-semibold text-blue-400 mb-3">Shipment Management</p>
                       
-                      {order.isShipmentCreated ? (
+                      {order.isShipmentCreated || order.delhiveryAWB || order.delhiveryWaybill ? (
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
                             <span className="px-2 py-1 rounded text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/30">
                               ✅ Shipment Created
+                              {(order.delhiveryAWB || order.delhiveryWaybill) && (
+                                <span className="ml-2 font-mono">
+                                  - AWB: {order.delhiveryAWB || order.delhiveryWaybill}
+                                </span>
+                              )}
                             </span>
                           </div>
                           {(order.delhiveryAWB || order.delhiveryWaybill) && (
@@ -780,7 +862,7 @@ export default function AdminOrdersPage() {
                         </div>
                       ) : (
                         <div className="space-y-3">
-                          {order.paymentStatus === "PAID" && order.orderStatus === "CONFIRMED" ? (
+                          {allowedPaymentStatuses.includes(order.paymentStatus) && order.orderStatus === "CONFIRMED" ? (
                             <div>
                               <p className="text-xs text-white/60 mb-2">No shipment created yet</p>
                               <button
@@ -803,8 +885,8 @@ export default function AdminOrdersPage() {
                           ) : (
                             <div>
                               <p className="text-xs text-amber-400">
-                                ⚠️ Order must be PAID and CONFIRMED to create shipment. 
-                                {order.paymentStatus !== "PAID" && ` Payment: ${order.paymentStatus}`}
+                                ⚠️ Order must be PAID or PARTIALLY_PAID and CONFIRMED to create shipment. 
+                                {!allowedPaymentStatuses.includes(order.paymentStatus) && ` Payment: ${order.paymentStatus}`}
                                 {order.orderStatus !== "CONFIRMED" && ` Status: ${order.orderStatus}`}
                               </p>
                             </div>
@@ -836,14 +918,48 @@ export default function AdminOrdersPage() {
                       </div>
                       <div>
                         <p className="text-sm text-white/60 mb-2">Payment Status</p>
-                        <p className={`font-semibold capitalize ${
-                          (order.paymentStatus || "PENDING") === "PAID" ? "text-green-400" :
-                          (order.paymentStatus || "PENDING") === "FAILED" ? "text-red-400" :
-                          (order.paymentStatus || "PENDING") === "PENDING" ? "text-yellow-400" :
-                          "text-yellow-400"
-                        }`}>
-                          {order.paymentStatus || order.payment?.status || "PENDING"}
-                        </p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className={`font-semibold capitalize ${
+                            (order.paymentStatus || "PENDING") === "PAID" ? "text-green-400" :
+                            (order.paymentStatus || "PENDING") === "FAILED" ? "text-red-400" :
+                            (order.paymentStatus || "PENDING") === "PENDING" ? "text-yellow-400" :
+                            "text-yellow-400"
+                          }`}>
+                            {order.paymentStatus || order.payment?.status || "PENDING"}
+                          </p>
+                          {/* Mark COD as Paid Button - Only for COD orders that are DELIVERED and not PAID */}
+                          {order.paymentMethod === "COD" && 
+                           order.orderStatus === "DELIVERED" && 
+                           order.paymentStatus !== "PAID" && (
+                            <button
+                              onClick={() => markCodAsPaid(order._id)}
+                              disabled={markingCodPaid[order._id]}
+                              className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            >
+                              {markingCodPaid[order._id] ? (
+                                <>
+                                  <span className="animate-spin">⏳</span>
+                                  Marking...
+                                </>
+                              ) : (
+                                <>
+                                  ✓ Mark as Fully Paid
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
+                        {order.codCollectedAt && (
+                          <p className="text-xs text-white/50 mt-1">
+                            Collected: {new Date(order.codCollectedAt).toLocaleDateString("en-IN", {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -896,7 +1012,13 @@ export default function AdminOrdersPage() {
                           <div>
                             <p className="text-xs text-white/60">Remaining COD</p>
                             <p className="font-bold text-white">
-                              ₹{order.remainingCOD || (order.totalAmount || order.total || 0)}
+                              ₹{
+                                order.paymentStatus === "PAID" 
+                                  ? 0 
+                                  : (order.remainingCOD !== undefined && order.remainingCOD !== null
+                                      ? order.remainingCOD
+                                      : Math.max((order.subtotal || 0) - (order.advancePaid || 0), 0))
+                              }
                             </p>
                           </div>
                         </div>
