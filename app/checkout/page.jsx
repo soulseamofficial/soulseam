@@ -213,117 +213,117 @@ function CouponDropdown({
   const isFirstOrder = isLoggedIn && orderCount === 0;
 
   // CASE 1: Guest user - show login message only
-  if (!isLoggedIn) {
-    return (
-      <div className="mt-4">
-        <div className="p-4 rounded-xl bg-gradient-to-r from-yellow-500/10 via-yellow-500/8 to-yellow-500/10 border border-yellow-400/30">
-          <div className="flex items-center gap-2">
-            <span className="text-yellow-300/90 text-lg">🏷️</span>
-            <p className="text-yellow-300/90 text-sm font-semibold">
-              Login to unlock special offers and coupons
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // if (!isLoggedIn) {
+  //   return (
+  //     <div className="mt-4">
+  //       <div className="p-4 rounded-xl bg-gradient-to-r from-yellow-500/10 via-yellow-500/8 to-yellow-500/10 border border-yellow-400/30">
+  //         <div className="flex items-center gap-2">
+  //           <span className="text-yellow-300/90 text-lg">🏷️</span>
+  //           <p className="text-yellow-300/90 text-sm font-semibold">
+  //             Login to unlock special offers and coupons
+  //           </p>
+  //         </div>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   // CASE 2: First order user - show only first-order coupon
-  if (isFirstOrder) {
-    if (activeCoupons.length === 0 && !appliedCoupon) {
-      return (
-        <div className="mt-4">
-          <p className="text-white/60 text-sm font-medium">
-            No first-order offers available right now
-          </p>
-        </div>
-      );
-    }
+  // if (isFirstOrder) {
+  //   if (activeCoupons.length === 0 && !appliedCoupon) {
+  //     return (
+  //       <div className="mt-4">
+  //         <p className="text-white/60 text-sm font-medium">
+  //           No first-order offers available right now
+  //         </p>
+  //       </div>
+  //     );
+  //   }
 
-    return (
-      <div className="mt-4">
-        {appliedCoupon && appliedCouponCode && (
-          <div className="mb-3 space-y-2">
-            <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-green-500/10 border border-green-400/30">
-              <div className="flex items-center gap-2">
-                <span className="text-green-300/90 text-sm font-bold">✔</span>
-                <span className="text-green-300/90 text-sm font-semibold">
-                  Coupon Applied: <span className="font-bold">{appliedCouponCode}</span>
-                </span>
-              </div>
-              {onRemoveCoupon && (
-                <button
-                  type="button"
-                  onClick={onRemoveCoupon}
-                  className="px-3 py-1.5 text-xs font-bold text-blue-300 hover:text-blue-200 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-400/30 hover:border-blue-400/50 rounded-lg transition-all duration-300"
-                >
-                  Change Coupon
-                </button>
-              )}
-            </div>
-            {couponDiscount > 0 && (
-              <div className="p-3 rounded-xl bg-green-500/5 border border-green-400/20">
-                <p className="text-green-300/95 text-sm font-bold">
-                  You saved ₹{couponDiscount.toLocaleString()} 🎉
-                </p>
-              </div>
-            )}
-            {/* Disclaimer when coupon is applied */}
-            <div className="mt-3 p-3 rounded-lg bg-amber-500/5 border border-amber-400/20">
-              <p className="text-amber-300/90 text-xs font-medium leading-relaxed">
-                <span className="font-semibold">Note:</span><br />
-                Our policy: 3-day exchange only. No returns.<br />
-                Orders placed using coupons require a valid reason and mandatory unboxing video proof for exchanges.
-              </p>
-            </div>
-          </div>
-        )}
+  //   return (
+  //     <div className="mt-4">
+  //       {appliedCoupon && appliedCouponCode && (
+  //         <div className="mb-3 space-y-2">
+  //           <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-green-500/10 border border-green-400/30">
+  //             <div className="flex items-center gap-2">
+  //               <span className="text-green-300/90 text-sm font-bold">✔</span>
+  //               <span className="text-green-300/90 text-sm font-semibold">
+  //                 Coupon Applied: <span className="font-bold">{appliedCouponCode}</span>
+  //               </span>
+  //             </div>
+  //             {onRemoveCoupon && (
+  //               <button
+  //                 type="button"
+  //                 onClick={onRemoveCoupon}
+  //                 className="px-3 py-1.5 text-xs font-bold text-blue-300 hover:text-blue-200 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-400/30 hover:border-blue-400/50 rounded-lg transition-all duration-300"
+  //               >
+  //                 Change Coupon
+  //               </button>
+  //             )}
+  //           </div>
+  //           {couponDiscount > 0 && (
+  //             <div className="p-3 rounded-xl bg-green-500/5 border border-green-400/20">
+  //               <p className="text-green-300/95 text-sm font-bold">
+  //                 You saved ₹{couponDiscount.toLocaleString()} 🎉
+  //               </p>
+  //             </div>
+  //           )}
+  //           {/* Disclaimer when coupon is applied */}
+  //           <div className="mt-3 p-3 rounded-lg bg-amber-500/5 border border-amber-400/20">
+  //             <p className="text-amber-300/90 text-xs font-medium leading-relaxed">
+  //               <span className="font-semibold">Note:</span><br />
+  //               Our policy: 3-day exchange only. No returns.<br />
+  //               Orders placed using coupons require a valid reason and mandatory unboxing video proof for exchanges.
+  //             </p>
+  //           </div>
+  //         </div>
+  //       )}
         
-        {!appliedCoupon && (
-          <div className="relative">
-            <label className="block text-sm font-semibold text-white/90 mb-2">
-              🎉 First Order Offer
-            </label>
-            <select
-              value=""
-              onChange={(e) => {
-                if (e.target.value && onCouponSelect) {
-                  onCouponSelect(e.target.value);
-                }
-              }}
-              disabled={appliedCoupon || loading}
-              className={`
-                w-full rounded-2xl px-4 py-2.5 bg-black/85 border-2 border-yellow-400/40 text-white
-                font-semibold outline-none ring-0
-                transition-all duration-600 ease-out
-                focus:ring-2 focus:ring-yellow-400/30 focus:border-yellow-400/60 focus:bg-black/80
-                hover:border-yellow-400/50
-                ${appliedCoupon || loading ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}
-                ${couponError ? "border-red-400/50 focus:border-red-400/70" : ""}
-              `}
-              style={{
-                fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
-              }}
-            >
-              <option value="" disabled>
-                Select your first order offer
-              </option>
-              {activeCoupons.map((coupon) => (
-                <option key={coupon.code} value={coupon.code}>
-                  {formatCouponOption(coupon)}
-                </option>
-              ))}
-            </select>
-            {couponError && (
-              <span className="mt-2 block text-sm font-semibold text-red-400 animate-premiumPulse">
-                {couponError}
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  }
+  //       {!appliedCoupon && (
+  //         <div className="relative">
+  //           <label className="block text-sm font-semibold text-white/90 mb-2">
+  //             🎉 First Order Offer
+  //           </label>
+  //           <select
+  //             value=""
+  //             onChange={(e) => {
+  //               if (e.target.value && onCouponSelect) {
+  //                 onCouponSelect(e.target.value);
+  //               }
+  //             }}
+  //             disabled={appliedCoupon || loading}
+  //             className={`
+  //               w-full rounded-2xl px-4 py-2.5 bg-black/85 border-2 border-yellow-400/40 text-white
+  //               font-semibold outline-none ring-0
+  //               transition-all duration-600 ease-out
+  //               focus:ring-2 focus:ring-yellow-400/30 focus:border-yellow-400/60 focus:bg-black/80
+  //               hover:border-yellow-400/50
+  //               ${appliedCoupon || loading ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}
+  //               ${couponError ? "border-red-400/50 focus:border-red-400/70" : ""}
+  //             `}
+  //             style={{
+  //               fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
+  //             }}
+  //           >
+  //             <option value="" disabled>
+  //               Select your first order offer
+  //             </option>
+  //             {activeCoupons.map((coupon) => (
+  //               <option key={coupon.code} value={coupon.code}>
+  //                 {formatCouponOption(coupon)}
+  //               </option>
+  //             ))}
+  //           </select>
+  //           {couponError && (
+  //             <span className="mt-2 block text-sm font-semibold text-red-400 animate-premiumPulse">
+  //               {couponError}
+  //             </span>
+  //           )}
+  //         </div>
+  //       )}
+  //     </div>
+  //   );
+  // }
 
   // CASE 3: Returning user - show all coupons
   if (activeCoupons.length === 0 && !appliedCoupon) {
@@ -338,84 +338,84 @@ function CouponDropdown({
 
   return (
     <div className="mt-4">
-      {appliedCoupon && appliedCouponCode && (
-        <div className="mb-3 space-y-2">
-          <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-green-500/10 border border-green-400/30">
-            <div className="flex items-center gap-2">
-              <span className="text-green-300/90 text-sm font-bold">✔</span>
-              <span className="text-green-300/90 text-sm font-semibold">
-                Coupon Applied: <span className="font-bold">{appliedCouponCode}</span>
+    {appliedCoupon && appliedCouponCode && (
+          <div className="mt-3 p-4 rounded-2xl 
+            bg-gradient-to-r from-green-500/10 to-green-400/5
+            border border-green-400/30
+            flex items-center justify-between">
+
+            <div className="flex flex-col">
+              <span className="text-green-300 text-sm font-bold">
+                🎉 Coupon Applied
+              </span>
+              <span className="text-white font-semibold text-sm">
+                {appliedCouponCode}
               </span>
             </div>
-            {onRemoveCoupon && (
-              <button
-                type="button"
-                onClick={onRemoveCoupon}
-                className="px-3 py-1.5 text-xs font-bold text-blue-300 hover:text-blue-200 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-400/30 hover:border-blue-400/50 rounded-lg transition-all duration-300"
-              >
-                Change Coupon
-              </button>
-            )}
+
+            <button
+              onClick={onRemoveCoupon}
+              className="text-xs font-bold text-red-400 hover:text-red-300"
+            >
+              Remove
+            </button>
           </div>
-          {couponDiscount > 0 && (
-            <div className="p-3 rounded-xl bg-green-500/5 border border-green-400/20">
-              <p className="text-green-300/95 text-sm font-bold">
-                You saved ₹{couponDiscount.toLocaleString()} 🎉
-              </p>
-            </div>
-          )}
-          {/* Disclaimer when coupon is applied */}
-          <div className="mt-3 p-3 rounded-lg bg-amber-500/5 border border-amber-400/20">
-            <p className="text-amber-300/90 text-xs font-medium leading-relaxed">
-              <span className="font-semibold">Note:</span><br />
-              Our policy: 3-day exchange only. No returns.<br />
-              Orders placed using coupons require a valid reason and mandatory unboxing video proof for exchanges.
-            </p>
-          </div>
-        </div>
-      )}
-      
+        )}
+  
       {!appliedCoupon && (
+        <div className="mt-4 space-y-3">
+
+        {/* Label */}
+        <p className="text-sm font-semibold text-white/80">
+          🎁 Apply Coupon
+        </p>
+      
+        {/* Coupon Box */}
         <div className="relative">
-          <label className="block text-sm font-semibold text-white/90 mb-2">
-            Apply Coupon
-          </label>
+      
           <select
-            value=""
             onChange={(e) => {
-              if (e.target.value && onCouponSelect) {
-                onCouponSelect(e.target.value);
+              if (e.target.value && typeof onCouponSelect === "function") {
+                if (window.confirm("Apply this coupon?")) {
+                  onCouponSelect(e.target.value);
+                }
               }
             }}
             disabled={appliedCoupon || loading}
             className={`
-              w-full rounded-2xl px-4 py-2.5 bg-black/85 border border-white/15 text-white
-              font-semibold outline-none ring-0
-              transition-all duration-600 ease-out
-              focus:ring-2 focus:ring-white/20 focus:border-white/40 focus:bg-black/80
-              hover:border-white/25
-              ${appliedCoupon || loading ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}
-              ${couponError ? "border-red-400/50 focus:border-red-400/70" : ""}
+              w-full appearance-none
+              rounded-2xl px-4 py-3
+              bg-gradient-to-b from-black/80 to-black/60
+              border border-white/20
+              text-white font-semibold
+              outline-none
+              transition-all duration-300
+      
+              hover:border-white/40
+              focus:border-white/60 focus:ring-2 focus:ring-white/20
+      
+              ${appliedCoupon ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}
             `}
-            style={{
-              fontFamily: "Inter,Poppins,Neue Haas,sans-serif",
-            }}
           >
-            <option value="" disabled>
-              Select an available offer
-            </option>
+            <option value="">Select coupon</option>
+      
             {activeCoupons.map((coupon) => (
               <option key={coupon.code} value={coupon.code}>
-                {formatCouponOption(coupon)}
+                {coupon.code} — {
+                  coupon.discountType === "flat"
+                    ? `₹${coupon.discountValue}`
+                    : `${coupon.discountValue}% OFF`
+                }
               </option>
             ))}
           </select>
-          {couponError && (
-            <span className="mt-2 block text-sm font-semibold text-red-400 animate-premiumPulse">
-              {couponError}
-            </span>
-          )}
+      
+          {/* Dropdown Icon */}
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50">
+            ▼
+          </span>
         </div>
+      </div>
       )}
     </div>
   );
@@ -765,7 +765,7 @@ function usePasswordVerification(accountEnabled, step) {
 }
 
 // --- Discount (was missing from right summary if coupon applied) ---
-const discount = 0;
+// const discount = 0;
 
 // --- MAIN PAGE ---
 // ---- Premium OUR POLICY Section Component ----
@@ -3635,6 +3635,7 @@ export default function CheckoutPage() {
                   >
                     Total
                   </span>
+                  
                   <span
                     className={`tracking-widest font-extrabold
                       text-lg sm:text-xl

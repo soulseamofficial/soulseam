@@ -40,6 +40,10 @@ const CouponSchema = new mongoose.Schema({
   isFirstOrderCoupon: {
     type: Boolean,
     default: false
+  },
+  requiresLogin: {
+    type: Boolean,
+    default: false
   }
 }, { timestamps: true });
 
