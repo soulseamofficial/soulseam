@@ -14,6 +14,7 @@ export default function CouponsPage() {
     expiryDate: "",
     isActive: true,
     isFirstOrderCoupon: false,
+    requiresLogin: false,
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -94,6 +95,7 @@ export default function CouponsPage() {
         expiryDate: "",
         isActive: true,
         isFirstOrderCoupon: false,
+        requiresLogin: false,
       });
       fetchCoupons();
       
@@ -343,6 +345,16 @@ export default function CouponsPage() {
               />
               <span>First Order Coupon</span>
             </label>
+            <label className="flex items-center gap-2 text-white/80">
+            <input
+              type="checkbox"
+              checked={form.requiresLogin}
+              onChange={(e) =>
+                setForm({ ...form, requiresLogin: e.target.checked })
+              }
+            />
+            Login Required Coupon
+          </label>
 
             <button
               type="submit"
